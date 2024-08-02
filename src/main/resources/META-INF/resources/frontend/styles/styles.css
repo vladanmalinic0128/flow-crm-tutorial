@@ -1,0 +1,13 @@
+/* Custom style for the active primary tab */
+.side-nav-item-active {
+    font-weight: bold;
+    color: var(--lumo-primary-text-color);
+    background-color: var(--lumo-primary-color-10pct); /* Light primary color background */
+}
+
+/* Custom style for the active secondary tab */
+.secondary-tab-active {
+    font-weight: bold;
+    color: var(--lumo-primary-text-color);
+    background-color: var(--lumo-primary-color-10pct); /* Light primary color background */
+}

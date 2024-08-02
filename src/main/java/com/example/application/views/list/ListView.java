@@ -1,35 +1,66 @@
 package com.example.application.views.list;
 
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Image;
-import com.vaadin.flow.component.html.Paragraph;
+import com.example.application.services.PoliticalOrganizationService;
+import com.example.application.services.StackService;
+import com.example.application.views.MainLayout;
+import com.vaadin.flow.component.Tag;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
-import com.vaadin.flow.theme.lumo.LumoUtility.Margin;
 
-@PageTitle("list")
-@Route(value = "")
-@RouteAlias(value = "")
+import java.io.InputStream;
+
+@PageTitle("Posmatraci | Opstina")
+@Tag("div")
+@Route(value = "posmatraci/novi", layout = MainLayout.class)
 public class ListView extends VerticalLayout {
+    private final StackService stackService;
+    private final PoliticalOrganizationService politicalOrganizationService;
+    public ListView(StackService stackService,
+                    PoliticalOrganizationService politicalOrganizationService) {
+        this.stackService = stackService;
+        this.politicalOrganizationService = politicalOrganizationService;
 
-    public ListView() {
-        setSpacing(false);
+        Upload upload = configureFileUpload();
+        add(upload);
 
-        Image img = new Image("images/empty-plant.png", "placeholder plant");
-        img.setWidth("200px");
-        add(img);
+        add(new H1("Hello World!"));
 
-        H2 header = new H2("This place intentionally left empty");
-        header.addClassNames(Margin.Top.XLARGE, Margin.Bottom.MEDIUM);
-        add(header);
-        add(new Paragraph("It’s a place where you can grow your own UI 🤗"));
-
-        setSizeFull();
-        setJustifyContentMode(JustifyContentMode.CENTER);
-        setDefaultHorizontalComponentAlignment(Alignment.CENTER);
-        getStyle().set("text-align", "center");
+        Button button = new Button("Click me");
+        add(button);
     }
+
+    private Upload configureFileUpload() {
+        MemoryBuffer buffer = new MemoryBuffer();
+
+        Upload upload = new Upload(buffer);
+        upload.setDropAllowed(false);
+
+        // Label for upload
+        NativeLabel dropEnabledLabel = new NativeLabel("Postavite excel fajl ovde");
+        dropEnabledLabel.getStyle().set("font-weight", "600");
+        upload.setId("upload-drop-enabled");
+        dropEnabledLabel.setFor(upload.getId().get());
+
+        upload.setAcceptedFileTypes("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        upload.setMaxFiles(1);
+
+        // Style upload component
+        upload.getElement().getStyle().set("width", "80%");
+
+        upload.addSucceededListener(event -> {
+            InputStream inputStream = buffer.getInputStream();
+            //stackService.addStackThroughXlsxFile(inputStream);
+        });
+
+        return upload;
+    }
+
 
 }
