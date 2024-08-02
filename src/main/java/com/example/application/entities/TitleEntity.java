@@ -18,4 +18,12 @@ public class TitleEntity {
     private String name;
     @OneToMany(mappedBy = "title", fetch = FetchType.LAZY)
     private List<ConstraintEntity> constraints;
+
+    @Override
+    public String toString() {
+        return "TitleEntity{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                '}';
+    }
 }

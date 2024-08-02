@@ -25,4 +25,14 @@ public class MemberStatusEntity {
     private String description;
     @OneToMany(mappedBy = "memberStatus")
     private List<MemberEntity> members;
+
+    @Override
+    public String toString() {
+        return "MemberStatusEntity{" +
+                "id=" + id +
+                ", success=" + success +
+                ", name='" + name + '\'' +
+                ", description='" + description + '\'' +
+                '}';
+    }
 }

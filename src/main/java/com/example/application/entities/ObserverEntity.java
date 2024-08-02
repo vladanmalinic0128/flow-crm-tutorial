@@ -41,4 +41,17 @@ public class ObserverEntity {
     public String getFullName() {
         return firstname + " " + lastname;
     }
+
+    @Override
+    public String toString() {
+        return "ObserverEntity{" +
+                "id=" + id +
+                ", lastname='" + lastname + '\'' +
+                ", firstname='" + firstname + '\'' +
+                ", jmbg='" + jmbg + '\'' +
+                ", cardId='" + cardId + '\'' +
+                ", force=" + force +
+                ", documentNumber=" + documentNumber +
+                '}';
+    }
 }

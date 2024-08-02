@@ -22,5 +22,14 @@ public class StatusEntity {
     @Column(name = "name")
     private String name;
     @OneToMany(mappedBy = "status", fetch = FetchType.EAGER)
-    private Collection<ReasonEntity> reasons;
+    private List<ReasonEntity> reasons;
+
+    @Override
+    public String toString() {
+        return "StatusEntity{" +
+                "id=" + id +
+                ", success=" + success +
+                ", name='" + name + '\'' +
+                '}';
+    }
 }

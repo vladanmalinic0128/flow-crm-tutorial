@@ -41,5 +41,17 @@ public class VotingCouncelEntity {
     @ManyToOne
     @JoinColumn(name = "mentor_id", referencedColumnName = "id", nullable = false)
     private MentorEntity mentor;
+
+    @Override
+    public String toString() {
+        return "VotingCouncelEntity{" +
+                "id=" + id +
+                ", code='" + code + '\'' +
+                ", name='" + name + '\'' +
+                ", location='" + location + '\'' +
+                ", numberOfVoters=" + numberOfVoters +
+                ", numberOfMembers=" + numberOfMembers +
+                '}';
+    }
 }
 

@@ -33,5 +33,14 @@ public class ConstraintEntity {
 
     @OneToMany(mappedBy = "constraint", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MemberEntity> members = new ArrayList<>();
+
+    @Override
+    public String toString() {
+        return "ConstraintEntity{" +
+                "id=" + id +
+                ", position=" + position +
+                ", title=" + title +
+                '}';
+    }
 }
 

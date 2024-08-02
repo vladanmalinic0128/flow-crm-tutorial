@@ -79,7 +79,7 @@ public class ObserverPdfService {
     private static final String RED_HEADER = "#a00b24";
     private static final String RED_DATA = "#f9a4b3";
 
-    public String downloadAccreditatationsPdf(StackEntity entity, LocalDate datePicker, ScriptEnum script, SideEnum sideNumber) {
+    public String downloadAccreditatationsPdf(StackEntity entity, LocalDate datePicker, ScriptEnum script, SideEnum sideNumber, String fileTitle) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PdfWriter writer = new PdfWriter(out);
         PdfDocument pdfDoc = new PdfDocument(writer);
@@ -159,9 +159,8 @@ public class ObserverPdfService {
 
         document.close();
 
-        String fileName = ROOT_PATH + File.separator + entity.getDecisionNumber() + "_" + System.currentTimeMillis() + ".pdf";
-
-        try (FileOutputStream fos = new FileOutputStream(fileName)) {
+        String filePath = ROOT_PATH + File.separator + fileTitle;
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
             out.writeTo(fos);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
@@ -169,7 +168,7 @@ public class ObserverPdfService {
             throw new RuntimeException(e);
         }
 
-        return fileName;
+        return filePath;
     }
 
     private Paragraph generateBackPageForAccreditation(ScriptEnum script) {
@@ -425,7 +424,7 @@ public class ObserverPdfService {
         return scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(value) : value;
     }
 
-    public String downloadAcceptedObserversXslx(StackEntity entity, ScriptEnum scriptEnum) {
+    public String downloadAcceptedObserversXslx(StackEntity entity, ScriptEnum scriptEnum, String fileTitle) {
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet acceptedObservers = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("Prihvaćeni") : "Prihvaćeni");
 
@@ -450,10 +449,10 @@ public class ObserverPdfService {
             counter++;
         }
 
-        String fileName = ROOT_PATH + File.separator + entity.getDecisionNumber() + "_" + System.currentTimeMillis() + ".xlsx";
+        String filePath = ROOT_PATH + File.separator + fileTitle;
         FileOutputStream outputStream = null;
         try {
-            outputStream = new FileOutputStream(fileName);
+            outputStream = new FileOutputStream(filePath);
             workbook.write(outputStream);
 
         } catch (FileNotFoundException e) {
@@ -470,7 +469,7 @@ public class ObserverPdfService {
             }
         }
 
-        return "";
+        return filePath;
     }
 
     private void addHeaderForAcceptedObservers(XSSFSheet sheet, ScriptEnum scriptEnum) {

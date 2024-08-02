@@ -16,6 +16,7 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.details.DetailsVariant;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -24,6 +25,11 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.StreamResource;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 
 
 @Route(value = "posmatraci/izvjestaji", layout = MainLayout.class)
@@ -138,6 +144,7 @@ public class ObserverReportsView extends VerticalLayout {
             accordion.remove(accordionPanel);
         });
 
+
         horizontalLayout.add(pdfButton, acceptedButton, deleteButton);
     }
 
@@ -153,27 +160,36 @@ public class ObserverReportsView extends VerticalLayout {
         Button saveButton = new Button("Generiši");
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
+        String fileTitle = entity.getDecisionNumber().replace("/", "_") + "_" + System.currentTimeMillis() + ".xlsx";
 
-        saveButton.addClickListener(e -> {
-            handleAcceptedObservers(entity, saveButton);
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            String stringPath = handleAcceptedObservers(entity, saveButton, fileTitle);
             dialog.close();
-        });
+            if(stringPath != null)
+                return getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
 
         Button cancelButton = new Button("Otkaži", e -> dialog.close());
 
         dialog.getFooter().add(cancelButton);
-        dialog.getFooter().add(saveButton);
+        dialog.getFooter().add(saveButtonAnchor);
 
         dialog.open();
     }
 
-    private void handleAcceptedObservers(StackEntity entity, Button saveButton) {
+    private String handleAcceptedObservers(StackEntity entity, Button saveButton, String fileTitle) {
         if(scripts.getValue() == null) {
             Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
+            return null;
         }
-        String xlsxPath  = observerPdfService.downloadAcceptedObserversXslx(entity, scripts.getValue());
+        return observerPdfService.downloadAcceptedObserversXslx(entity, scripts.getValue(), fileTitle);
     }
 
     private void showAlertForOverallPdf(PoliticalOrganizationEntity entity) {
@@ -267,16 +283,26 @@ public class ObserverReportsView extends VerticalLayout {
         Button saveButton = new Button("Generiši");
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
+        String fileTitle = entity.getDecisionNumber().replace("/", "_") + "_" + System.currentTimeMillis() + ".pdf";
 
-        saveButton.addClickListener(e -> {
-            handleAccreditationsPdf(entity, saveButton);
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            String stringPath = handleAccreditationsPdf(entity, saveButton, fileTitle);
             dialog.close();
-        });
+            if(stringPath != null)
+                return getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+
 
         Button cancelButton = new Button("Otkaži", e -> dialog.close());
 
         dialog.getFooter().add(cancelButton);
-        dialog.getFooter().add(saveButton);
+        dialog.getFooter().add(saveButtonAnchor);
 
         dialog.open();
     }
@@ -296,24 +322,39 @@ public class ObserverReportsView extends VerticalLayout {
         return layout;
     }
 
-    private void handleAccreditationsPdf(StackEntity entity, Button saveButton) {
+    private String handleAccreditationsPdf(StackEntity entity, Button saveButton, String fileTitle) {
         if(scripts.getValue() == null) {
             Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
+            return null;
         } else if(printType.getValue() == null)  {
             Notification notification = Notification.show("Morate odabrati tip printa", 3000, Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
+            return null;
         } else if(datePicker.getValue() == null)  {
             Notification notification = Notification.show("Morate odabrati datum", 3000, Notification.Position.MIDDLE);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-            return;
+            return null;
         }
         try {
-            String pdfPath = observerPdfService.downloadAccreditatationsPdf(entity, datePicker.getValue(), scripts.getValue(), printType.getValue());
+            return observerPdfService.downloadAccreditatationsPdf(entity, datePicker.getValue(), scripts.getValue(), printType.getValue(), fileTitle);
         } catch (Exception ex) {
             ex.printStackTrace();
+            return null;
         }
     }
+
+    private InputStream getStream(String fileString) {
+        File file = new File(fileString);
+        FileInputStream stream = null;
+
+        try {
+            stream = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return stream;
+    }
+
 }

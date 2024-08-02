@@ -29,5 +29,15 @@ public class MentorEntity {
 
     @OneToMany(mappedBy = "mentor", fetch = FetchType.LAZY)
     private List<VotingCouncelEntity> votingCouncels;
+
+    @Override
+    public String toString() {
+        return "MentorEntity{" +
+                "id=" + id +
+                ", firstname='" + firstname + '\'' +
+                ", lastname='" + lastname + '\'' +
+                ", email='" + email + '\'' +
+                '}';
+    }
 }
 

@@ -18,6 +18,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.listbox.MultiSelectListBox;
@@ -27,14 +28,12 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.StreamResource;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -172,16 +171,25 @@ public class DrawingView extends VerticalLayout {
             drawingLayout.add(horizontalLayout);
         }
         Button button = new Button("Generiši biračke odbore");
-        button.addClickListener(e -> {
+        String fileTitle = "zrijebanje_" + System.currentTimeMillis() + ".xlsx";
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
 
             generateVotingCouncels(comboBoxes);
-            String path = generateExcelFileForDrawing();
-        });
+            String stringPath = generateExcelFileForDrawing(fileTitle);
+            if(stringPath != null)
+                return getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(button);
 
         button.setWidthFull();
         button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        drawingLayout.add(button);
+        drawingLayout.add(saveButtonAnchor);
     }
 
     private void generateVotingCouncels(List<ComboBox<PoliticalOrganizationEntity>> comboBoxes) {
@@ -254,7 +262,7 @@ public class DrawingView extends VerticalLayout {
         return dialog;
     }
 
-    private String generateExcelFileForDrawing() {
+    private String generateExcelFileForDrawing(String fileTitle) {
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("БО-жријебање");
 
@@ -630,7 +638,7 @@ public class DrawingView extends VerticalLayout {
         footer7.setCellValue("Дубравко Малинић");
         footer7.setCellStyle(boldStyleWithAlignment);
 
-        String fileName = ROOT_PATH + File.separator + "zrijebanje_" + System.currentTimeMillis() + ".xlsx";
+        String fileName = ROOT_PATH + File.separator + fileTitle;
         FileOutputStream outputStream = null;
         try {
             outputStream = new FileOutputStream(fileName);
@@ -651,6 +659,19 @@ public class DrawingView extends VerticalLayout {
         }
 
         return fileName;
+    }
+
+    private InputStream getStream(String fileString) {
+        File file = new File(fileString);
+        FileInputStream stream = null;
+
+        try {
+            stream = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return stream;
     }
 
 }

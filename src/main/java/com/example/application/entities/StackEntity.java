@@ -27,4 +27,13 @@ public class StackEntity {
     @ManyToOne
     @JoinColumn(name = "political_organization_id", referencedColumnName = "id", nullable = false)
     private PoliticalOrganizationEntity politicalOrganization;
+
+    @Override
+    public String toString() {
+        return "StackEntity{" +
+                "id=" + id +
+                ", decisionNumber='" + decisionNumber + '\'' +
+                ", date=" + date +
+                '}';
+    }
 }

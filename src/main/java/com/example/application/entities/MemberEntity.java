@@ -61,4 +61,21 @@ public class MemberEntity {
     @ManyToOne
     @JoinColumn(name = "constraint_id", referencedColumnName = "id", nullable = false)
     private ConstraintEntity constraint;
+
+    @Override
+    public String toString() {
+        return "MemberEntity{" +
+                "id=" + id +
+                ", jmbg='" + jmbg + '\'' +
+                ", firstname='" + firstname + '\'' +
+                ", lastname='" + lastname + '\'' +
+                ", phoneNumber='" + phoneNumber + '\'' +
+                ", isForced=" + isForced +
+                ", isGik=" + isGik +
+                ", isMale=" + isMale +
+                ", qualifications='" + qualifications + '\'' +
+                ", previousExperience='" + previousExperience + '\'' +
+                ", bankNumber='" + bankNumber + '\'' +
+                '}';
+    }
 }

@@ -28,4 +28,14 @@ public class PoliticalOrganizationEntity {
     private List<StackEntity> stacks;
     @OneToMany(mappedBy = "politicalOrganization", fetch = FetchType.LAZY)
     private List<ConstraintEntity> constraints;
+
+    @Override
+    public String toString() {
+        return "PoliticalOrganizationEntity{" +
+                "id=" + id +
+                ", code='" + code + '\'' +
+                ", name='" + name + '\'' +
+                ", drawNumber=" + drawNumber +
+                '}';
+    }
 }

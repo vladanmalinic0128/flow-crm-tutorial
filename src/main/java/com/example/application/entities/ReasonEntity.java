@@ -17,4 +17,12 @@ public class ReasonEntity {
     @ManyToOne
     @JoinColumn(name = "status", referencedColumnName = "id", insertable = false, updatable = false)
     private StatusEntity status;
+
+    @Override
+    public String toString() {
+        return "ReasonEntity{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                '}';
+    }
 }
