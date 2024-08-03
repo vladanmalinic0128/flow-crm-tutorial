@@ -12,10 +12,12 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.Route;
+import jakarta.annotation.security.PermitAll;
 
 import java.io.InputStream;
 import java.util.List;
 
+@PermitAll
 @Route(value = "posmatraci/stanje", layout = MainLayout.class)
 public class AddingStackForm extends FormLayout {
     private final StackService stackService;

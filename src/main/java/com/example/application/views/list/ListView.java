@@ -13,9 +13,11 @@ import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
+import jakarta.annotation.security.PermitAll;
 
 import java.io.InputStream;
 
+@PermitAll
 @PageTitle("Posmatraci | Opstina")
 @Tag("div")
 @Route(value = "posmatraci/novi", layout = MainLayout.class)

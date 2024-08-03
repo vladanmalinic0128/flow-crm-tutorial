@@ -26,12 +26,13 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
+import jakarta.annotation.security.PermitAll;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-
-
+@PermitAll
 @Route(value = "posmatraci/izvjestaji", layout = MainLayout.class)
 public class ObserverReportsView extends VerticalLayout {
     private final PoliticalOrganizationService politicalOrganizationService;

@@ -3,7 +3,6 @@ package com.example.application.views.observers;
 import com.example.application.entities.ObserverEntity;
 import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.StackEntity;
-import com.example.application.entities.StatusEntity;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.StatusRepository;
 import com.example.application.services.CyrillicToLatinConverter;
@@ -32,7 +31,7 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Route;
-import jdk.jshell.Snippet;
+import jakarta.annotation.security.PermitAll;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -46,7 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+@PermitAll
 @Route(value = "posmatraci/akredituj", layout = MainLayout.class)
 public class AddingObserversForm extends FormLayout {
     private final StackService stackService;

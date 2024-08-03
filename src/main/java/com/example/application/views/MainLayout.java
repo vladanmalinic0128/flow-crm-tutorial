@@ -1,5 +1,6 @@
 package com.example.application.views;
 
+import com.example.application.security.SecurityService;
 import com.example.application.views.counsels.DrawingView;
 import com.example.application.views.list.AddingStackForm;
 import com.example.application.views.list.ListView;
@@ -8,6 +9,7 @@ import com.example.application.views.observers.ObserverReportsView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Image;
@@ -20,24 +22,29 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.*;
 import com.vaadin.flow.theme.lumo.LumoUtility;
+import jakarta.annotation.security.PermitAll;
 
 import java.util.stream.Collectors;
 
+@PermitAll
 @PageTitle("034B Banja Luka")
 @Route(value = "")
 @RouteAlias(value = "")
 @CssImport("./styles/styles.css")
 public class MainLayout extends AppLayout implements RouterLayout {
     private static VerticalLayout currentLayout = null;
-    public MainLayout() {
+    private final SecurityService securityService;
+    public MainLayout(SecurityService securityService) {
+        this.securityService = securityService;
 
         HorizontalLayout logoLayout = getLogo();
         Tabs tabs = getPrimaryNavigation();
 
-        Scroller scroller = new Scroller    (tabs);
+        Scroller scroller = new Scroller(tabs);
         scroller.setClassName(LumoUtility.Padding.MEDIUM);
 
-        addToDrawer(logoLayout, scroller);
+        Button logoutButton = new Button("Odjavite se", e -> securityService.logout());
+        addToDrawer(logoLayout, scroller, logoutButton);
 
 
 

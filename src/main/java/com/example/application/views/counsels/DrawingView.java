@@ -4,7 +4,6 @@ import com.example.application.entities.ConstraintEntity;
 import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.TitleEntity;
 import com.example.application.entities.VotingCouncelEntity;
-import com.example.application.enums.ScriptEnum;
 import com.example.application.repositories.ConstraintRepository;
 import com.example.application.repositories.PoliticalOrganizationRepository;
 import com.example.application.repositories.TitleRepository;
@@ -12,7 +11,6 @@ import com.example.application.repositories.VotingCouncelRepository;
 import com.example.application.services.LatinToCyrillicConverter;
 import com.example.application.services.PoliticalOrganizationService;
 import com.example.application.views.MainLayout;
-import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -29,6 +27,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
+import jakarta.annotation.security.PermitAll;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
@@ -37,6 +36,7 @@ import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@PermitAll
 @Route(value = "bo/zrijebanje", layout = MainLayout.class)
 public class DrawingView extends VerticalLayout {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
