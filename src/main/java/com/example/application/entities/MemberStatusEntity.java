@@ -3,6 +3,7 @@ package com.example.application.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -23,8 +24,9 @@ public class MemberStatusEntity {
     @Basic
     @Column(name = "description")
     private String description;
-    @OneToMany(mappedBy = "memberStatus")
-    private List<MemberEntity> members;
+
+    @ManyToMany(mappedBy = "statuses")
+    private List<MemberEntity> members = new ArrayList<>();
 
     @Override
     public String toString() {

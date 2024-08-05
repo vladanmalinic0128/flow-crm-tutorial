@@ -1,6 +1,8 @@
 package com.example.application.views;
 
 import com.example.application.security.SecurityService;
+import com.example.application.views.counsels.CouncelsByMentor;
+import com.example.application.views.counsels.CouncelsByPoliticalOrganizationView;
 import com.example.application.views.counsels.DrawingView;
 import com.example.application.views.list.AddingStackForm;
 import com.example.application.views.list.ListView;
@@ -89,7 +91,7 @@ public class MainLayout extends AppLayout implements RouterLayout {
             currentLayout = new VerticalLayout(wrapper, wrapperLayout);
             currentLayout.setPadding(false);
 
-            addToDrawer(logoLayout, scroller);
+            addToDrawer(logoLayout, scroller, logoutButton);
             addToNavbar(currentLayout);
         });
 
@@ -181,8 +183,8 @@ public class MainLayout extends AppLayout implements RouterLayout {
 
         // Create and configure tabs
         Tab tab1 = createTab("Žrijebanje", DrawingView.class);
-        Tab tab2 = createTab("BO po PS", AddingStackForm.class);
-        Tab tab3 = createTab("BO po članovima GIK", AddingStackForm.class);
+        Tab tab2 = createTab("BO po PS", CouncelsByPoliticalOrganizationView.class);
+        Tab tab3 = createTab("BO po članovima GIK", CouncelsByMentor.class);
         Tab tab4 = createTab("Ažuriranje podataka", AddingStackForm.class);
         Tab tab5 = createTab("Rješenja", AddingStackForm.class);
         Tab tab6 = createTab("Prikaz po bankama", AddingStackForm.class);

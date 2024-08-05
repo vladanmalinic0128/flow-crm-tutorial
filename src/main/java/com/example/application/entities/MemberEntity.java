@@ -3,6 +3,8 @@ package com.example.application.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 @Data
@@ -54,13 +56,21 @@ public class MemberEntity {
     @Column(name = "bankNumber")
     private String bankNumber;
 
-    @ManyToOne
-    @JoinColumn(name = "status", referencedColumnName = "id", nullable = false)
-    private MemberStatusEntity memberStatus;
+    @Basic
+    @Column(name = "bankName")
+    private String bankName;
 
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "constraint_id", referencedColumnName = "id", nullable = false)
     private ConstraintEntity constraint;
+
+    @ManyToMany
+    @JoinTable(
+            name = "member_status_join",
+            joinColumns = @JoinColumn(name = "member_id"),
+            inverseJoinColumns = @JoinColumn(name = "status_id")
+    )
+    private List<MemberStatusEntity> statuses = new ArrayList<>();
 
     @Override
     public String toString() {

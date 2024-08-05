@@ -31,8 +31,8 @@ public class ConstraintEntity {
     @JoinColumn(name = "title_id", referencedColumnName = "id", nullable = false)
     private TitleEntity title;
 
-    @OneToMany(mappedBy = "constraint", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<MemberEntity> members = new ArrayList<>();
+    @OneToOne(mappedBy = "constraint", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private MemberEntity member;
 
     @Override
     public String toString() {
@@ -42,5 +42,6 @@ public class ConstraintEntity {
                 ", title=" + title +
                 '}';
     }
+
 }
 

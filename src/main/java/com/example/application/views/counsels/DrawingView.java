@@ -61,6 +61,8 @@ public class DrawingView extends VerticalLayout {
         button.setWidth("100%");
         drawingLayout.setWidth("100%");
 
+        if(constraintRepository.findAll().stream().count() > 0)
+            button.setEnabled(false);
         button.addClickListener(e -> {
             Dialog dialog = createDialog();
             dialog.open();
@@ -129,7 +131,7 @@ public class DrawingView extends VerticalLayout {
         fieldLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
         fieldLayout.getStyle().set("width", "600px").set("max-width", "100%");
 
-        Button cancelButton = new Button("Otkaži", e -> {
+        Button cancelButton = new Button("Zatvori", e -> {
             chosenPoliticalOrganizations = new ArrayList<>();
             dialog.close();
         });

@@ -32,6 +32,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
+import java.time.LocalDate;
+
 @PermitAll
 @Route(value = "posmatraci/izvjestaji", layout = MainLayout.class)
 public class ObserverReportsView extends VerticalLayout {
@@ -59,10 +61,14 @@ public class ObserverReportsView extends VerticalLayout {
         //One se ne pojavljuju u glavnom prozoru, vec iskacu kroz popup
         scripts.setItems(ScriptEnum.values());
         scripts.setItemLabelGenerator(ScriptEnum::getName);
+        scripts.setValue(ScriptEnum.CYRILLIC);
 
         //One se ne pojavljuju u glavnom prozoru, vec iskacu kroz popup
         printType.setItems(SideEnum.values());
         printType.setItemLabelGenerator(SideEnum::getName);
+        printType.setValue(SideEnum.TWO_SIDED);
+
+        datePicker.setValue(LocalDate.now());
 
         for (PoliticalOrganizationEntity entity : politicalOrganizationService.getAll()) {
             // Create a VerticalLayout for each accordion panel

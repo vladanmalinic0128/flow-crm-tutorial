@@ -53,5 +53,18 @@ public class VotingCouncelEntity {
                 ", numberOfMembers=" + numberOfMembers +
                 '}';
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        VotingCouncelEntity that = (VotingCouncelEntity) o;
+        return getId().equals(that.getId()) && getCode().equals(that.getCode());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getCode());
+    }
 }
 
