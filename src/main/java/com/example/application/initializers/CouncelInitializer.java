@@ -748,7 +748,7 @@ public class CouncelInitializer implements ApplicationRunner {
         votingCouncel069.setCode("034Б069");
         votingCouncel069.setName("КМЕЋАНИ");
         votingCouncel069.setLocation("ПШ \"МЛАДЕН СТОЈАНОВИЋ\", Кмећани, уч. 1");
-        votingCouncel069.setNumberOfMembers(3);
+        votingCouncel069.setNumberOfMembers(2);
         votingCouncel069.setNumberOfVoters(100 + random.nextInt(901));
         votingCouncel069.setMentor(graba);
         votingCouncelRepository.save(votingCouncel069);
@@ -2053,7 +2053,7 @@ public class CouncelInitializer implements ApplicationRunner {
         votingCouncel213.setCode("034Б213");
         votingCouncel213.setName("СТРАТИНСКА");
         votingCouncel213.setLocation("ПШ \"МЛАДЕН СТОЈАНОВИЋ\", Стратинска, уч. 1");
-        votingCouncel213.setNumberOfMembers(3);
+        votingCouncel213.setNumberOfMembers(2);
         votingCouncel213.setNumberOfVoters(100 + random.nextInt(901));
         votingCouncel213.setMentor(graba);
         votingCouncelRepository.save(votingCouncel213);
@@ -2305,7 +2305,7 @@ public class CouncelInitializer implements ApplicationRunner {
         votingCouncel241.setCode("034Б241");
         votingCouncel241.setName("ШИМИЋИ");
         votingCouncel241.setLocation("МЗ Шимићи, сала 1");
-        votingCouncel241.setNumberOfMembers(4);
+        votingCouncel241.setNumberOfMembers(2);
         votingCouncel241.setNumberOfVoters(100 + random.nextInt(901));
         votingCouncel241.setMentor(igor);
         votingCouncelRepository.save(votingCouncel241);
@@ -2431,7 +2431,7 @@ public class CouncelInitializer implements ApplicationRunner {
         votingCouncel501.setCode("034Б501");
         votingCouncel501.setName("ОДСУСТВО");
         votingCouncel501.setLocation("Раднички универзитет, Грчка 4, сала 1");
-        votingCouncel501.setNumberOfMembers(3);
+        votingCouncel501.setNumberOfMembers(2);
         votingCouncel501.setNumberOfVoters(3);
         votingCouncel501.setMentor(bojana);
         votingCouncelRepository.save(votingCouncel501);
@@ -2440,7 +2440,7 @@ public class CouncelInitializer implements ApplicationRunner {
         votingCouncelNNNN.setCode("034БННН");
         votingCouncelNNNN.setName("НЕПОТВРЂЕНИ");
         votingCouncelNNNN.setLocation("Раднички универзитет, Грчка 4, сала 2");
-        votingCouncelNNNN.setNumberOfMembers(3);
+        votingCouncelNNNN.setNumberOfMembers(2);
         votingCouncelNNNN.setNumberOfVoters(3);
         votingCouncelNNNN.setMentor(bojana);
         votingCouncelRepository.save(votingCouncelNNNN);

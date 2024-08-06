@@ -378,7 +378,7 @@ public class DrawingView extends VerticalLayout {
         row.createCell(4);
         row.createCell(5);
         row.setHeightInPoints(60);
-        title.setCellValue("З  А  П  И  С  Н  И  К  \n СА ЈАВНЕ ПРЕЗЕНТАЦИЈЕ ЈАВНЕ ДОДЈЕЛЕ ПОЗИЦИЈА У БИРАЧКИМ ОДБОРИМА У ОИЈ 034Б - БАЊА ЛУКА\nодржаног 03. 08. 2022. године у 15.00 часова, у сали 33 у Градској управи Бања Лука");
+        title.setCellValue("З  А  П  И  С  Н  И  К  \n СА ЈАВНЕ ПРЕЗЕНТАЦИЈЕ ЈАВНЕ ДОДЈЕЛЕ ПОЗИЦИЈА У БИРАЧКИМ ОДБОРИМА У ОИЈ 034Б - БАЊА ЛУКА\nодржаног 07. 08. 2024. године у 15.00 часова, у сали 33 у Градској управи Бања Лука");
 
         title.setCellStyle(boldStyleWithAlignment);
         sheet.addMergedRegion(new CellRangeAddress(
@@ -485,7 +485,7 @@ public class DrawingView extends VerticalLayout {
 
         cell = row.createCell(4);
         cell.setCellStyle(borderedStyle);
-        cell.setCellValue("БРОЈ БИРАЧА");
+        //cell.setCellValue("БРОЈ БИРАЧА");
 
         cell = row.createCell(5);
         cell.setCellStyle(borderedStyle);
@@ -526,15 +526,15 @@ public class DrawingView extends VerticalLayout {
             cell.setCellStyle(regularStyleWithPurpleBackground);
 
             cell = row.createCell(4);
-            cell.setCellValue(votingCouncel.getNumberOfVoters());
+            //cell.setCellValue(votingCouncel.getNumberOfVoters());
             cell.setCellStyle(regularStyleWithPurpleBackgroundAndRightAlignment);
 
             cell = row.createCell(5);
             cell.setCellStyle(regularStyleWithPurpleBackgroundAndRightAlignment);
             if(votingCouncel.getNumberOfMembers() == 4)
-                cell.setCellValue("5+5");
+                cell.setCellValue("4+4");
             else if(votingCouncel.getNumberOfMembers() == 2)
-                cell.setCellValue("3+3");
+                cell.setCellValue("2+2");
 
             rowNumber++;
             List<ConstraintEntity> constraintEntities = votingCouncel.getConstraints().stream()
