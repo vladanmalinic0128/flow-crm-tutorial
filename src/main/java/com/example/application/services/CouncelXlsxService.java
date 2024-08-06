@@ -70,7 +70,41 @@ public class CouncelXlsxService {
                 generateMemberRow(sheet, deputyMember, scriptEnum);
         }
 
+        addSignature(sheet,scriptEnum);
+
+
         return saveDocument(fileTitle, workbook);
+
+    }
+
+    private void addSignature(XSSFSheet sheet, ScriptEnum scriptEnum) {
+        CellStyle style = generateCellStyleForSignature(sheet);
+
+        Row row = sheet.createRow(sheet.getLastRowNum() + 2);
+        sheet.addMergedRegion(new CellRangeAddress(
+                row.getRowNum(),  // start row
+                row.getRowNum(),  // end row
+                7,  // start column
+                8   // end column
+        ));
+        String text = "ПОТПИС ОВЛАШЋЕНОГ ЛИЦА ПОЛИТИЧКОГ СУБЈЕКТА";
+        String label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+        Cell cell = row.createCell(7);
+        cell.setCellStyle(style);
+        cell.setCellValue(label);
+
+
+        row = sheet.createRow(sheet.getLastRowNum() + 2);
+        sheet.addMergedRegion(new CellRangeAddress(
+                row.getRowNum(),  // start row
+                row.getRowNum(),  // end row
+                7,  // start column
+                8   // end column
+        ));
+        cell = row.createCell(7);
+        cell.setCellStyle(style);
+        cell.setCellValue("__________________________________________");
+
 
     }
 
@@ -202,6 +236,26 @@ public class CouncelXlsxService {
         // Centriranje teksta
         cellStyle.setAlignment(HorizontalAlignment.CENTER);
         cellStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        return cellStyle;
+    }
+
+    private XSSFCellStyle generateCellStyleForSignature(XSSFSheet sheet) {
+        XSSFWorkbook workbook = sheet.getWorkbook();
+        // Kreiranje stila
+        XSSFCellStyle cellStyle = workbook.createCellStyle();
+        cellStyle.setDataFormat(dataFormat.getFormat("@"));
+
+        // Definisanje fonta
+        Font font = workbook.createFont();
+        cellStyle.setWrapText(true);
+        font.setFontHeightInPoints((short) 12);
+        cellStyle.setFont(font);
+
+
+        // Centriranje teksta
+        cellStyle.setAlignment(HorizontalAlignment.CENTER);
+        cellStyle.setVerticalAlignment(VerticalAlignment.BOTTOM);
 
         return cellStyle;
     }

@@ -34,6 +34,8 @@ public class CouncelUpdateXlsxService {
         Sheet sheet = workbook.getSheetAt(0);
         for (int i = 1; i < sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
+            if(row == null)
+                continue;
             Cell cell = row.getCell(0);
             if(cell == null)
                 continue;
