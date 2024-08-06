@@ -88,4 +88,18 @@ public class MemberEntity {
                 ", bankNumber='" + bankNumber + '\'' +
                 '}';
     }
+
+    public boolean isEmpty() {
+        return isForced == null
+                && isGik == null
+                && isMale == null
+                && bankName == null
+                && bankName == null
+                && bankNumber == null
+                && firstname == null
+                && lastname == null
+                && phoneNumber == null
+                && previousExperience == null
+                && qualifications == null;
+    }
 }

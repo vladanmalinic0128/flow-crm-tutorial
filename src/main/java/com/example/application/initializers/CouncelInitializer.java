@@ -556,7 +556,7 @@ public class CouncelInitializer implements ApplicationRunner {
         votingCouncelRepository.save(votingCouncel050);
 
         VotingCouncelEntity votingCouncel051A = new VotingCouncelEntity();
-        votingCouncel051A.setCode("034Б051 A");
+        votingCouncel051A.setCode("034Б051 А");
         votingCouncel051A.setName("ДРАГОЧАЈ – 1");
         votingCouncel051A.setLocation("ОШ \"ДЕСАНКА МАКСИМОВИЋ\", Драгочај, уч. 1");
         votingCouncel051A.setNumberOfMembers(4);
