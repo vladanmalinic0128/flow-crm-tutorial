@@ -167,7 +167,7 @@ public class CouncelXlsxService {
         text = "Бр.   бир.";
         value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
         cell.setCellStyle(firstRowStyle);
-        cell.setCellValue(value);
+        //cell.setCellValue(value);
 
         cell = row.createCell(11);
         text = "БО";
@@ -249,14 +249,14 @@ public class CouncelXlsxService {
         cell.setCellStyle(this.councelStyles.get(HorizontalAlignment.CENTER));
 
         cell = row.createCell(10);
-        cell.setCellValue(String.valueOf(entity.getNumberOfVoters()));
+        //cell.setCellValue(String.valueOf(entity.getNumberOfVoters()));
         cell.setCellStyle(this.councelStyles.get(HorizontalAlignment.RIGHT));
 
         cell = row.createCell(11);
         if(entity.getNumberOfMembers() == 4)
-            cell.setCellValue("5+5");
+            cell.setCellValue("4+4");
         else if(entity.getNumberOfMembers() == 2)
-            cell.setCellValue("3+3");
+            cell.setCellValue("2+2");
         cell.setCellStyle(this.councelStyles.get(HorizontalAlignment.RIGHT));
     }
 
