@@ -132,7 +132,7 @@ public class MainLayout extends AppLayout implements RouterLayout {
 
         // Create Tab items with associated RouterLinks
         Tab observersTab = new Tab(VaadinIcon.EYE.create(), new RouterLink("Posmatrači", AddingObserversForm.class));
-        Tab boardTab = new Tab(VaadinIcon.DIPLOMA.create(), new RouterLink("Birački odbori", AddingStackForm.class));
+        Tab boardTab = new Tab(VaadinIcon.DIPLOMA.create(), new RouterLink("Birački odbori", DrawingView.class));
         Tab solutionsTab = new Tab(VaadinIcon.FILE_O.create(), new RouterLink("Ugovori", ListView.class));
 
         // Add Tabs to the Tabs component
@@ -185,8 +185,8 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab tab3 = createTab("BO po članovima GIK", CouncelsByMentor.class);
         Tab tab4 = createTab("Ažuriranje podataka", DataUploadView.class);
         Tab tab5 = createTab("Provjera grešaka", HealthCheckView.class);
-        Tab tab6 = createTab("Rješenja", AddingStackForm.class);
-        Tab tab7 = createTab("Prikaz po bankama", AddingStackForm.class);
+        Tab tab6 = createTab("Rješenja", ReportsView.class);
+        Tab tab7 = createTab("Prikaz po bankama", MembersByBankReportView.class);
 
         tabs.add(tab1, tab2, tab3, tab4, tab5, tab6, tab7);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);

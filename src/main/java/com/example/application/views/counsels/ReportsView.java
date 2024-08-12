@@ -1,12 +1,10 @@
 package com.example.application.views.counsels;
 
-
 import com.example.application.entities.MentorEntity;
-import com.example.application.entities.PoliticalOrganizationEntity;
+import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
-import com.example.application.repositories.MentorRepository;
-import com.example.application.services.CouncelXlsxService;
-import com.example.application.services.PoliticalOrganizationService;
+import com.example.application.repositories.VotingCouncelRepository;
+import com.example.application.services.ReportsPdfService;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.accordion.Accordion;
@@ -32,18 +30,15 @@ import java.util.Comparator;
 import java.util.stream.Collectors;
 
 @PermitAll
-@Route(value = "bo/po/gik", layout = MainLayout.class)
-public class CouncelsByMentor extends VerticalLayout {
-    public static final String ROOT_PATH = "src/main/resources/generated-documents";
-    private final CouncelXlsxService councelXlsxService;
-    private final MentorRepository mentorRepository;
-
+@Route(value = "rjesenja", layout = MainLayout.class)
+public class ReportsView extends VerticalLayout {
+    private final VotingCouncelRepository votingCouncelRepository;
+    private final ReportsPdfService reportsPdfService;
     ComboBox<ScriptEnum> scripts = new ComboBox<>("Odaberite pismo");
 
-    public CouncelsByMentor(CouncelXlsxService councelXlsxService, MentorRepository mentorRepository) {
-        this.councelXlsxService = councelXlsxService;
-        this.mentorRepository = mentorRepository;
-
+    public ReportsView(VotingCouncelRepository votingCouncelRepository, ReportsPdfService reportsPdfService) {
+        this.votingCouncelRepository = votingCouncelRepository;
+        this.reportsPdfService = reportsPdfService;
         // Main layout
         this.setWidth("100%");
         this.getStyle().set("margin", "0 auto");
@@ -58,67 +53,67 @@ public class CouncelsByMentor extends VerticalLayout {
 
         generateOverallTable(accordion);
 
-        for(MentorEntity entity: mentorRepository.findAll().stream().sorted(Comparator.comparing(MentorEntity::getFirstname)).collect(Collectors.toList())) {
+        for(VotingCouncelEntity entity: votingCouncelRepository.findAll().stream().sorted(Comparator.comparing(VotingCouncelEntity::getCode)).collect(Collectors.toList())) {
             // Add a HorizontalLayout
             HorizontalLayout horizontalLayout = new HorizontalLayout();
             horizontalLayout.setWidthFull();
             horizontalLayout.setAlignItems(Alignment.CENTER);
             horizontalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            Text description = new Text("Ovde možete preuzeti biračke odbore za gore navedenog člana GIK: ");
+            Text description = new Text("Ovde možete preuzeti rješenje za gore navedeni birački odbor: ");
 
             Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
-            Button xlsxButton = new Button("Preuzmi", downloadIcon);
-            xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                    ButtonVariant.LUMO_SUCCESS);
+            Button pdfButton = new Button("Preuzmi", downloadIcon);
+            pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                    ButtonVariant.LUMO_ERROR);
 
-            xlsxButton.addClickListener(e -> {
+            pdfButton.addClickListener(e -> {
+//
                 Dialog dialog = createDialog(entity);
                 dialog.open();
             });
 
-            horizontalLayout.add(description, xlsxButton);
+            horizontalLayout.add(description, pdfButton);
 
             // Add the VerticalLayout to the main Accordion
-            AccordionPanel panel = accordion.add(entity.getFirstname() + " " + entity.getLastname(), horizontalLayout);
+            AccordionPanel panel = accordion.add(entity.getCode() + ": " + entity.getName(), horizontalLayout);
             //panel.addThemeVariants(DetailsVariant.FILLED);
         }
 
         add(accordion);
     }
 
-    void generateOverallTable(Accordion accordion) {
+    private void generateOverallTable(Accordion accordion) {
         // Add a HorizontalLayout
         HorizontalLayout horizontalLayout = new HorizontalLayout();
         horizontalLayout.setWidthFull();
         horizontalLayout.setAlignItems(Alignment.CENTER);
         horizontalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
+        Text description = new Text("Ovde možete preuzeti sva rješenja na jednom mjestu: ");
 
-        MentorEntity mentorEntity = new MentorEntity();
-        mentorEntity.setFirstname("ZBIRNI");
-        mentorEntity.setLastname("SPISAK");
-        Text description = new Text("Ovde možete preuzeti zbirnu tabelu za biračke odbore: ");
+        VotingCouncelEntity votingCouncel = new VotingCouncelEntity();
+        votingCouncel.setCode("034B");
+        votingCouncel.setName("Zbirna rješenja u jednom fajlu");
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
-        Button xlsxButton = new Button("Preuzmi", downloadIcon);
-        xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                ButtonVariant.LUMO_SUCCESS);
+        Button pdfButton = new Button("Preuzmi", downloadIcon);
+        pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_ERROR);
 
-        xlsxButton.addClickListener(e -> {
+        pdfButton.addClickListener(e -> {
 //
-            Dialog dialog = createDialog(mentorEntity);
+            Dialog dialog = createDialog(votingCouncel);
             dialog.open();
         });
 
-        horizontalLayout.add(description, xlsxButton);
+        horizontalLayout.add(description, pdfButton);
 
         // Add the VerticalLayout to the main Accordion
-        AccordionPanel panel = accordion.add(mentorEntity.getFirstname() + " " + mentorEntity.getLastname(), horizontalLayout);
-        //panel.addThemeVariants(DetailsVariant.FILLED);
+        AccordionPanel panel = accordion.add(votingCouncel.getCode() + ": " + votingCouncel.getName(), horizontalLayout);
     }
 
-    private Dialog createDialog(MentorEntity entity) {
+    private Dialog createDialog(VotingCouncelEntity entity) {
         Dialog dialog = new Dialog();
         dialog.getElement().setAttribute("aria-label", "Add note");
 
@@ -133,7 +128,7 @@ public class CouncelsByMentor extends VerticalLayout {
     }
 
     private H2 createDialogHeader() {
-        H2 headline = new H2("Generisanje biračkih odbora");
+        H2 headline = new H2("Generisanje rješenja");
         headline.addClassName("draggable");
         headline.getStyle().set("margin", "0").set("font-size", "1.5em")
                 .set("font-weight", "bold").set("cursor", "move")
@@ -142,7 +137,7 @@ public class CouncelsByMentor extends VerticalLayout {
         return headline;
     }
 
-    private VerticalLayout createDialogLayout(Dialog dialog, MentorEntity entity) {
+    private VerticalLayout createDialogLayout(Dialog dialog, VotingCouncelEntity entity) {
         VerticalLayout fieldLayout = new VerticalLayout(scripts);
         scripts.setValue(ScriptEnum.CYRILLIC);
         fieldLayout.setSpacing(false);
@@ -153,7 +148,7 @@ public class CouncelsByMentor extends VerticalLayout {
         Button cancelButton = new Button("Zatvori", e -> {
             dialog.close();
         });
-        String fileTitle = entity.getFirstname() + "_" + entity.getLastname() + "_" + System.currentTimeMillis() + ".xlsx";
+        String fileTitle = entity.getCode() + "_" + System.currentTimeMillis() + ".pdf";
         Button saveButton = new Button("Generiši");
 
         Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
@@ -163,10 +158,10 @@ public class CouncelsByMentor extends VerticalLayout {
                 dialog.close();
                 return null;
             }
-            String stringPath = councelXlsxService.generateCouncelsByMentor(entity, fileTitle, scripts.getValue());
+            String stringPath = reportsPdfService.generateReportByCode(entity, fileTitle, scripts.getValue());
             dialog.close();
             if(stringPath != null)
-                return councelXlsxService.getStream(stringPath);
+                return reportsPdfService.getStream(stringPath);
             else
                 return null;
         }), "");
@@ -182,5 +177,4 @@ public class CouncelsByMentor extends VerticalLayout {
 
         return fieldLayout;
     }
-
 }
