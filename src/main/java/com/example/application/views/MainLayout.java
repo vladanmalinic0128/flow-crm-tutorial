@@ -1,10 +1,7 @@
 package com.example.application.views;
 
 import com.example.application.security.SecurityService;
-import com.example.application.views.counsels.CouncelsByMentor;
-import com.example.application.views.counsels.CouncelsByPoliticalOrganizationView;
-import com.example.application.views.counsels.DataUploadView;
-import com.example.application.views.counsels.DrawingView;
+import com.example.application.views.counsels.*;
 import com.example.application.views.list.AddingStackForm;
 import com.example.application.views.list.ListView;
 import com.example.application.views.observers.AddingObserversForm;
@@ -187,10 +184,11 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab tab2 = createTab("BO po PS", CouncelsByPoliticalOrganizationView.class);
         Tab tab3 = createTab("BO po članovima GIK", CouncelsByMentor.class);
         Tab tab4 = createTab("Ažuriranje podataka", DataUploadView.class);
-        Tab tab5 = createTab("Rješenja", AddingStackForm.class);
-        Tab tab6 = createTab("Prikaz po bankama", AddingStackForm.class);
+        Tab tab5 = createTab("Provjera grešaka", HealthCheckView.class);
+        Tab tab6 = createTab("Rješenja", AddingStackForm.class);
+        Tab tab7 = createTab("Prikaz po bankama", AddingStackForm.class);
 
-        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6);
+        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6, tab7);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
         tabs.setSelectedTab(tab1);
 

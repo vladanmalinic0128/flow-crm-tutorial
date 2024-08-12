@@ -452,7 +452,7 @@ public class CouncelXlsxService {
         XSSFRow row = sheet.createRow(sheet.getLastRowNum() + 1);
 
         XSSFCell cell = row.createCell(0);
-        cell.setCellValue(String.valueOf(constraint.getPoliticalOrganization().getCode()));
+        cell.setCellValue(String.valueOf(constraint.getPoliticalOrganization().getCode()).toUpperCase());
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
 
         cell = row.createCell(1);
@@ -473,7 +473,7 @@ public class CouncelXlsxService {
         cell = row.createCell(4);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
         if(constraint.getMember() != null && constraint.getMember().getQualifications() != null) {
-            text = constraint.getMember().getQualifications();
+            text = constraint.getMember().getQualifications().toUpperCase();
             label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
             cell.setCellValue(label);
         }
@@ -511,7 +511,7 @@ public class CouncelXlsxService {
         cell = row.createCell(9);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
         if(constraint.getMember() != null && constraint.getMember().getBankName() != null) {
-            text = constraint.getMember().getBankName();
+            text = constraint.getMember().getBankName().toUpperCase();
             label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
             cell.setCellValue(label);
         }
@@ -532,7 +532,7 @@ public class CouncelXlsxService {
         result += " ";
         result += member.getLastname();
 
-        return result;
+        return result.toUpperCase();
     }
 
     private String formatPhoneNumber(String phoneNumber) {

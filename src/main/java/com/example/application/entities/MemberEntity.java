@@ -94,12 +94,15 @@ public class MemberEntity {
                 && isGik == null
                 && isMale == null
                 && bankName == null
-                && bankName == null
                 && bankNumber == null
                 && firstname == null
                 && lastname == null
                 && phoneNumber == null
                 && previousExperience == null
                 && qualifications == null;
+    }
+
+    public String getFullname() {
+        return this.firstname + " " + this.lastname;
     }
 }

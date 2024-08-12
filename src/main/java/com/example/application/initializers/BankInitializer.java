@@ -9,10 +9,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class BankInitializer  implements ApplicationRunner {
+public class BankInitializer  /*implements ApplicationRunner*/ {
     private final BankRepository bankRepository;
 
-    @Override
+    //@Override
     public void run(ApplicationArguments args) throws Exception {
         bankRepository.save(new BankEntity(null, "Adiko banka Bluka", "552"));
         bankRepository.save(new BankEntity(null, "Atos banka Bluka", "567"));

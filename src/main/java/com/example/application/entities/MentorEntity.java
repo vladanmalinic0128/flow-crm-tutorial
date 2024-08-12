@@ -39,5 +39,9 @@ public class MentorEntity {
                 ", email='" + email + '\'' +
                 '}';
     }
+
+    public String getFullname() {
+        return this.firstname + " " + this.lastname;
+    }
 }
 

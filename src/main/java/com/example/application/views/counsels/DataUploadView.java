@@ -7,6 +7,7 @@ import com.example.application.services.CouncelUpdateXlsxService;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.NativeLabel;
@@ -14,12 +15,13 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.util.CellReference;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 
 @PermitAll
 @Route(value = "bo/update", layout = MainLayout.class)
@@ -29,6 +31,8 @@ public class DataUploadView extends FormLayout {
     boolean isFileEmpty = true;
 
     List<ConstraintEntity> modifiedConstraints = null;
+
+    private Checkbox checkbox = null;
     private final CouncelUpdateXlsxService councelUpdateXlsxService;
     private final MemberRepository memberRepository;
     private final ConstraintRepository constraintRepository;
@@ -41,6 +45,9 @@ public class DataUploadView extends FormLayout {
         addClassName("adding-stack-form");
 
         upload = configureFileUpload();
+
+        this.checkbox = new Checkbox();
+        checkbox.setLabel("Upiši prazne redove u tabelu");
 
         Button executeButton = new Button("Ažuriraj tabelu biračkih odbora");
         executeButton.addClickListener(event -> handleExecuteButtonClick());
@@ -57,6 +64,7 @@ public class DataUploadView extends FormLayout {
         this.getStyle().set("margin-top", "20px");
 
         add(upload);
+        add(checkbox);
         add(executeButton);
 
         setColspan(upload, 2);
@@ -84,7 +92,7 @@ public class DataUploadView extends FormLayout {
 
         upload.addSucceededListener(event -> {
             InputStream inputStream = buffer.getInputStream();
-            this.updateVotingCouncelsThroughXlsxFile(inputStream);
+            this.updateVotingCouncelsThroughXlsxFile(inputStream, checkbox.getOptionalValue());
         });
 
         upload.addFileRemovedListener(event -> isFileEmpty = true);
@@ -93,24 +101,19 @@ public class DataUploadView extends FormLayout {
         return upload;
     }
 
-    private void updateVotingCouncelsThroughXlsxFile(InputStream inputStream) {
+    private void updateVotingCouncelsThroughXlsxFile(InputStream inputStream, Optional<Boolean> optionalIsChecked) {
         try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+
+            boolean selected = false;
+            if(optionalIsChecked.isPresent())
+                selected = optionalIsChecked.get();
             // Iterate over each sheet in the workbook
-            modifiedConstraints = councelUpdateXlsxService.getModifiedConstraints(workbook);
-//            for (int sheetIndex = 0; sheetIndex < workbook.getNumberOfSheets(); sheetIndex++) {
-//                Sheet sheet = workbook.getSheetAt(sheetIndex);
-//                System.out.println("Sheet Name: " + sheet.getSheetName());
-//
-//                // Iterate over each row in the sheet
-//                for (Row row : sheet) {
-//                    // Iterate over each cell in the row
-//                    for (Cell cell : row) {
-//                        String cellValue = getCellValue(cell);
-//                        String cellAddress = new CellReference(cell.getRowIndex(), cell.getColumnIndex()).formatAsString();
-//                        System.out.println("Cell Address: " + cellAddress + " - Value: " + cellValue);
-//                    }
-//                }
-//            }
+            modifiedConstraints = councelUpdateXlsxService.getModifiedConstraints(workbook, selected);
+
+            for(ConstraintEntity c: modifiedConstraints) {
+                memberRepository.save(c.getMember());
+                constraintRepository.save(c);
+            }
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -124,9 +127,6 @@ public class DataUploadView extends FormLayout {
             confirmDialog.open();
             return;
         }
-
-        boolean skipEmptyRows = true;
-
 
         for(ConstraintEntity c: modifiedConstraints) {
             memberRepository.save(c.getMember());

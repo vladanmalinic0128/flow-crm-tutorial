@@ -16,11 +16,11 @@ import java.util.Random;
 
 @Component
 @RequiredArgsConstructor
-public class CouncelInitializer implements ApplicationRunner {
+public class CouncelInitializer /*implements ApplicationRunner*/ {
     private final MentorRepository mentorRepository;
     private final VotingCouncelRepository votingCouncelRepository;
     private final TitleRepository titleRepository;
-    @Override
+    //@Override
     public void run(ApplicationArguments args) throws Exception {
 
         //Dodavanje clanova

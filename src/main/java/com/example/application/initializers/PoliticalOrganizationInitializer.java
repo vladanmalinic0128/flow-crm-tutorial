@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class PoliticalOrganizationInitializer implements ApplicationRunner {
+public class PoliticalOrganizationInitializer /*implements ApplicationRunner*/ {
     private final PoliticalOrganizationRepository politicalOrganizationRepository;
 
-    @Override
+    //@Override
     public void run(ApplicationArguments args) throws Exception {
         String[][] organizations = {
                 {"00008", "SDP - SOCIJALDEMOKRATSKA PARTIJA BOSNE I HERCEGOVINE"},
