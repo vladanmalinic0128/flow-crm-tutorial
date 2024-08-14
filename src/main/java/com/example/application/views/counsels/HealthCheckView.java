@@ -5,6 +5,7 @@ import com.example.application.entities.ObserverEntity;
 import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.services.BankAccountValidator;
+import com.example.application.services.CyrillicToLatinConverter;
 import com.example.application.services.JMBGValidator;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.accordion.Accordion;
@@ -28,12 +29,15 @@ public class HealthCheckView extends VerticalLayout {
     private final JMBGValidator jmbgValidator;
     private final BankAccountValidator bankAccountValidator;
     private final ObserverRepository observerRepository;
+    private final CyrillicToLatinConverter cyrillicToLatinConverter;
 
-    public HealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository) {
+    public HealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, CyrillicToLatinConverter cyrillicToLatinConverter) {
         this.memberRepository = memberRepository;
         this.jmbgValidator = jmbgValidator;
         this.bankAccountValidator = bankAccountValidator;
         this.observerRepository = observerRepository;
+        this.cyrillicToLatinConverter = cyrillicToLatinConverter;
+
 
         // Main layout
         this.setWidth("100%");
@@ -56,15 +60,15 @@ public class HealthCheckView extends VerticalLayout {
                     .collect(Collectors.toList());
 
             for(MemberEntity memberEntity: memberEntityList) {
-                Span votingCouncelName = new Span("BM: " + memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName());
-                Span email = new Span("Mentor: " + memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname());
-                Span phone = new Span("JMBG: " + memberEntity.getJmbg());
+                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
+                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
+                Span jmbg = new Span("JMBG: " + memberEntity.getJmbg());
 
-                VerticalLayout content = new VerticalLayout(votingCouncelName, email, phone);
+                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor);
                 content.setSpacing(false);
                 content.setPadding(false);
 
-                Details details = new Details(memberEntity.getFullname(), content);
+                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
                 details.setOpened(false);
                 styleDetails(details);
 
@@ -86,16 +90,16 @@ public class HealthCheckView extends VerticalLayout {
                     .collect(Collectors.toList());
 
             for(MemberEntity memberEntity: memberEntityList) {
-                Span votingCouncelName = new Span("BM: " + memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName());
-                Span mentor = new Span("Mentor: " + memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname());
-                Span bankNumber = new Span("Žiro račun: " + memberEntity.getJmbg());
+                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
+                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
+                Span bankNumber = new Span("Žiro račun: " + memberEntity.getBankNumber());
                 Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
 
-                VerticalLayout content = new VerticalLayout(votingCouncelName, mentor, bankNumber, jmbg);
+                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, bankNumber);
                 content.setSpacing(false);
                 content.setPadding(false);
 
-                Details details = new Details(memberEntity.getFullname(), content);
+                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
                 details.setOpened(false);
                 details.getStyle().set("background-color", "#3190f6");
                 styleDetails(details);
@@ -130,20 +134,20 @@ public class HealthCheckView extends VerticalLayout {
                     continue;
                 ObserverEntity observer = optional.get();
 
-                Span votingCouncelName = new Span("BM: " + memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName());
-                Span email = new Span("Mentor: " + memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname());
-                Span phone = new Span("Jmbg: " + memberEntity.getJmbg());
-                Span fullName = new Span("Ime i prezime: " + memberEntity.getFullname());
+                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
+                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
+                Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
+                Span fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
                 Span decisionNumber = new Span("Broj odluke: " + observer.getStack().getDecisionNumber());
-                Span politicalOrganization = new Span("Politički subjekat: " + observer.getStack().getPoliticalOrganization().getName());
+                Span politicalOrganization = new Span("Politički subjekat: " + cyrillicToLatinConverter.convert(observer.getStack().getPoliticalOrganization().getName()).toUpperCase());
                 Span documentNumber = new Span("Redni broj: " + observer.getDocumentNumber());
 
 
-                VerticalLayout content = new VerticalLayout(votingCouncelName, email, phone, fullName, decisionNumber, politicalOrganization, documentNumber);
+                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, fullName, decisionNumber, politicalOrganization, documentNumber);
                 content.setSpacing(false);
                 content.setPadding(false);
 
-                Details details = new Details(memberEntity.getFullname(), content);
+                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
                 details.setOpened(false);
 
                 verticalLayout.add(details);
@@ -170,13 +174,13 @@ public class HealthCheckView extends VerticalLayout {
 
             for(Map.Entry<String, List<MemberEntity>> duplicate: duplicates.entrySet()) {
                 String jmbg = duplicate.getKey();
-
-                VerticalLayout content = new VerticalLayout();
+                Span jmbgSpan = new Span("Jmbg: " + jmbg);
+                VerticalLayout content = new VerticalLayout(jmbgSpan);
                 content.setSpacing(false);
                 content.setPadding(false);
 
                 for(MemberEntity member: duplicate.getValue()) {
-                    String message = String.format("BM: %s, pozicija (%s, %s)", member.getConstraint().getVotingCouncel().getCode(), member.getConstraint().getPoliticalOrganization().getCode(), member.getConstraint().getTitle().getName());
+                    String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
                     Span votingCouncelsSpan = new Span(message);
                     content.add(votingCouncelsSpan);
                 }
@@ -267,18 +271,20 @@ public class HealthCheckView extends VerticalLayout {
     private void addDetailsForMissingData(List<MemberEntity> missingDataList, String message, VerticalLayout verticalLayout, boolean showFullName, boolean showJmbg) {
         for(MemberEntity memberEntity: missingDataList) {
             Span jmbg = null, fullName = null;
-            Span votingCouncelName = new Span("BM: " + memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName());
-            Span mentor = new Span("Mentor: " + memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname());
+            Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode()).toUpperCase() + ", " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
+            Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
             if(showJmbg)
                 jmbg = new Span("JMBG: " + memberEntity.getJmbg());
             if(showFullName)
-                fullName = new Span("Ime i prezime: " + memberEntity.getFullname());
+                fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
 
-            VerticalLayout content = new VerticalLayout(votingCouncelName, mentor);
+            VerticalLayout content = new VerticalLayout();
             if(showJmbg)
                 content.add(jmbg);
             if(showFullName)
                 content.add(fullName);
+            content.add(votingCouncelName);
+            content.add(mentor);
 
             content.setSpacing(false);
             content.setPadding(false);
