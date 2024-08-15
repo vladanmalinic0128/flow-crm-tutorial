@@ -30,6 +30,9 @@ public class MentorEntity {
     @OneToMany(mappedBy = "mentor", fetch = FetchType.LAZY)
     private List<VotingCouncelEntity> votingCouncels;
 
+    @OneToMany(mappedBy = "mentor", fetch = FetchType.LAZY)
+    private List<SubstituteEntity> substitutes;
+
     @Override
     public String toString() {
         return "MentorEntity{" +

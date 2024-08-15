@@ -164,6 +164,7 @@ public class HealthCheckView extends VerticalLayout {
 
             // Group members by jmbg
             Map<String, List<MemberEntity>> groupedByJmbg = memberRepository.findAll().stream()
+                    .filter(m -> m.getJmbg() != null && m.getJmbg().isBlank() == false)
                     .filter(m -> m.isEmpty() == false)
                     .collect(Collectors.groupingBy(MemberEntity::getJmbg));
 

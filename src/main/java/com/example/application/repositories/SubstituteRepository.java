@@ -1,10 +1,10 @@
 package com.example.application.repositories;
 
-import com.example.application.entities.MemberEntity;
+import com.example.application.entities.SubstituteEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface MemberRepository extends JpaRepository<MemberEntity, Long> {
-    boolean existsByJmbg(String jmbg);
+public interface SubstituteRepository extends JpaRepository<SubstituteEntity, Long> {
+
 }

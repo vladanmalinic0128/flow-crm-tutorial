@@ -3,7 +3,9 @@ package com.example.application.services;
 import com.example.application.entities.*;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.enums.TitleEnum;
+import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.MentorRepository;
+import com.example.application.repositories.SubstituteRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -24,11 +26,18 @@ public class CouncelXlsxService {
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final TitleService titleService;
     private final MentorRepository mentorRepository;
+    private final MemberRepository memberRepository;
+    private final SubstituteRepository substituteRepository;
 
     //Globalni stilovi
     XSSFCellStyle firstRowStyle;
     Map<HorizontalAlignment, XSSFCellStyle> councelStyles;
     Map<HorizontalAlignment, XSSFCellStyle> councelMemberStyles;
+    Map<HorizontalAlignment, XSSFCellStyle> substituteStyles;
+
+    Map<HorizontalAlignment, XSSFCellStyle> presidentStyles;
+
+    Map<HorizontalAlignment, XSSFCellStyle> presidentMemberStyles;
 
     DataFormat dataFormat;
 
@@ -322,6 +331,70 @@ public class CouncelXlsxService {
         cellStyles.put(HorizontalAlignment.RIGHT, generateCellStyleForCounselColumn(sheet, HorizontalAlignment.RIGHT));
 
         return cellStyles;
+    }
+
+    private Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForSubstitutesColumn(XSSFSheet sheet) {
+        Map<HorizontalAlignment, XSSFCellStyle> cellStyles = new HashMap<>();
+
+        cellStyles.put(HorizontalAlignment.LEFT, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.LEFT, new java.awt.Color(161,255,161)));
+        cellStyles.put(HorizontalAlignment.CENTER, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.CENTER, new java.awt.Color(161,255,161)));
+        cellStyles.put(HorizontalAlignment.RIGHT, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.RIGHT, new java.awt.Color(161,255,161)));
+
+        return cellStyles;
+    }
+
+    private Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForPresidentsColumn(XSSFSheet sheet) {
+        Map<HorizontalAlignment, XSSFCellStyle> cellStyles = new HashMap<>();
+
+        cellStyles.put(HorizontalAlignment.LEFT, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.LEFT, new java.awt.Color(255,244,0)));
+        cellStyles.put(HorizontalAlignment.CENTER, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.CENTER, new java.awt.Color(255,244,0)));
+        cellStyles.put(HorizontalAlignment.RIGHT, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.RIGHT, new java.awt.Color(255,244,0)));
+
+        return cellStyles;
+    }
+
+    private Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForPresidentsAndMembersColumn(XSSFSheet sheet) {
+        Map<HorizontalAlignment, XSSFCellStyle> cellStyles = new HashMap<>();
+
+        cellStyles.put(HorizontalAlignment.LEFT, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.LEFT, new java.awt.Color(194,24,7)));
+        cellStyles.put(HorizontalAlignment.CENTER, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.CENTER, new java.awt.Color(194,24,7)));
+        cellStyles.put(HorizontalAlignment.RIGHT, generateCellStyleForSubstituteColumn(sheet, HorizontalAlignment.RIGHT, new java.awt.Color(194,24,7)));
+
+        return cellStyles;
+    }
+
+    private XSSFCellStyle generateCellStyleForSubstituteColumn(XSSFSheet sheet, HorizontalAlignment horizontalAlignment, java.awt.Color color) {
+        XSSFWorkbook workbook = sheet.getWorkbook();
+        // Kreiranje stila
+        XSSFCellStyle cellStyle = workbook.createCellStyle();
+        cellStyle.setDataFormat(dataFormat.getFormat("@"));
+
+        // Definisanje fonta
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 12);
+        cellStyle.setFont(font);
+
+        // Definisanje ivica
+        cellStyle.setBorderBottom(BorderStyle.THIN);
+        cellStyle.setBottomBorderColor(IndexedColors.BLACK.getIndex());
+        cellStyle.setBorderTop(BorderStyle.THIN);
+        cellStyle.setTopBorderColor(IndexedColors.BLACK.getIndex());
+        cellStyle.setBorderLeft(BorderStyle.THIN);
+        cellStyle.setLeftBorderColor(IndexedColors.BLACK.getIndex());
+        cellStyle.setBorderRight(BorderStyle.THIN);
+        cellStyle.setRightBorderColor(IndexedColors.BLACK.getIndex());
+
+        // Centriranje teksta
+        cellStyle.setAlignment(horizontalAlignment);
+
+        cellStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+        //Postavljanje pozadine
+        XSSFColor backgroundColor = new XSSFColor(color, new DefaultIndexedColorMap());
+        cellStyle.setFillForegroundColor(backgroundColor);
+        cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        return cellStyle;
     }
 
     private Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForCounselMembersColumn(XSSFSheet sheet) {
@@ -660,5 +733,158 @@ public class CouncelXlsxService {
         }
 
         return saveDocument(fileTitle, workbook);
+    }
+
+    public String generateSubstitutes(String fileTitle) {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+
+        String sheetName = "РЕЗЕРВНИ ЧЛАНОВИ";
+        XSSFSheet sheet = workbook.createSheet(sheetName);
+        this.dataFormat = createDataFormat(sheet);
+
+
+        defineColumnWidthForSubstitutes(sheet);
+
+        generateFrozenHeaderForSubstitutes(sheet);
+
+        List<SubstituteEntity> substituteEntities = substituteRepository.findAll();
+        councelMemberStyles = generateCellStyleForCounselMembersColumn(sheet);
+        substituteStyles = generateCellStyleForSubstitutesColumn(sheet);
+        presidentStyles = generateCellStyleForPresidentsColumn(sheet);
+        presidentMemberStyles = generateCellStyleForPresidentsAndMembersColumn(sheet);
+
+        for(SubstituteEntity substituteEntity: substituteEntities) {
+            if(substituteEntity.getIsPresident() && substituteEntity.getJmbg() != null && memberRepository.existsByJmbg(substituteEntity.getJmbg()))
+                createRow(sheet, substituteEntity, presidentMemberStyles);
+            else if(substituteEntity.getIsPresident())
+                createRow(sheet, substituteEntity, presidentStyles);
+            else if(memberRepository.existsByJmbg(substituteEntity.getJmbg()))
+                createRow(sheet, substituteEntity, substituteStyles);
+            else
+                createRow(sheet, substituteEntity, councelMemberStyles);
+        }
+
+        return saveDocument(fileTitle, workbook);
+    }
+
+    private void defineColumnWidthForSubstitutes(XSSFSheet sheet) {
+        //Sifra PS
+        sheet.setColumnWidth(0, 10 * 256);
+        //Clanovi
+        sheet.setColumnWidth(1, 45 * 256);
+        //Zanimanje
+        sheet.setColumnWidth(2, 20 * 256);
+        //JMB
+        sheet.setColumnWidth(3, 20 * 256);
+        //Mobilni telefon
+        sheet.setColumnWidth(4, 20 * 256);
+        //Ziro racun
+        sheet.setColumnWidth(5, 30 * 256);
+        //Naziv banke racun
+        sheet.setColumnWidth(6, 25 * 256);
+        //Komentar
+        sheet.setColumnWidth(7, 40 * 256);
+    }
+
+    private void generateFrozenHeaderForSubstitutes(XSSFSheet sheet) {
+        firstRowStyle = generateCellStyleForFirstColumn(sheet);
+
+        //Kreiranje prvog reda
+        XSSFRow row = sheet.createRow(0);
+        row.setHeightInPoints(45);
+        sheet.createFreezePane(0, 1);
+
+        XSSFCell cell = row.createCell(0);
+        String text = "Редни број";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(1);
+        text = "Име и презиме";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(2);
+        text = "Стручна спрема";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(3);
+        text = "ЈМБГ";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(4);
+        text = "Телефон";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(5);
+        text = "Број текућег рачуна";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(6);
+        text = "Назив банке";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+
+        cell = row.createCell(7);
+        text = "Коментар";
+        cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(text);
+    }
+
+    private void createRow(XSSFSheet sheet, SubstituteEntity substituteEntity, Map<HorizontalAlignment, XSSFCellStyle> styles) {
+        XSSFRow row = sheet.createRow(sheet.getLastRowNum() + 1);
+
+        XSSFCell cell = row.createCell(0);
+        cell.setCellValue(substituteEntity.getOrderNumber());
+        cell.setCellStyle(styles.get(HorizontalAlignment.LEFT));
+
+        String text;
+
+        cell = row.createCell(1);
+        cell.setCellStyle(styles.get(HorizontalAlignment.LEFT));
+        if(substituteEntity != null && substituteEntity.getFirstname() != null && substituteEntity.getLastname() != null) {
+            text = substituteEntity.getFullname();
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(2);
+        cell.setCellStyle(styles.get(HorizontalAlignment.LEFT));
+        if(substituteEntity != null && substituteEntity.getQualifications() != null) {
+            text = substituteEntity.getQualifications().toUpperCase();
+            cell.setCellValue(text);
+        }
+
+
+        cell = row.createCell(3);
+        cell.setCellStyle(styles.get(HorizontalAlignment.CENTER));
+        if(substituteEntity != null && substituteEntity.getJmbg() != null) {
+            text = substituteEntity.getJmbg();
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(4);
+        cell.setCellStyle(styles.get(HorizontalAlignment.CENTER));
+        if(substituteEntity != null && substituteEntity.getPhoneNumber() != null) {
+            text = formatPhoneNumber(substituteEntity.getPhoneNumber());
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(5);
+        cell.setCellStyle(styles.get(HorizontalAlignment.CENTER));
+        if(substituteEntity != null && substituteEntity.getBankNumber() != null) {
+            text = formatBankNumber(substituteEntity.getBankNumber());
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(6);
+        cell.setCellStyle(styles.get(HorizontalAlignment.LEFT));
+        if(substituteEntity != null && substituteEntity.getBankName() != null) {
+            text = substituteEntity.getBankName().toUpperCase();
+            cell.setCellValue(text);
+        }
     }
 }

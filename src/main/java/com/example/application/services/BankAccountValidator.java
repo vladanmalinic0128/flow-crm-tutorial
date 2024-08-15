@@ -5,9 +5,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class BankAccountValidator {
     public boolean isValidAccountNumber(String accountNumber) {
+        if(accountNumber == null)
+            return true;
         if (accountNumber.length() > 11 && accountNumber.length() != 16) {
             return false;
         }
+        else if(accountNumber.length() <= 11)
+            return true;
 
         String baseAccountNumber = accountNumber.substring(0, 14);
         String controlDigits = accountNumber.substring(14);
