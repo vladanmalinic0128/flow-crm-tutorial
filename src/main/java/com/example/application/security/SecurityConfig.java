@@ -28,17 +28,24 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Bean
     public UserDetailsService users() {
-        UserDetails user = User.builder()
+        UserDetails dubravko = User.builder()
                 .username("dmalinic")
                 // password = password with this hash, don't tell anybody :-)
                 .password("{bcrypt}$2a$10$6q4U.xYN8kl8CtM5PZvyuOciyVd5jKSSVy16CZZBVH0rRmdCQ8y/K")
                 .roles("USER")
                 .build();
-        UserDetails admin = User.builder()
+
+        UserDetails vladan = User.builder()
                 .username("vmalinic")
                 .password("{bcrypt}$2a$10$rozRn5SMxzK4HvHYCaHHa.oL8yumN.p8d0pEKfFloDJmLugeysTOq")
                 .roles("USER", "ADMIN")
                 .build();
-        return new InMemoryUserDetailsManager(user, admin);
+
+        UserDetails branka = User.builder()
+                .username("branka")
+                .password("{bcrypt}$2a$10$ghzyXleqQb9KNt6stWO/SeyvuqBTQqh1JSCR4pLiaFxhOfUniokCu")
+                .roles("USER", "ADMIN")
+                .build();
+        return new InMemoryUserDetailsManager(dubravko, vladan, branka);
     }
 }
