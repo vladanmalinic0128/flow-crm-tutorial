@@ -8,6 +8,7 @@ import com.example.application.services.LatinToCyrillicConverter;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.FileInputStream;
@@ -37,9 +38,10 @@ public class SubstituteInitializer /*implements ApplicationRunner*/ {
                     continue;
                 SubstituteEntity entity = createSubstituteFromRow(row);
                 substituteEntityList.add(entity);
-            }
-            for(SubstituteEntity entity: substituteEntityList)
                 substituteRepository.save(entity);
+            }
+            //for(SubstituteEntity entity: substituteEntityList)
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -153,7 +155,7 @@ public class SubstituteInitializer /*implements ApplicationRunner*/ {
             case BOOLEAN:
                 return Boolean.toString(cell.getBooleanCellValue());
             case NUMERIC:
-                return Integer.toString((int)cell.getNumericCellValue());
+                return Long.toString((long)cell.getNumericCellValue());
             case FORMULA:
                 return cell.getCellFormula();
             case BLANK:
