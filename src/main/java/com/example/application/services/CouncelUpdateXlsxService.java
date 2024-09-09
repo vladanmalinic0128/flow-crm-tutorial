@@ -2,19 +2,17 @@ package com.example.application.services;
 
 import com.example.application.entities.ConstraintEntity;
 import com.example.application.entities.MemberEntity;
+import com.example.application.entities.SubstituteEntity;
 import com.example.application.entities.VotingCouncelEntity;
+import com.example.application.repositories.SubstituteRepository;
 import com.example.application.repositories.VotingCouncelRepository;
-import jakarta.validation.Constraint;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.springframework.stereotype.Service;
 
-import java.lang.reflect.Member;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +23,7 @@ public class CouncelUpdateXlsxService {
     private final String MUNICIPALITY_CODE = "034Б";
     private final VotingCouncelRepository votingCouncelRepository;
     private final LatinToCyrillicConverter latinToCyrillicConverter;
+    private final SubstituteRepository substituteRepository;
     public List<ConstraintEntity> getModifiedConstraints(Workbook workbook, boolean deleteEmptyRows) {
         List<ConstraintEntity> result = new ArrayList<>();
 
@@ -54,7 +53,7 @@ public class CouncelUpdateXlsxService {
                     memberEntity.setConstraint(activeConstraint);
                     activeConstraint.setMember(memberEntity);
 
-                    convertRowStringToMember(row, memberEntity);
+                    convertRowStringToMember(row, memberEntity, deleteEmptyRows);
 
                     activeConstraint.setMember(memberEntity);
                     result.add(activeConstraint);
@@ -92,7 +91,7 @@ public class CouncelUpdateXlsxService {
             return optionalVotingCouncel.get();
     }
 
-    private void convertRowStringToMember(Row row, MemberEntity memberEntity) {
+    private void convertRowStringToMember(Row row, MemberEntity memberEntity, boolean deleteEmptyRows) {
         String name = getCellValue(row.getCell(3));
         if(name == null || name.trim().length() == 0) {
             memberEntity.setFirstname(null);
@@ -118,13 +117,26 @@ public class CouncelUpdateXlsxService {
         readPhoneNumber(phoneNumber, memberEntity);
 
         String bankNumber = getCellValue(row.getCell(8));
-        readBankNumber(bankNumber, memberEntity);
+        readBankNumber(bankNumber, memberEntity, deleteEmptyRows);
 
         String bankName = getCellValue(row.getCell(9));
-        if(bankName == null || bankName.length() == 0)
-            memberEntity.setBankName(null);
-        else
-            memberEntity.setBankName(bankName);
+        if(deleteEmptyRows) {
+            if(bankName == null || bankName.trim().length() == 0)
+                memberEntity.setBankName(null);
+            else
+                memberEntity.setBankName(bankName);
+        } else {
+            if(bankName != null && bankName.trim().length() > 1) {
+                memberEntity.setBankName(bankName);
+            }
+            else if(memberEntity.getBankName() == null || memberEntity.getBankName().trim().length() == 0) {
+                Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+                if (optional.isEmpty() || optional.get().getJmbg() == null || optional.get().getJmbg().length() < 1)
+                    memberEntity.setBankName(null);
+                else
+                    memberEntity.setBankName(optional.get().getBankName());
+            }
+        }
     }
 
     public void readNameCell(String value, MemberEntity memberEntity) {
@@ -167,12 +179,25 @@ public class CouncelUpdateXlsxService {
             memberEntity.setPhoneNumber(phoneNumber);
     }
 
-    private void readBankNumber(String bankNumber, MemberEntity memberEntity) {
+    private void readBankNumber(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
         bankNumber = bankNumber.replaceAll("\\D", "");
-        if(bankNumber == null || bankNumber.trim().length() == 0)
-            memberEntity.setBankNumber(null);
-        else
-            memberEntity.setBankNumber(bankNumber);
+        if(deleteEmptyRows) {
+            if(bankNumber == null || bankNumber.trim().length() == 0)
+                memberEntity.setBankNumber(null);
+            else
+                memberEntity.setBankNumber(bankNumber);
+        } else {
+            if(bankNumber != null && bankNumber.trim().length() > 1) {
+                memberEntity.setBankNumber(bankNumber);
+            }
+            else if(memberEntity.getBankNumber() == null || memberEntity.getBankNumber().trim().length() == 0) {
+                Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+                if (optional.isEmpty() || optional.get().getJmbg() == null || optional.get().getJmbg().length() < 1)
+                    memberEntity.setBankNumber(null);
+                else
+                    memberEntity.setBankNumber(optional.get().getBankNumber());
+            }
+        }
     }
 
 

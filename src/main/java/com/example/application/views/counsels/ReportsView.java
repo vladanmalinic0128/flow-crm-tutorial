@@ -26,6 +26,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 
@@ -93,7 +94,7 @@ public class ReportsView extends VerticalLayout {
         Text description = new Text("Ovde možete preuzeti sva rješenja na jednom mjestu: ");
 
         VotingCouncelEntity votingCouncel = new VotingCouncelEntity();
-        votingCouncel.setCode("034B");
+        votingCouncel.setCode("034");
         votingCouncel.setName("Zbirna rješenja u jednom fajlu");
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
@@ -158,7 +159,12 @@ public class ReportsView extends VerticalLayout {
                 dialog.close();
                 return null;
             }
-            String stringPath = reportsPdfService.generateReportByCode(entity, fileTitle, scripts.getValue());
+            String stringPath = null;
+            try {
+                stringPath = reportsPdfService.generateReportByCode(entity, fileTitle, scripts.getValue());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             dialog.close();
             if(stringPath != null)
                 return reportsPdfService.getStream(stringPath);

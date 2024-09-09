@@ -24,6 +24,9 @@ import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -272,7 +275,7 @@ public class ObserverPdfService {
         Paragraph sealPlace = new Paragraph("_______________").addStyle(keyStyle);
         Paragraph sealText = new Paragraph(doConvert("MP", scriptEnum)).addStyle(keyStyle);
 
-        String electionLogoPath = "src/main/resources/logo/election24.png";
+        String electionLogoPath = "src/main/resources/logo/election24-rotated.png";
         ImageData imageData = null;
         try {
             imageData = ImageDataFactory.create(electionLogoPath);
@@ -590,5 +593,51 @@ public class ObserverPdfService {
     }
 
 
+    public String generateOverallReport(PoliticalOrganizationEntity entity, String fileTitle, ScriptEnum value) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        XWPFDocument document = new XWPFDocument();
+
+        XWPFParagraph paragraph1 = document.createParagraph();
+        XWPFRun run1 = paragraph1.createRun();
+        run1.setText("Ovo je prvi paragraf na prvoj strani.");
+
+        run1.addBreak(org.apache.poi.xwpf.usermodel.BreakType.PAGE);
+
+        XWPFParagraph paragraph2 = document.createParagraph();
+        XWPFRun run2 = paragraph2.createRun();
+        run2.setText("Ovo je paragraf na novoj, drugoj stranici.");
+
+        String filePath = ROOT_PATH + File.separator + fileTitle;
+
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            out.writeTo(fos);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Zatvori dokument
+        try {
+            document.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return filePath;
+    }
+
+    public InputStream getStream(String fileString) {
+        File file = new File(fileString);
+        FileInputStream stream = null;
+
+        try {
+            stream = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return stream;
+    }
 }
 

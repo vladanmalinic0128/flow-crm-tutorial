@@ -12,10 +12,10 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class StatusInitializer /*implements ApplicationRunner*/ {
+public class StatusInitializer implements ApplicationRunner {
     private final StatusRepository statusRepository;
 
-    //@Override
+    @Override
     public void run(ApplicationArguments args) throws Exception {
         List<StatusEntity> statuses = new ArrayList<>();
 
@@ -67,6 +67,12 @@ public class StatusInitializer /*implements ApplicationRunner*/ {
         failureStatus7.setSuccess(false);
         failureStatus7.setName("Nije unesen redni broj u dokumentu");
         statuses.add(failureStatus7);
+
+        StatusEntity failureStatus8 = new StatusEntity();
+        failureStatus8.setId(9);
+        failureStatus8.setSuccess(false);
+        failureStatus8.setName("Osoba je akreditovana kao predsjednik biračkog odbora");
+        statuses.add(failureStatus8);
 
         for(StatusEntity status: statuses)
             statusRepository.save(status);

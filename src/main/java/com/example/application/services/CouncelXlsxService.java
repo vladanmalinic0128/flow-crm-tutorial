@@ -43,7 +43,7 @@ public class CouncelXlsxService {
 
 
 
-    public String generateCouncelsByPoliticalOrganization(PoliticalOrganizationEntity entity, String fileTitle, ScriptEnum scriptEnum) {
+    public String generateCouncelsByPoliticalOrganization(PoliticalOrganizationEntity entity, String fileTitle, ScriptEnum scriptEnum, boolean isMT) {
 
         XSSFWorkbook workbook = new XSSFWorkbook();
 
@@ -58,8 +58,11 @@ public class CouncelXlsxService {
         Map<TitleEnum, TitleEntity> titles = titleService.getTitles();
         councelStyles = generateCellStyleForCounselsColumn(sheet);
         councelMemberStyles = generateCellStyleForCounselMembersColumn(sheet);
-        Map<VotingCouncelEntity, List<ConstraintEntity>> politicalOrganizationsByCouncels = entity.getConstraints().stream()
-                .collect(Collectors.groupingBy(ConstraintEntity::getVotingCouncel));
+        Map<VotingCouncelEntity, List<ConstraintEntity>> politicalOrganizationsByCouncels = null;
+        if(isMT == false)
+                politicalOrganizationsByCouncels = entity.getConstraints().stream().collect(Collectors.groupingBy(ConstraintEntity::getVotingCouncel));
+        else
+            politicalOrganizationsByCouncels = entity.getConstraints().stream().filter(c -> c.getVotingCouncel().getCode().contains("МТ")).collect(Collectors.groupingBy(ConstraintEntity::getVotingCouncel));
 
 
         for(Map.Entry<VotingCouncelEntity, List<ConstraintEntity>> entry : politicalOrganizationsByCouncels.entrySet().stream().sorted(Comparator.comparing(c -> c.getKey().getId())).collect(Collectors.toList())) {
@@ -219,11 +222,14 @@ public class CouncelXlsxService {
         cell.setCellValue(value);
     }
 
-    private XSSFCellStyle generateCellStyleForFirstColumn(XSSFSheet sheet) {
+    public XSSFCellStyle generateCellStyleForFirstColumn(XSSFSheet sheet) {
         XSSFWorkbook workbook = sheet.getWorkbook();
         // Kreiranje stila
         XSSFCellStyle cellStyle = workbook.createCellStyle();
-        cellStyle.setDataFormat(dataFormat.getFormat("@"));
+        if(dataFormat != null)
+            cellStyle.setDataFormat(dataFormat.getFormat("@"));
+        else
+            cellStyle.setDataFormat(createDataFormat(sheet).getFormat("@"));
 
         // Definisanje fonta
         Font font = workbook.createFont();
@@ -285,7 +291,7 @@ public class CouncelXlsxService {
 
         cell = row.createCell(3);
         cell.setCellStyle(this.councelStyles.get(HorizontalAlignment.LEFT));
-        String votingCouncelName = entity.getName() + ", " +entity.getLocation();
+        String votingCouncelName = entity.getName() + (entity.getLocation() == null || entity.getLocation().length() < 1 ? "" : ", " + entity.getLocation());
         text = scriptEnum == ScriptEnum.CYRILLIC ? votingCouncelName : cyrillicToLatinConverter.convert(votingCouncelName);
         cell.setCellValue(text);
         cell = row.createCell(4);
@@ -323,7 +329,7 @@ public class CouncelXlsxService {
         cell.setCellStyle(this.councelStyles.get(HorizontalAlignment.RIGHT));
     }
 
-    private Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForCounselsColumn(XSSFSheet sheet) {
+    public Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForCounselsColumn(XSSFSheet sheet) {
         Map<HorizontalAlignment, XSSFCellStyle> cellStyles = new HashMap<>();
 
         cellStyles.put(HorizontalAlignment.LEFT, generateCellStyleForCounselColumn(sheet, HorizontalAlignment.LEFT));
@@ -397,7 +403,7 @@ public class CouncelXlsxService {
         return cellStyle;
     }
 
-    private Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForCounselMembersColumn(XSSFSheet sheet) {
+    public Map<HorizontalAlignment, XSSFCellStyle> generateCellStyleForCounselMembersColumn(XSSFSheet sheet) {
         Map<HorizontalAlignment, XSSFCellStyle> cellStyles = new HashMap<>();
 
         cellStyles.put(HorizontalAlignment.LEFT, generateCellStyleForCounselMemberColumn(sheet, HorizontalAlignment.LEFT));
@@ -411,7 +417,10 @@ public class CouncelXlsxService {
         XSSFWorkbook workbook = sheet.getWorkbook();
         // Kreiranje stila
         XSSFCellStyle cellStyle = workbook.createCellStyle();
-        cellStyle.setDataFormat(dataFormat.getFormat("@"));
+        if(dataFormat != null)
+            cellStyle.setDataFormat(dataFormat.getFormat("@"));
+        else
+            cellStyle.setDataFormat(createDataFormat(sheet).getFormat("@"));
 
         // Definisanje fonta
         Font font = workbook.createFont();
@@ -440,7 +449,10 @@ public class CouncelXlsxService {
         XSSFWorkbook workbook = sheet.getWorkbook();
         // Kreiranje stila
         XSSFCellStyle cellStyle = workbook.createCellStyle();
-        cellStyle.setDataFormat(dataFormat.getFormat("@"));
+        if(dataFormat != null)
+            cellStyle.setDataFormat(dataFormat.getFormat("@"));
+        else
+            cellStyle.setDataFormat(createDataFormat(sheet).getFormat("@"));
 
         // Definisanje fonta
         Font font = workbook.createFont();

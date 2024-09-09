@@ -28,10 +28,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStream;
+import java.io.*;
 import java.time.LocalDate;
 
 @PermitAll
@@ -117,13 +114,14 @@ public class ObserverReportsView extends VerticalLayout {
         //pdfButton.addClickListener(e -> observerPdfService.downloadOverallPdf(entity));
         pdfButton.addClickListener(e -> showAlertForOverallPdf(entity));
 
-        Button xlsxButton = new Button("Xlsx");
-        xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                ButtonVariant.LUMO_SUCCESS);
-        //xlsxButton.addClickListener(e -> observerPdfService.downloadOverallXlsx(entity));
-        xlsxButton.addClickListener(e -> showAlertForOverallXlsx(entity));
+//        Button xlsxButton = new Button("Xlsx");
+//        xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+//                ButtonVariant.LUMO_SUCCESS);
+//        //xlsxButton.addClickListener(e -> observerPdfService.downloadOverallXlsx(entity));
+//        xlsxButton.addClickListener(e -> showAlertForOverallXlsx(entity));
 
-        horizontalLayout.add(span, pdfButton, xlsxButton);
+        horizontalLayout.add(span, pdfButton);
+        //horizontalLayout.add(span, pdfButton, xlsxButton);
     }
 
     private void addComponentsToNestedReport(HorizontalLayout horizontalLayout, StackEntity entity, Accordion accordion, AccordionPanel accordionPanel) {
@@ -208,19 +206,40 @@ public class ObserverReportsView extends VerticalLayout {
         VerticalLayout overallPdfLayout = generateOverallPdfLayout();
         dialog.add(overallPdfLayout);
 
+        String fileTitle = entity.getCode() + "_" + System.currentTimeMillis() + ".docx";
+
         Button saveButton = new Button("Generiši");
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-
-        saveButton.addClickListener(e -> {
-            handleOverallPdf(entity, saveButton);
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            if(scripts.getValue() == null) {
+                Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                dialog.close();
+                return null;
+            }
+            String stringPath = null;
+            try {
+                stringPath = observerPdfService.generateOverallReport(entity, fileTitle, scripts.getValue());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             dialog.close();
-        });
+            if(stringPath != null)
+                return observerPdfService.getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
         Button cancelButton = new Button("Otkaži", e -> dialog.close());
 
         dialog.getFooter().add(cancelButton);
-        dialog.getFooter().add(saveButton);
+        dialog.getFooter().add(saveButtonAnchor);
 
         dialog.open();
     }

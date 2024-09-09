@@ -1,10 +1,9 @@
 package com.example.application.views.counsels;
 
-
-import com.example.application.entities.PoliticalOrganizationEntity;
+import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
-import com.example.application.services.CouncelXlsxService;
-import com.example.application.services.PoliticalOrganizationService;
+import com.example.application.repositories.VotingCouncelRepository;
+import com.example.application.services.ReportsPdfService;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.accordion.Accordion;
@@ -22,24 +21,24 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
 
-@PermitAll
-@Route(value = "bo/po/ps", layout = MainLayout.class)
-public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
-    public static final String ROOT_PATH = "src/main/resources/generated-documents";
-    private final PoliticalOrganizationService politicalOrganizationService;
-    private final CouncelXlsxService councelXlsxService;
+import java.io.IOException;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 
+@PermitAll
+@Route(value = "skracena-rjesenja", layout = MainLayout.class)
+public class ShortReportsView extends VerticalLayout {
+    private final VotingCouncelRepository votingCouncelRepository;
+    private final ReportsPdfService reportsPdfService;
     ComboBox<ScriptEnum> scripts = new ComboBox<>("Odaberite pismo");
 
-    public CouncelsByPoliticalOrganizationView(PoliticalOrganizationService politicalOrganizationService, CouncelXlsxService councelXlsxService) {
-        this.politicalOrganizationService = politicalOrganizationService;
-        this.councelXlsxService = councelXlsxService;
-
+    public ShortReportsView(VotingCouncelRepository votingCouncelRepository, ReportsPdfService reportsPdfService) {
+        this.votingCouncelRepository = votingCouncelRepository;
+        this.reportsPdfService = reportsPdfService;
         // Main layout
         this.setWidth("100%");
         this.getStyle().set("margin", "0 auto");
@@ -52,35 +51,29 @@ public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
         scripts.setItems(ScriptEnum.values());
         scripts.setItemLabelGenerator(ScriptEnum::getName);
 
-        for (PoliticalOrganizationEntity entity : politicalOrganizationService.getAllDrawed()) {
+        generateOverallTable(accordion);
+
+        for(VotingCouncelEntity entity: votingCouncelRepository.findAll().stream().sorted(Comparator.comparing(VotingCouncelEntity::getCode)).collect(Collectors.toList())) {
             // Add a HorizontalLayout
             HorizontalLayout horizontalLayout = new HorizontalLayout();
             horizontalLayout.setWidthFull();
             horizontalLayout.setAlignItems(Alignment.CENTER);
             horizontalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            Text description = new Text("Ovde možete preuzeti pozicije za gore navedenu partiju: ");
+            Text description = new Text("Ovde možete preuzeti skraćeno rješenje za gore navedeni birački odbor: ");
 
             Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
-            Button xlsxButton = new Button("Preuzmi", downloadIcon);
-            Button xlsxMTButton = new Button("Preuzmi MT", downloadIcon);
+            Button pdfButton = new Button("Preuzmi", downloadIcon);
+            pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                    ButtonVariant.LUMO_ERROR);
 
-            xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                    ButtonVariant.LUMO_SUCCESS);
-            xlsxMTButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
-                    ButtonVariant.LUMO_SUCCESS);
-
-            xlsxButton.addClickListener(e -> {
-                Dialog dialog = createDialog(entity, false);
+            pdfButton.addClickListener(e -> {
+//
+                Dialog dialog = createDialog(entity);
                 dialog.open();
             });
 
-            xlsxMTButton.addClickListener(e -> {
-                Dialog dialog = createDialog(entity, true);
-                dialog.open();
-            });
-
-            horizontalLayout.add(description, xlsxButton, xlsxMTButton);
+            horizontalLayout.add(description, pdfButton);
 
             // Add the VerticalLayout to the main Accordion
             AccordionPanel panel = accordion.add(entity.getCode() + ": " + entity.getName(), horizontalLayout);
@@ -90,13 +83,43 @@ public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
         add(accordion);
     }
 
-    private Dialog createDialog(PoliticalOrganizationEntity entity, boolean isMT) {
+    private void generateOverallTable(Accordion accordion) {
+        // Add a HorizontalLayout
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        horizontalLayout.setWidthFull();
+        horizontalLayout.setAlignItems(Alignment.CENTER);
+        horizontalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+
+        Text description = new Text("Ovde možete preuzeti sva skraćena rješenja na jednom mjestu: ");
+
+        VotingCouncelEntity votingCouncel = new VotingCouncelEntity();
+        votingCouncel.setCode("034");
+        votingCouncel.setName("Zbirna skraćena rješenja u jednom fajlu");
+
+        Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Button pdfButton = new Button("Preuzmi", downloadIcon);
+        pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_ERROR);
+
+        pdfButton.addClickListener(e -> {
+//
+            Dialog dialog = createDialog(votingCouncel);
+            dialog.open();
+        });
+
+        horizontalLayout.add(description, pdfButton);
+
+        // Add the VerticalLayout to the main Accordion
+        AccordionPanel panel = accordion.add(votingCouncel.getCode() + ": " + votingCouncel.getName(), horizontalLayout);
+    }
+
+    private Dialog createDialog(VotingCouncelEntity entity) {
         Dialog dialog = new Dialog();
         dialog.getElement().setAttribute("aria-label", "Add note");
 
         dialog.getHeader().add(createDialogHeader());
 
-        VerticalLayout dialogLayout = createDialogLayout(dialog, entity, isMT);
+        VerticalLayout dialogLayout = createDialogLayout(dialog, entity);
         dialog.add(dialogLayout);
         dialog.setModal(true);
         dialog.setDraggable(true);
@@ -105,7 +128,7 @@ public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
     }
 
     private H2 createDialogHeader() {
-        H2 headline = new H2("Generisanje biračkih odbora");
+        H2 headline = new H2("Generisanje rješenja");
         headline.addClassName("draggable");
         headline.getStyle().set("margin", "0").set("font-size", "1.5em")
                 .set("font-weight", "bold").set("cursor", "move")
@@ -114,7 +137,7 @@ public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
         return headline;
     }
 
-    private VerticalLayout createDialogLayout(Dialog dialog, PoliticalOrganizationEntity entity, boolean isMT) {
+    private VerticalLayout createDialogLayout(Dialog dialog, VotingCouncelEntity entity) {
         VerticalLayout fieldLayout = new VerticalLayout(scripts);
         scripts.setValue(ScriptEnum.CYRILLIC);
         fieldLayout.setSpacing(false);
@@ -125,7 +148,7 @@ public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
         Button cancelButton = new Button("Zatvori", e -> {
             dialog.close();
         });
-        String fileTitle = entity.getCode() + "_" + System.currentTimeMillis() + ".xlsx";
+        String fileTitle = entity.getCode() + "_" + System.currentTimeMillis() + ".pdf";
         Button saveButton = new Button("Generiši");
 
         Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
@@ -135,10 +158,15 @@ public class CouncelsByPoliticalOrganizationView extends VerticalLayout {
                 dialog.close();
                 return null;
             }
-            String stringPath = councelXlsxService.generateCouncelsByPoliticalOrganization(entity, fileTitle, scripts.getValue(), isMT);
+            String stringPath = null;
+            try {
+                stringPath = reportsPdfService.generateShortReportByCode(entity, fileTitle, scripts.getValue());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
             dialog.close();
             if(stringPath != null)
-                return councelXlsxService.getStream(stringPath);
+                return reportsPdfService.getStream(stringPath);
             else
                 return null;
         }), "");

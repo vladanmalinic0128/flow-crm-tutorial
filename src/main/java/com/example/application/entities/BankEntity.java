@@ -21,6 +21,9 @@ public class BankEntity {
     @Column(name = "name")
     private String name;
     @Basic
+    @Column(name = "code")
+    private String code;
+    @Basic
     @Column(name = "prefix")
     private String prefix;
 }

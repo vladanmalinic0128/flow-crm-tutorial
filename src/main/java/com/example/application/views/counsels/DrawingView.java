@@ -58,13 +58,22 @@ public class DrawingView extends VerticalLayout {
         this.constraintRepository = constraintRepository;
         this.latinToCyrillicConverter = latinToCyrillicConverter;
         Button button = new Button("Započnite proces žrijebanja");
+        Button buttonMT = new Button("Započnite proces žrijebanja za MT");
         button.setWidth("100%");
+        buttonMT.setWidth("100%");
         drawingLayout.setWidth("100%");
 
-        if(constraintRepository.findAll().stream().count() > 0)
+        if(constraintRepository.findAll().stream().filter(c -> c.getVotingCouncel().getCode().contains("МТ") == false).count() > 0)
             button.setEnabled(false);
         button.addClickListener(e -> {
-            Dialog dialog = createDialog();
+            Dialog dialog = createDialog(false);
+            dialog.open();
+        });
+
+        if(constraintRepository.findAll().stream().filter(c -> c.getVotingCouncel().getCode().contains("МТ")).count() > 0)
+            buttonMT.setEnabled(false);
+        buttonMT.addClickListener(e -> {
+            Dialog dialog = createDialog(true);
             dialog.open();
         });
 
@@ -73,17 +82,17 @@ public class DrawingView extends VerticalLayout {
         this.getStyle().set("margin", "0 auto");
         this.getStyle().set("margin-top", "20px");
 
-        add(button);
+        add(button, buttonMT);
         add(drawingLayout);
     }
 
-    private Dialog createDialog() {
+    private Dialog createDialog(boolean isMT) {
         Dialog dialog = new Dialog();
         dialog.getElement().setAttribute("aria-label", "Add note");
 
         dialog.getHeader().add(createDialogHeader());
 
-        VerticalLayout dialogLayout = createDialogLayout(dialog);
+        VerticalLayout dialogLayout = createDialogLayout(dialog, isMT);
         dialog.add(dialogLayout);
         dialog.setModal(true);
         dialog.setDraggable(true);
@@ -101,7 +110,7 @@ public class DrawingView extends VerticalLayout {
         return headline;
     }
 
-    private VerticalLayout createDialogLayout(Dialog dialog) {
+    private VerticalLayout createDialogLayout(Dialog dialog, boolean isMT) {
         TextArea textArea = new TextArea();
         textArea.setValue("Ovde možete odabrati političke subjekte koji učestvuju na žrijebanju. To možete uraditi klikom na iste.");
         textArea.setHeightFull(); // Set height as desired
@@ -140,7 +149,7 @@ public class DrawingView extends VerticalLayout {
             chosenPoliticalOrganizations.clear();
             listBox.getSelectedItems().forEach(po -> chosenPoliticalOrganizations.add(po));
             dialog.close();
-            choosePositionForPoliticalOrganizations();
+            choosePositionForPoliticalOrganizations(isMT);
         });
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
@@ -151,7 +160,7 @@ public class DrawingView extends VerticalLayout {
         return fieldLayout;
     }
 
-    private void choosePositionForPoliticalOrganizations() {
+    private void choosePositionForPoliticalOrganizations(boolean isMT) {
         List<ComboBox<PoliticalOrganizationEntity>> comboBoxes = new ArrayList<>();
         for (int i = 1; i <= chosenPoliticalOrganizations.size(); i++) { // Adjust the loop count as needed
             HorizontalLayout horizontalLayout = new HorizontalLayout();
@@ -176,7 +185,7 @@ public class DrawingView extends VerticalLayout {
         String fileTitle = "zrijebanje_" + System.currentTimeMillis() + ".xlsx";
         Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
 
-            generateVotingCouncels(comboBoxes);
+            generateVotingCouncels(comboBoxes, isMT);
             String stringPath = generateExcelFileForDrawing(fileTitle);
             if(stringPath != null)
                 return getStream(stringPath);
@@ -194,7 +203,7 @@ public class DrawingView extends VerticalLayout {
         drawingLayout.add(saveButtonAnchor);
     }
 
-    private void generateVotingCouncels(List<ComboBox<PoliticalOrganizationEntity>> comboBoxes) {
+    private void generateVotingCouncels(List<ComboBox<PoliticalOrganizationEntity>> comboBoxes, boolean isMT) {
         Optional<ComboBox<PoliticalOrganizationEntity>> optionalComboBox = comboBoxes.stream().filter(c -> c.getValue() == null).findFirst();
         if(optionalComboBox.isPresent()) {
             ConfirmDialog confirmDialog = showAlert("Neispravno zrijebanje", "Na poziciji " + (comboBoxes.indexOf(optionalComboBox.get()) + 1) + " nije odabran politički subjekat!");
@@ -221,9 +230,16 @@ public class DrawingView extends VerticalLayout {
             i++;
         }
 
-        List<VotingCouncelEntity> votingCouncels = votingCouncelRepository.findAll();
+        List<VotingCouncelEntity> votingCouncels = null;
+        if(isMT == false)
+            votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ") == false).collect(Collectors.toList());
+        else
+            votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ")).collect(Collectors.toList());
 
-        i = 0; //Sluzi da vodi racuna o zrijebanju
+        if(isMT == false)
+            i = 0; //Sluzi da vodi racuna o zrijebanju
+        else
+            i = findLastConstraint() + 1;
         int participated = politicalOrganizationEntitiesList.size();
 
         Optional<TitleEntity> optionalMemberTitle = titleRepository.findById(1L);
@@ -253,6 +269,16 @@ public class DrawingView extends VerticalLayout {
                 i++;
             }
         }
+    }
+
+    private int findLastConstraint() {
+        Optional<VotingCouncelEntity> lastVotingCouncel  = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("Б")).sorted(Comparator.comparing(VotingCouncelEntity::getId).reversed()).findFirst();
+        if(lastVotingCouncel.isEmpty())
+            return -1;
+        Optional<ConstraintEntity> constraint = lastVotingCouncel.get().getConstraints().stream().filter(c -> c.getTitle().getId().equals(1L)).sorted(Comparator.comparing(ConstraintEntity::getPosition).reversed()).findFirst();
+        if(constraint.isEmpty())
+            return -1;
+        return constraint.get().getPoliticalOrganization().getDrawNumber() - 1;
     }
 
     private ConfirmDialog showAlert(String title, String body) {

@@ -1,6 +1,8 @@
 package com.example.application.views;
 
 import com.example.application.security.SecurityService;
+import com.example.application.views.contracts.ExternsView;
+import com.example.application.views.contracts.InternsView;
 import com.example.application.views.counsels.*;
 import com.example.application.views.list.AddingStackForm;
 import com.example.application.views.list.ListView;
@@ -78,6 +80,8 @@ public class MainLayout extends AppLayout implements RouterLayout {
                 activeLayout = getSecondaryNavigationForOberservers();
             } else if ("Birački odbori".equals(getLabelOfSelectedTab(event))) {
                 activeLayout = getSecondaryNavigationForVotingMembers();
+            } else if("Ugovori".equals(getLabelOfSelectedTab(event))) {
+                activeLayout = getSecondaryNavigationForContracts();
             }
 
             // Create a wrapper layout to center activeLayout
@@ -186,10 +190,38 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab tab4 = createTab("Ažuriranje podataka", DataUploadView.class);
         Tab tab5 = createTab("Provjera grešaka", HealthCheckView.class);
         Tab tab6 = createTab("Rješenja", ReportsView.class);
-        Tab tab7 = createTab("Prikaz po bankama", MembersByBankReportView.class);
-        Tab  tab8 = createTab("Rezervni spisak", SubstituteView.class);
+        Tab tab7 = createTab("Skraćena rješenja", ShortReportsView.class);
+        Tab tab8 = createTab("Prikaz po bankama", MembersByBankReportView.class);
+        Tab  tab9 = createTab("Rezervni spisak", SubstituteView.class);
 
-        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8);
+        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9);
+        tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
+        tabs.setSelectedTab(tab1);
+
+        // Add some styling
+        tabs.addClassName(LumoUtility.JustifyContent.CENTER);
+        tabs.addClassName(LumoUtility.Gap.SMALL);
+        tabs.addClassName(LumoUtility.Height.MEDIUM);
+
+        // Return a layout that contains the tabs
+        HorizontalLayout navigation = new HorizontalLayout(tabs);
+        navigation.setWidthFull();
+        navigation.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+        navigation.setPadding(false);
+        navigation.setSpacing(false);
+
+        return navigation;
+    }
+
+    private HorizontalLayout getSecondaryNavigationForContracts() {
+        // Create Tabs container
+        Tabs tabs = new Tabs();
+
+        // Create and configure tabs
+        Tab tab1 = createTab("Unutrašnji saradnici", InternsView.class);
+        Tab tab2 = createTab("Spoljašnji saradnici", ExternsView.class);
+
+        tabs.add(tab1, tab2);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
         tabs.setSelectedTab(tab1);
 

@@ -38,6 +38,9 @@ public class VotingCouncelEntity {
     @OneToMany(mappedBy = "votingCouncel", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ConstraintEntity> constraints = new ArrayList<>();
 
+    @OneToMany(mappedBy = "votingCouncel", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PresidentEntity> presidents = new ArrayList<>();
+
     @ManyToOne
     @JoinColumn(name = "mentor_id", referencedColumnName = "id", nullable = false)
     private MentorEntity mentor;
