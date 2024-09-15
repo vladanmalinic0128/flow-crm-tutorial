@@ -22,7 +22,6 @@ import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
-import org.apache.poi.common.usermodel.PictureType;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.util.Units;
@@ -610,21 +609,19 @@ public class ObserverPdfService {
         createHeader(document, scriptEnum);
 
 
-        addDecisionNumber(document, entity.getDecisionNumber(), scriptEnum);
-        addDate(document, entity.convertDate(), scriptEnum);
+        addDecisionNumber(document, entity.getDecisionNumber(), scriptEnum, "-1");
+        addDate(document, entity.convertDecisionDate(), scriptEnum);
         addEmptyLine(document);
 
-        setFirstParagraphForIntroduction(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setFirstParagraphForIntroduction(document, entity.getPoliticalOrganization(), entity.convertDecisionDate(), entity.convertRequestDate(), scriptEnum);
         setCenteredTitle(document, scriptEnum);
-        setFirstParagraphForDecision(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setFirstParagraphForDecision(document, entity.getPoliticalOrganization(), scriptEnum);
         addMainTable(document, entity.getObservers(), scriptEnum);
-        setSecondParagraphForDecision(document, entity.getExpirationDate(), scriptEnum);
+        setSecondParagraphForDecision(document, entity.getExpirationDecisionDate(), scriptEnum);
         setThirdParagraphForDecision(document, scriptEnum);
 
-
-
         setCenteredTitleForExplanation(document, scriptEnum);
-        setFirstParagraphForExplanation(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setFirstParagraphForExplanation(document, entity.getPoliticalOrganization(), entity.convertRequestDate(), scriptEnum);
         setSecondParagraphForExplanation(document, scriptEnum);
         setThirdParagraphForExplanation(document, scriptEnum);
 
@@ -829,10 +826,10 @@ public class ObserverPdfService {
         footerParagraph.getCTP().addNewFldSimple().setInstr("PAGE");
     }
 
-    private void addDecisionNumber(XWPFDocument document, String decisionNumber, ScriptEnum scriptEnum) {
+    private void addDecisionNumber(XWPFDocument document, String decisionNumber, ScriptEnum scriptEnum, String decisionNumberSuffix) {
         String label = "Број: ";
         String text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(label) : cyrillicToLatinConverter.convert(label);
-        text += decisionNumber + ".";
+        text += decisionNumber + decisionNumberSuffix + ".";
         XWPFParagraph paragraph = document.createParagraph();
         paragraph.setAlignment(ParagraphAlignment.LEFT);
         removeSpacing(paragraph);
@@ -858,15 +855,14 @@ public class ObserverPdfService {
         paragraph.setSpacingAfter(0);
     }
 
-    public void setFirstParagraphForIntroduction(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String date, ScriptEnum scriptEnum) {
-        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3., 8., 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 31/24), Градска изборна комисија Бања Лука је, на сједници одржаној 09.09.2024. године разматрала захтјев политичког субјекта ";
-        String secondPart = " године разматрала захтјев политичког субјекта ";
+    public void setFirstParagraphForIntroduction(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String decisionDate, String requestDate, ScriptEnum scriptEnum) {
+        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3., 8., 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 31/24), Градска изборна комисија Бања Лука је, на сједници одржаној " + decisionDate + " године разматрала захтјев политичког субјекта ";
         String politicalOrganizationPart = politicalOrganization.getName();
         String thirdPart = " (шифра ";
         String code = politicalOrganization.getCode();
-        String fourthPart = "), за акредитовање посматрача за посматрање изборних активности изборне комисије, центра за бирачки списак и бирачких мјеста на подручју основне изборне јединице 034 Б – Бања Лука и донијела сљедећу";
+        String fourthPart = ") од " + requestDate + ", за акредитовање посматрача за посматрање изборних активности изборне комисије, центра за бирачки списак и бирачких мјеста на подручју основне изборне јединице 034 Б – Бања Лука и донијела сљедећу";
 
-        String resultLabel = firstPartLabel + date + secondPart + politicalOrganizationPart + thirdPart + code + fourthPart;
+        String resultLabel = firstPartLabel + politicalOrganizationPart + thirdPart + code + fourthPart;
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
 
         XWPFParagraph paragraph = document.createParagraph();
@@ -880,7 +876,7 @@ public class ObserverPdfService {
         addEmptyLine(document);
     }
 
-    public void setFirstParagraphForDecision(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String date, ScriptEnum scriptEnum) {
+    public void setFirstParagraphForDecision(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, ScriptEnum scriptEnum) {
         String firstPartLabel = "1. Акредитују се посматрачи политичког субјекта ";
         String politicalOrganizationLabel = politicalOrganization.getName();
         String secondPartLabel = ", шифра ";
@@ -994,7 +990,7 @@ public class ObserverPdfService {
         String text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
         XWPFParagraph paragraph = document.createParagraph();
         paragraph.setAlignment(ParagraphAlignment.RIGHT);
-        paragraph.setIndentationRight(900);
+        paragraph.setIndentationRight(920);
         XWPFRun run = paragraph.createRun();
         run.setText(text);
         run.setFontSize(11);
@@ -1025,15 +1021,15 @@ public class ObserverPdfService {
 
         XWPFTableRow row = table.getRow(0);
         row.setHeight(200);
-        String orderNumberHeaderLabel = "R.B.";
+        String orderNumberHeaderLabel = "R.B.".toUpperCase();
         String orderNumberHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(orderNumberHeaderLabel) : orderNumberHeaderLabel;
         row.getCell(0).setText(orderNumberHeaderText);
 
-        String lastnameHeaderLabel = "Prezime";
+        String lastnameHeaderLabel = "Prezime".toUpperCase();
         String lastnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(lastnameHeaderLabel) : lastnameHeaderLabel;
         row.addNewTableCell().setText(lastnameHeaderText);
 
-        String firstnameHeaderLabel = "Ime";
+        String firstnameHeaderLabel = "Ime".toUpperCase();
         String firstnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(firstnameHeaderLabel) : firstnameHeaderLabel;
         row.addNewTableCell().setText(firstnameHeaderText);
         styleHeaderRow(table.getRow(0));
@@ -1042,8 +1038,8 @@ public class ObserverPdfService {
 
         if(scriptEnum == ScriptEnum.CYRILLIC)
             observers.forEach(o -> {
-                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()));
-                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()));
+                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()).toUpperCase());
+                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()).toUpperCase());
             });
         List<ObserverEntity> sortedObservers = observers.stream()
                 .filter(o -> o.getStatus().getSuccess())
@@ -1127,20 +1123,20 @@ public class ObserverPdfService {
         createHeader(document, scriptEnum);
 
 
-        addDecisionNumber(document, entity.getDecisionNumber(), scriptEnum);
-        addDate(document, entity.convertDate(), scriptEnum);
+        addDecisionNumber(document, entity.getDecisionNumber(), scriptEnum, "-2");
+        addDate(document, entity.convertDecisionDate(), scriptEnum);
         addEmptyLine(document);
 
-        setFirstParagraphForIntroduction(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setFirstParagraphForIntroduction(document, entity.getPoliticalOrganization(), entity.convertDecisionDate(), entity.convertRequestDate(), scriptEnum);
         setCenteredTitle(document, scriptEnum);
-        setFirstParagraphForRejectingDecision(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setFirstParagraphForRejectingDecision(document, entity.getPoliticalOrganization(), scriptEnum);
         addMainTableForRejection(document, entity.getObservers(), scriptEnum);
-        setSecondParagraphForDecision(document, entity.getExpirationDate(), scriptEnum);
+        setSecondParagraphForDecision(document, entity.getExpirationDecisionDate(), scriptEnum);
         setThirdParagraphForDecision(document, scriptEnum);
 
 
         setCenteredTitleForExplanation(document, scriptEnum);
-        setFirstParagraphForExplanation(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setFirstParagraphForExplanation(document, entity.getPoliticalOrganization(), entity.convertRequestDate(), scriptEnum);
         setSecondParagraphForRejectionExplanation(document, scriptEnum);
         setThirdParagraphForExplanation(document, scriptEnum);
 
@@ -1167,7 +1163,7 @@ public class ObserverPdfService {
         return filePath;
     }
 
-    private void setFirstParagraphForRejectingDecision(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String convertDate, ScriptEnum scriptEnum) {
+    private void setFirstParagraphForRejectingDecision(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization,  ScriptEnum scriptEnum) {
         String firstPartLabel = "1. Одбија се захтјев за акредитовање посматрача политичког субјекта ";
         String politicalOrganizationLabel = politicalOrganization.getName();
         String secondPartLabel = ", шифра ";
@@ -1189,7 +1185,7 @@ public class ObserverPdfService {
     }
 
     public void setSecondParagraphForRejectionExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
-        String firstPartLabel = "Градска изборна комисија Бања Лука утврдила је да су испуњени неопходни услови за акредитовање изборних посматрача и да нема сметњи за акредитовање, те је поступила према Поглављу 17. Изборног закона БиХ и Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ, и одлучила као у диспозитиву одлуке.";
+        String firstPartLabel = "Градска изборна комисија Бања Лука утврдила је да нису испуњени неопходни услови за акредитовање изборних посматрача, те је поступила према Поглављу 17. Изборног закона БиХ и Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ, и одлучила као у диспозитиву одлуке.";
 
         String resultLabel = firstPartLabel;
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
@@ -1209,25 +1205,25 @@ public class ObserverPdfService {
         XWPFTable table = document.createTable();
         table.setTableAlignment(TableRowAlign.CENTER);
         table.setWidthType(TableWidthType.PCT);
-        table.setWidth("70%");
+        table.setWidth("90%");
 
 
         XWPFTableRow row = table.getRow(0);
         row.setHeight(200);
-        String orderNumberHeaderLabel = "R.B.";
+        String orderNumberHeaderLabel = "R.B.".toUpperCase();
         String orderNumberHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(orderNumberHeaderLabel) : orderNumberHeaderLabel;
         row.getCell(0).setText(orderNumberHeaderText);
 
-        String lastnameHeaderLabel = "Prezime";
+        String lastnameHeaderLabel = "Prezime".toUpperCase();
         String lastnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(lastnameHeaderLabel) : lastnameHeaderLabel;
         row.addNewTableCell().setText(lastnameHeaderText);
 
-        String firstnameHeaderLabel = "Ime";
+        String firstnameHeaderLabel = "Ime".toUpperCase();
         String firstnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(firstnameHeaderLabel) : firstnameHeaderLabel;
         row.addNewTableCell().setText(firstnameHeaderText);
         styleHeaderRow(table.getRow(0));
 
-        String reasonHeaderLabel = "Razlog";
+        String reasonHeaderLabel = "Razlog".toUpperCase();
         String reasonHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonHeaderLabel) : reasonHeaderLabel;
         row.addNewTableCell().setText(reasonHeaderText);
         styleHeaderRow(table.getRow(0));
@@ -1236,8 +1232,8 @@ public class ObserverPdfService {
 
         if(scriptEnum == ScriptEnum.CYRILLIC)
             observers.forEach(o -> {
-                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()));
-                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()));
+                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()).toUpperCase());
+                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()).toUpperCase());
             });
         List<ObserverEntity> sortedObservers = observers.stream()
                 .filter(o -> o.getStatus().getSuccess() == false)

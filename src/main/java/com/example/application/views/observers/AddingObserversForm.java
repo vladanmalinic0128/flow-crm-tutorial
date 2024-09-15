@@ -63,7 +63,9 @@ public class AddingObserversForm extends FormLayout {
 
     TextField decisionNumber = new TextField("Unesite broj odluke: ");
     ComboBox<PoliticalOrganizationEntity> organizations = new ComboBox<>("Odaberite politički subjekat: ");
-    DatePicker datePicker = new DatePicker("Odaberite datum: ");
+    DatePicker decisionDatePicker = new DatePicker("Odaberite datum odluke: ");
+
+    DatePicker requestDatePicker = new DatePicker("Odaberite datum podnosenja zahtjeva: ");
 
     Upload upload = null;
     MemoryBuffer buffer = null;
@@ -102,13 +104,15 @@ public class AddingObserversForm extends FormLayout {
 
         add(decisionNumber);
         add(organizations);
-        add(datePicker);
+        add(decisionDatePicker);
+        add(requestDatePicker);
         add(upload);
         add(executeButton);
 
         setColspan(decisionNumber, 2);
         setColspan(organizations, 2);
-        setColspan(datePicker,2);
+        setColspan(decisionDatePicker,2);
+        setColspan(requestDatePicker,2);
         setColspan(upload, 2);
         setColspan(executeButton, 2);
     }
@@ -236,17 +240,27 @@ public class AddingObserversForm extends FormLayout {
             return;
         }
 
-        LocalDate date = datePicker.getValue();
+        LocalDate decisionDate = decisionDatePicker.getValue();
+        LocalDate requestDate = requestDatePicker.getValue();
 
         // Define the date range
         LocalDate startDate = LocalDate.of(2024, 6, 1);
         LocalDate endDate = LocalDate.of(2024, 11, 1);
 
         // Check if the date is within the range
-        boolean isWithinRange = !date.isBefore(startDate) && !date.isAfter(endDate);
+        boolean isWithinRange = !decisionDate.isBefore(startDate) && !decisionDate.isAfter(endDate);
 
         if(!isWithinRange) {
-            ConfirmDialog confirmDialog = showAlert("Neispravan datum", "Odaberite datum između dana raspisivanja i dana održavanja izbora");
+            ConfirmDialog confirmDialog = showAlert("Neispravan datum kreiranja odluke", "Odaberite datum između dana raspisivanja i dana održavanja izbora");
+            confirmDialog.open();
+            return;
+        }
+
+        // Check if the date is within the range
+        isWithinRange = !requestDate.isBefore(startDate) && !requestDate.isAfter(endDate);
+
+        if(!isWithinRange) {
+            ConfirmDialog confirmDialog = showAlert("Neispravan datum podnošenja zahtjeva", "Odaberite datum između dana raspisivanja i dana održavanja izbora");
             confirmDialog.open();
             return;
         }
@@ -260,7 +274,8 @@ public class AddingObserversForm extends FormLayout {
 
 
         stackEntity.setDecisionNumber(decisionNumberString);
-        stackEntity.setDate(Date.valueOf(date));
+        stackEntity.setDecisionDate(Date.valueOf(decisionDate));
+        stackEntity.setRequestDate(Date.valueOf(requestDate));
         stackEntity.setPoliticalOrganization(chosenOrganization);
 
         Dialog dialog = createDialog();
@@ -359,7 +374,8 @@ public class AddingObserversForm extends FormLayout {
 
     private void resetForm() {
         this.decisionNumber.clear();
-        this.datePicker.clear();
+        this.requestDatePicker.clear();
+        this.decisionDatePicker.clear();
         this.organizations.clear();
         this.stackEntity = new StackEntity();
         this.upload.clearFileList();

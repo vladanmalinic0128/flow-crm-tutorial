@@ -22,8 +22,11 @@ public class StackEntity {
     @Column(name = "decision_number")
     private String decisionNumber;
     @Basic
-    @Column(name = "date")
-    private Date date;
+    @Column(name = "decision_date")
+    private Date decisionDate;
+    @Basic
+    @Column(name = "request_date")
+    private Date requestDate;
     @OneToMany(mappedBy = "stack")
     private List<ObserverEntity> observers;
     @ManyToOne
@@ -35,25 +38,34 @@ public class StackEntity {
         return "StackEntity{" +
                 "id=" + id +
                 ", decisionNumber='" + decisionNumber + '\'' +
-                ", date=" + date +
+                ", date=" + decisionDate +
+                ", date=" + requestDate +
                 '}';
     }
 
-    public String convertDate() {
-        if(date == null)
+    public String convertDecisionDate() {
+        if(decisionDate == null)
             return null;
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
-        String formattedDate = dateFormat.format(date);
+        String formattedDate = dateFormat.format(decisionDate);
         return formattedDate;
     }
 
-    public String getExpirationDate() {
-        if(date == null)
+    public String convertRequestDate() {
+        if(requestDate == null)
+            return null;
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
+        String formattedDate = dateFormat.format(requestDate);
+        return formattedDate;
+    }
+
+    public String getExpirationDecisionDate() {
+        if(decisionDate == null)
             return null;
 
 
         Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
+        calendar.setTime(decisionDate);
         calendar.add(Calendar.DAY_OF_MONTH, 7);
         java.util.Date date7DaysAhead = calendar.getTime();
 

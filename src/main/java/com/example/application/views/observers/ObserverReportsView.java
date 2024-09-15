@@ -92,7 +92,7 @@ public class ObserverReportsView extends VerticalLayout {
                 additionalChildHorizontalLayout.setWidthFull();
                 VerticalLayout verticalLayout1 = new VerticalLayout();
                 verticalLayout1.add(childHorizontalLayout, additionalChildHorizontalLayout);
-                AccordionPanel nestedPanel = nestedAccordion.add(stack.getDecisionNumber() + " (" + stack.convertDate() + ")", verticalLayout1);
+                AccordionPanel nestedPanel = nestedAccordion.add(stack.getDecisionNumber() + " (" + stack.convertDecisionDate() + ")", verticalLayout1);
                 addComponentsToNestedReport(childHorizontalLayout, additionalChildHorizontalLayout, stack, nestedAccordion, nestedPanel);
 
                 nestedPanel.addThemeVariants(DetailsVariant.FILLED);
