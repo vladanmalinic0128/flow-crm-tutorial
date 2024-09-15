@@ -27,7 +27,7 @@ public class SubstituteInitializer /*implements ApplicationRunner*/ {
 
     //@Override
     public void run(ApplicationArguments args) throws Exception {
-        String absolutePath = "C:\\Users\\malin\\Desktop\\Bo 2024\\rezervni.xlsx";
+        String absolutePath = "src/main/resources/documents/rezervni.xlsx";
         try (InputStream inputStream = new FileInputStream(absolutePath)) {
             Workbook workbook = WorkbookFactory.create(inputStream);
             Sheet sheet = workbook.getSheetAt(0);

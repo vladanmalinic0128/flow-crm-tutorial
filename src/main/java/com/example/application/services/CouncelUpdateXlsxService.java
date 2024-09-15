@@ -21,6 +21,7 @@ import java.util.Optional;
 @Service
 public class CouncelUpdateXlsxService {
     private final String MUNICIPALITY_CODE = "034Б";
+    private final String MUNICIPALITY_CODE_FOR_MOBILE_TEAMS = "034МТ";
     private final VotingCouncelRepository votingCouncelRepository;
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final SubstituteRepository substituteRepository;
@@ -39,7 +40,7 @@ public class CouncelUpdateXlsxService {
             if(cell == null)
                 continue;
             String value = getCellValue(cell);
-            if(value.startsWith(MUNICIPALITY_CODE)) {
+            if(latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE) || latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE_FOR_MOBILE_TEAMS)) {
                 activeVotingCouncel = tryReadingVotingCouncel(cell);
             }
             else if(value.trim().length() == 5) {
