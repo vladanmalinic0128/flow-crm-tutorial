@@ -49,6 +49,8 @@ public class CouncelUpdateXlsxService {
                 boolean isEmpty = isEmpty(row);
                 if(isEmpty == false || (isEmpty && deleteEmptyRows && activeConstraint.getMember() != null)) {
                     MemberEntity memberEntity = null;
+                    if(activeConstraint == null)
+                        System.out.println("Loggg: " + cell.getRow() + ", " + cell.getColumnIndex());
                     memberEntity = activeConstraint.getMember() != null ? activeConstraint.getMember() : new MemberEntity();
                     memberEntity.setConstraint(activeConstraint);
                     activeConstraint.setMember(memberEntity);
@@ -177,7 +179,8 @@ public class CouncelUpdateXlsxService {
     }
 
     private void readBankNumber(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
-        bankNumber = bankNumber.replaceAll("\\D", "");
+        if(bankNumber != null)
+            bankNumber = bankNumber.replaceAll("\\D", "");
         if (memberEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
             memberEntity.setBankNumber(null);
         } else if (bankNumber != null && bankNumber.trim().length() > 1) {
