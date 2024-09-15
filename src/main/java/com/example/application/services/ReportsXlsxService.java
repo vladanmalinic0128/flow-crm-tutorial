@@ -225,8 +225,11 @@ public class ReportsXlsxService {
 
         cell = row.createCell(7);
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-
-        Integer amount = president.getIsPresident() ? 400 : 200;
+        Integer amount;
+        if(president.getIsPresident() != null)
+            amount = president.getIsPresident() ? 400 : 200;
+        else
+            amount = 0;
         cell.setCellValue(amount);
     }
 
