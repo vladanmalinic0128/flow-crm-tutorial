@@ -22,20 +22,26 @@ import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
+import org.apache.poi.common.usermodel.PictureType;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.util.Units;
+import org.apache.poi.wp.usermodel.HeaderFooterType;
 import org.apache.poi.xssf.usermodel.*;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
-import org.apache.poi.xwpf.usermodel.XWPFParagraph;
-import org.apache.poi.xwpf.usermodel.XWPFRun;
+import org.apache.poi.xwpf.usermodel.*;
+import org.openxmlformats.schemas.wordprocessingml.x2006.main.*;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.MalformedURLException;
+import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -44,9 +50,11 @@ import java.util.stream.IntStream;
 public class ObserverPdfService {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
     private final LatinToCyrillicConverter latinToCyrillicConverter;
+    private final CyrillicToLatinConverter cyrillicToLatinConverter;
 
-    public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter) {
+    public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter) {
         this.latinToCyrillicConverter = latinToCyrillicConverter;
+        this.cyrillicToLatinConverter = cyrillicToLatinConverter;
     }
 
     public String downloadOverallPdf(PoliticalOrganizationEntity entity) {
@@ -593,31 +601,47 @@ public class ObserverPdfService {
     }
 
 
-    public String generateOverallReport(PoliticalOrganizationEntity entity, String fileTitle, ScriptEnum value) throws IOException {
+    public String generateAcceptedObserversForDecision(StackEntity entity, String fileTitle, ScriptEnum scriptEnum) throws IOException, InvalidFormatException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         XWPFDocument document = new XWPFDocument();
 
-        XWPFParagraph paragraph1 = document.createParagraph();
-        XWPFRun run1 = paragraph1.createRun();
-        run1.setText("Ovo je prvi paragraf na prvoj strani.");
+        //page break
+        //run1.addBreak(org.apache.poi.xwpf.usermodel.BreakType.PAGE);
+        createHeader(document, scriptEnum);
 
-        run1.addBreak(org.apache.poi.xwpf.usermodel.BreakType.PAGE);
 
-        XWPFParagraph paragraph2 = document.createParagraph();
-        XWPFRun run2 = paragraph2.createRun();
-        run2.setText("Ovo je paragraf na novoj, drugoj stranici.");
+        addDecisionNumber(document, entity.getDecisionNumber(), scriptEnum);
+        addDate(document, entity.convertDate(), scriptEnum);
+        addEmptyLine(document);
+
+        setFirstParagraphForIntroduction(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setCenteredTitle(document, scriptEnum);
+        setFirstParagraphForDecision(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        addMainTable(document, entity.getObservers(), scriptEnum);
+        setSecondParagraphForDecision(document, entity.getExpirationDate(), scriptEnum);
+        setThirdParagraphForDecision(document, scriptEnum);
+
+
+
+        setCenteredTitleForExplanation(document, scriptEnum);
+        setFirstParagraphForExplanation(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setSecondParagraphForExplanation(document, scriptEnum);
+        setThirdParagraphForExplanation(document, scriptEnum);
+
+
+        setSignature(document, scriptEnum);
+        createFooter(document, scriptEnum);
 
         String filePath = ROOT_PATH + File.separator + fileTitle;
 
         try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            document.write(out);
             out.writeTo(fos);
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        // Zatvori dokument
         try {
             document.close();
         } catch (IOException e) {
@@ -625,6 +649,27 @@ public class ObserverPdfService {
         }
 
         return filePath;
+    }
+
+    private void setCenteredTitleForExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "О б р а з л о ж е њ е";
+        String text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        XWPFRun run = paragraph.createRun();
+        run.setText(text);
+        run.setFontSize(12);
+    }
+
+    private void setCenteredTitle(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "О Д Л У К У";
+        String text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        XWPFRun run = paragraph.createRun();
+        run.setText(text);
+        run.setBold(true);
+        run.setFontSize(12);
     }
 
     public InputStream getStream(String fileString) {
@@ -638,6 +683,583 @@ public class ObserverPdfService {
         }
 
         return stream;
+    }
+
+    private void createHeader(XWPFDocument document, ScriptEnum scriptEnum) throws IOException, InvalidFormatException {
+        // Create a table with one row and two columns
+        XWPFTable table = document.createTable(1, 2);
+        XWPFTableRow row = table.getRow(0);
+
+        // Set column widths using CTTblGrid for accurate control
+        int imageWidth = 2000;
+        int textWidth = 9000;
+        table.getCTTbl().addNewTblGrid().addNewGridCol().setW(BigInteger.valueOf(imageWidth));
+        table.getCTTbl().getTblGrid().addNewGridCol().setW(BigInteger.valueOf(textWidth));
+
+        row.getCell(0).getCTTc().addNewTcPr().addNewTcW().setW(BigInteger.valueOf(imageWidth));
+        row.getCell(1).getCTTc().addNewTcPr().addNewTcW().setW(BigInteger.valueOf(textWidth));
+
+        // Column for Image
+        XWPFTableCell cellImage = row.getCell(0);
+
+        CTTcPr tcPr = cellImage.getCTTc().addNewTcPr();
+        removeBorder(cellImage);
+
+        cellImage.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
+        XWPFParagraph pImage = cellImage.addParagraph();
+        pImage.setAlignment(ParagraphAlignment.CENTER);
+        XWPFRun runImage = pImage.createRun();
+        String imgFile = "src/main/resources/logo/logo-bl-without-signature.png";
+        try (InputStream is = new FileInputStream(imgFile)) {
+            runImage.addPicture(is, XWPFDocument.PICTURE_TYPE_PNG, imgFile, Units.toEMU(67), Units.toEMU(80));
+        }
+
+        // Column for Text
+        XWPFTableCell cellText = row.getCell(1);
+        removeBorder(cellText);
+        cellText.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.TOP);
+
+        String entityLabel = "Република Српска";
+        String cityLabel = "Град Бања Лука";
+        String gikLabel = "Градска изборна комисија";
+        String streetLabel = "Трг српских владара 1, Бања Лука";
+
+        String entityText = scriptEnum == ScriptEnum.CYRILLIC ? entityLabel : cyrillicToLatinConverter.convert(entityLabel);
+        String cityText = scriptEnum == ScriptEnum.CYRILLIC ? cityLabel : cyrillicToLatinConverter.convert(cityLabel);
+        String gikText = scriptEnum == ScriptEnum.CYRILLIC ? gikLabel : cyrillicToLatinConverter.convert(gikLabel);
+        String streetText = scriptEnum == ScriptEnum.CYRILLIC ? streetLabel : cyrillicToLatinConverter.convert(streetLabel);
+
+        String[] lines = {
+                entityText,
+                cityText,
+                gikText,
+                streetText
+        };
+
+        // Create a paragraph for each line
+        for (String line : lines) {
+            XWPFParagraph pText = cellText.addParagraph();
+            XWPFRun runText = pText.createRun();
+            runText.setText(line);
+            runText.setFontSize(10);
+            if (line.equals(entityText))
+                runText.setBold(true);
+            if(line.equals(streetText))
+                runText.setItalic(true);
+            pText.setSpacingAfter(0);
+        }
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setBorderTop(Borders.SINGLE);
+        paragraph.setBorderTop(Borders.THICK);
+    }
+    private void removeBorder(XWPFTableCell cell) {
+        //An empty paragraph is added into cell by default, so it should be removed
+        cell.removeParagraph(0); // Remove the default empty paragraph
+
+        CTTcPr tcPr = cell.getCTTc().addNewTcPr();
+
+        CTTcBorders borders = tcPr.addNewTcBorders();
+        borders.addNewTop().setVal(STBorder.NIL);
+        borders.addNewBottom().setVal(STBorder.NIL);
+        borders.addNewLeft().setVal(STBorder.NIL);
+        borders.addNewRight().setVal(STBorder.NIL);
+    }
+
+    private void createFooter(XWPFDocument document, ScriptEnum scriptEnum) {
+        XWPFFooter footer = document.createFooter(HeaderFooterType.FIRST);
+        XWPFParagraph paragraph = footer.createParagraph();
+        paragraph.setBorderBottom(Borders.SINGLE);
+        paragraph.setBorderBottom(Borders.THICK);
+
+        // Create a table with 3 columns for the footer text
+        XWPFTable footerTable = footer.createTable(1, 3);
+        XWPFTableRow footerRow = footerTable.getRow(0);
+        CTTblWidth tableWidth = footerTable.getCTTbl().getTblPr().addNewTblW();
+        tableWidth.setType(STTblWidth.DXA);
+        tableWidth.setW(BigInteger.valueOf(10000));
+
+        // Remove table borders (optional)
+        removeBorder(footerRow.getCell(0));
+        removeBorder(footerRow.getCell(1));
+        removeBorder(footerRow.getCell(2));
+
+        // First cell for "tel" and "faks"
+        String label = "тел: +387 51 244 532, факс: +387 51 244 532";
+        String text = scriptEnum == ScriptEnum.CYRILLIC ? label : latinToCyrillicConverter.convert(label);
+        XWPFTableCell cell1 = footerRow.getCell(0);
+        XWPFParagraph p1 = cell1.addParagraph();
+        p1.setAlignment(ParagraphAlignment.LEFT);
+        XWPFRun run1 = p1.createRun();
+        run1.setItalic(true);
+        run1.setText(text);
+        run1.setFontSize(10);
+
+        // Second cell for website
+        XWPFTableCell cell2 = footerRow.getCell(1);
+        XWPFParagraph p2 = cell2.addParagraph();
+        p2.setAlignment(ParagraphAlignment.CENTER);
+        p2.setIndentationRight(150);
+        XWPFRun run2 = p2.createRun();
+        run2.setItalic(true);
+        run2.setText("www.banjaluka.rs.ba");
+        run2.setFontSize(10);
+
+        // Third cell for email
+        XWPFTableCell cell3 = footerRow.getCell(2);
+        XWPFParagraph p3 = cell3.addParagraph();
+        p3.setAlignment(ParagraphAlignment.CENTER);
+        p3.setIndentationRight(300);
+        XWPFRun run3 = p3.createRun();
+        run3.setItalic(true);
+        run3.setText("gikbl034@banjaluka.rs.ba");
+        run3.setFontSize(10);
+
+        // Adjust the column widths (optional, depending on your layout needs)
+        int telFaksWidth = 3000;
+        int websiteWidth = 3000;
+        int emailWidth = 3000;
+        footerTable.getCTTbl().addNewTblGrid().addNewGridCol().setW(BigInteger.valueOf(telFaksWidth));
+        footerTable.getCTTbl().getTblGrid().addNewGridCol().setW(BigInteger.valueOf(websiteWidth));
+        footerTable.getCTTbl().getTblGrid().addNewGridCol().setW(BigInteger.valueOf(emailWidth));
+
+        XWPFFooter defaultFooter = document.createFooter(HeaderFooterType.DEFAULT);
+        XWPFParagraph footerParagraph = defaultFooter.createParagraph();
+        footerParagraph.setAlignment(ParagraphAlignment.CENTER);
+        footerParagraph.getCTP().addNewFldSimple().setInstr("PAGE");
+    }
+
+    private void addDecisionNumber(XWPFDocument document, String decisionNumber, ScriptEnum scriptEnum) {
+        String label = "Број: ";
+        String text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(label) : cyrillicToLatinConverter.convert(label);
+        text += decisionNumber + ".";
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.LEFT);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontSize(11);
+        run.setText(text);
+    }
+
+    private void addDate(XWPFDocument document, String date, ScriptEnum scriptEnum) {
+        String label = "Дана, ";
+        String labelEnd = " године";
+        String text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(label + date + labelEnd) : cyrillicToLatinConverter.convert(label + date + labelEnd);
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.LEFT);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontSize(11);
+        run.setText(text);
+    }
+
+    private void removeSpacing(XWPFParagraph paragraph) {
+        paragraph.setSpacingBefore(0);
+        paragraph.setSpacingAfter(0);
+    }
+
+    public void setFirstParagraphForIntroduction(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String date, ScriptEnum scriptEnum) {
+        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3., 8., 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 31/24), Градска изборна комисија Бања Лука је, на сједници одржаној 09.09.2024. године разматрала захтјев политичког субјекта ";
+        String secondPart = " године разматрала захтјев политичког субјекта ";
+        String politicalOrganizationPart = politicalOrganization.getName();
+        String thirdPart = " (шифра ";
+        String code = politicalOrganization.getCode();
+        String fourthPart = "), за акредитовање посматрача за посматрање изборних активности изборне комисије, центра за бирачки списак и бирачких мјеста на подручју основне изборне јединице 034 Б – Бања Лука и донијела сљедећу";
+
+        String resultLabel = firstPartLabel + date + secondPart + politicalOrganizationPart + thirdPart + code + fourthPart;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setFirstParagraphForDecision(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String date, ScriptEnum scriptEnum) {
+        String firstPartLabel = "1. Акредитују се посматрачи политичког субјекта ";
+        String politicalOrganizationLabel = politicalOrganization.getName();
+        String secondPartLabel = ", шифра ";
+        String politicalOrganizationCode = politicalOrganization.getCode();
+        String thirdPartLabel = ", за посматрање изборних активности Градске изборне комисије Бања Лука, Центра за бирачки списак Бања Лука и активности на бирачким мјестима на подручју основне изборне јединице 034 Б – Бања Лука";
+
+        String resultLabel = firstPartLabel + politicalOrganizationLabel + secondPartLabel + politicalOrganizationCode + thirdPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setSecondParagraphForDecision(XWPFDocument document, String date, ScriptEnum scriptEnum) {
+        String firstPartLabel = "2. Ова одлука ступа на снагу дана ";
+        String secondPartLabel = " године.";
+
+        String resultLabel = firstPartLabel + date + secondPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setThirdParagraphForDecision(XWPFDocument document, ScriptEnum scriptEnum) {
+        String firstPartLabel = "3. Одлука ће бити достављена подносиоцу захтјева, Централној изборној комисији БиХ, у попис аката и евиденцију Градске изборне комисије.";
+
+        String resultLabel = firstPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setFirstParagraphForExplanation(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String date, ScriptEnum scriptEnum) {
+        String firstPartLabel = "Политички субјект ";
+        String politicalOrganizationLabel = politicalOrganization.getName();
+        String secondPartLabel = " je ";
+        String thirdPartLabel = " године, поднио Градској изборној комисији Бања Лука захтјев за актедитовање посматрача за посматрање изборних активности Градске изборне комисије, Центра за бирачки списак и бирачких мјеста (одбора) на подручју основне изборне јединице 034 Б – Бања Лука.";
+
+        String resultLabel = firstPartLabel + politicalOrganizationLabel + secondPartLabel + date + thirdPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setSecondParagraphForExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
+        String firstPartLabel = "Градска изборна комисија Бања Лука утврдила је да су испуњени неопходни услови за акредитовање изборних посматрача и да нема сметњи за акредитовање, те је поступила према Поглављу 17. Изборног закона БиХ и Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ, и одлучила као у диспозитиву одлуке.";
+
+        String resultLabel = firstPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setThirdParagraphForExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
+        String firstPartLabel = "ПРАВНА ПОУКА: Против ове одлуке, може се изјавити жалба у року од 24 сата од пријема. Жалба се подноси Централној изборној комисији путем Градске изборне комисије Бања Лука. Достављање жалбе врши се путем факс апарата или лично у сједиште Градске изборне комисије на прописаном обрасцу.";
+
+        String resultLabel = firstPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+    public void setSignature(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "ПРЕДСЈЕДНИК";
+        String text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.RIGHT);
+        paragraph.setIndentationRight(900);
+        XWPFRun run = paragraph.createRun();
+        run.setText(text);
+        run.setFontSize(11);
+        run.setBold(true);
+
+
+        label = "Дубравко Малинић";
+        text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
+        paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.RIGHT);
+        paragraph.setIndentationRight(700);
+        run = paragraph.createRun();
+        run.setText(text);
+        run.setFontSize(11);
+        run.setBold(true);
+    }
+
+    public void addEmptyLine(XWPFDocument document) {
+        document.createParagraph();
+    }
+
+    private void addMainTable(XWPFDocument document, List<ObserverEntity> observers, ScriptEnum scriptEnum) {
+        XWPFTable table = document.createTable();
+        table.setTableAlignment(TableRowAlign.CENTER);
+        table.setWidthType(TableWidthType.PCT);
+        table.setWidth("70%");
+
+
+        XWPFTableRow row = table.getRow(0);
+        row.setHeight(200);
+        String orderNumberHeaderLabel = "R.B.";
+        String orderNumberHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(orderNumberHeaderLabel) : orderNumberHeaderLabel;
+        row.getCell(0).setText(orderNumberHeaderText);
+
+        String lastnameHeaderLabel = "Prezime";
+        String lastnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(lastnameHeaderLabel) : lastnameHeaderLabel;
+        row.addNewTableCell().setText(lastnameHeaderText);
+
+        String firstnameHeaderLabel = "Ime";
+        String firstnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(firstnameHeaderLabel) : firstnameHeaderLabel;
+        row.addNewTableCell().setText(firstnameHeaderText);
+        styleHeaderRow(table.getRow(0));
+
+        Collator collator = getCollatorForScript(scriptEnum);
+
+        if(scriptEnum == ScriptEnum.CYRILLIC)
+            observers.forEach(o -> {
+                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()));
+                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()));
+            });
+        List<ObserverEntity> sortedObservers = observers.stream()
+                .filter(o -> o.getStatus().getSuccess())
+                .sorted(Comparator.comparing(ObserverEntity::getLastname, collator)
+                        .thenComparing(ObserverEntity::getFirstname, collator))
+                .collect(Collectors.toList());
+
+        int i = 0;
+        for(ObserverEntity observer: sortedObservers) {
+            XWPFTableRow newRow = table.createRow();
+
+            newRow.getCell(0).setText((i+1) + ".");
+            newRow.getCell(1).setText(observer.getLastname());
+            newRow.getCell(2).setText(observer.getFirstname());
+            styleDataRow(newRow, i);
+            i++;
+        }
+
+        addEmptyLine(document);
+    }
+
+    private Collator getCollatorForScript(ScriptEnum scriptEnum) {
+        Locale.Builder localeBuilder = new Locale.Builder().setLanguage("sr").setRegion("RS");
+        if (scriptEnum == ScriptEnum.CYRILLIC) {
+            localeBuilder.setScript("Cyrl");
+        }
+        Locale locale = localeBuilder.build();
+        Collator collator = Collator.getInstance(locale);
+        return collator;
+    }
+
+    private static void styleHeaderRow(XWPFTableRow row) {
+        row.setHeight(100);
+        for (XWPFTableCell cell : row.getTableCells()) {
+            cell.setColor("A9A9A9");
+
+            XWPFParagraph existingParagraph = cell.getParagraphs().get(0);
+            String text = existingParagraph.getText();
+            XWPFParagraph paragraph = cell.addParagraph();
+            cell.removeParagraph(0);
+            paragraph.setAlignment(ParagraphAlignment.CENTER);
+            paragraph.setVerticalAlignment(org.apache.poi.xwpf.usermodel.TextAlignment.CENTER);
+            XWPFRun run = paragraph.createRun();
+            run.setFontSize(11);
+            run.setText(text);
+            run.setColor("FFFFFF");
+            run.setVerticalAlignment("baseline");
+            run.setBold(true);
+
+            cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER); // Center vertically
+        }
+    }
+
+    private static void styleDataRow(XWPFTableRow row, int rowNum) {
+        row.setHeight(100);
+        for (XWPFTableCell cell : row.getTableCells()) {
+            if(rowNum % 2 != 0)
+                cell.setColor("EEEEEE");
+            else
+                cell.setColor("FFFFFF");
+
+            XWPFParagraph existingParagraph = cell.getParagraphs().get(0);
+            String text = existingParagraph.getText();
+            XWPFParagraph paragraph = cell.addParagraph();
+            cell.removeParagraph(0);
+            paragraph.setAlignment(ParagraphAlignment.CENTER);
+            paragraph.setVerticalAlignment(org.apache.poi.xwpf.usermodel.TextAlignment.CENTER);
+            XWPFRun run = paragraph.createRun();
+            run.setFontSize(11);
+            run.setText(text);
+            run.setColor("000000");
+            run.setVerticalAlignment("baseline");
+
+            cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER); // Center vertically
+        }
+    }
+
+    public String generateRejectedObserversForDecision(StackEntity entity, String fileTitle, ScriptEnum scriptEnum) throws IOException, InvalidFormatException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        XWPFDocument document = new XWPFDocument();
+        createHeader(document, scriptEnum);
+
+
+        addDecisionNumber(document, entity.getDecisionNumber(), scriptEnum);
+        addDate(document, entity.convertDate(), scriptEnum);
+        addEmptyLine(document);
+
+        setFirstParagraphForIntroduction(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setCenteredTitle(document, scriptEnum);
+        setFirstParagraphForRejectingDecision(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        addMainTableForRejection(document, entity.getObservers(), scriptEnum);
+        setSecondParagraphForDecision(document, entity.getExpirationDate(), scriptEnum);
+        setThirdParagraphForDecision(document, scriptEnum);
+
+
+        setCenteredTitleForExplanation(document, scriptEnum);
+        setFirstParagraphForExplanation(document, entity.getPoliticalOrganization(), entity.convertDate(), scriptEnum);
+        setSecondParagraphForRejectionExplanation(document, scriptEnum);
+        setThirdParagraphForExplanation(document, scriptEnum);
+
+
+        setSignature(document, scriptEnum);
+        createFooter(document, scriptEnum);
+
+        String filePath = ROOT_PATH + File.separator + fileTitle;
+
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            document.write(out);
+            out.writeTo(fos);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            document.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return filePath;
+    }
+
+    private void setFirstParagraphForRejectingDecision(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String convertDate, ScriptEnum scriptEnum) {
+        String firstPartLabel = "1. Одбија се захтјев за акредитовање посматрача политичког субјекта ";
+        String politicalOrganizationLabel = politicalOrganization.getName();
+        String secondPartLabel = ", шифра ";
+        String politicalOrganizationCode = politicalOrganization.getCode();
+        String thirdPartLabel = ", за посматрање изборних активности Градске изборне комисије Бања Лука, Центра за бирачки списак Бања Лука и активности на бирачким мјестима на подручју основне изборне јединице 034 Б – Бања Лука, за лица која не испуњавају услове из чл. 9. став (6) тачка б) Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ, и то:";
+
+        String resultLabel = firstPartLabel + politicalOrganizationLabel + secondPartLabel + politicalOrganizationCode + thirdPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    public void setSecondParagraphForRejectionExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
+        String firstPartLabel = "Градска изборна комисија Бања Лука утврдила је да су испуњени неопходни услови за акредитовање изборних посматрача и да нема сметњи за акредитовање, те је поступила према Поглављу 17. Изборног закона БиХ и Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ, и одлучила као у диспозитиву одлуке.";
+
+        String resultLabel = firstPartLabel;
+        String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setText(resultText);
+        run.setFontSize(10);
+
+        addEmptyLine(document);
+    }
+
+    private void addMainTableForRejection(XWPFDocument document, List<ObserverEntity> observers, ScriptEnum scriptEnum) {
+        XWPFTable table = document.createTable();
+        table.setTableAlignment(TableRowAlign.CENTER);
+        table.setWidthType(TableWidthType.PCT);
+        table.setWidth("70%");
+
+
+        XWPFTableRow row = table.getRow(0);
+        row.setHeight(200);
+        String orderNumberHeaderLabel = "R.B.";
+        String orderNumberHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(orderNumberHeaderLabel) : orderNumberHeaderLabel;
+        row.getCell(0).setText(orderNumberHeaderText);
+
+        String lastnameHeaderLabel = "Prezime";
+        String lastnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(lastnameHeaderLabel) : lastnameHeaderLabel;
+        row.addNewTableCell().setText(lastnameHeaderText);
+
+        String firstnameHeaderLabel = "Ime";
+        String firstnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(firstnameHeaderLabel) : firstnameHeaderLabel;
+        row.addNewTableCell().setText(firstnameHeaderText);
+        styleHeaderRow(table.getRow(0));
+
+        String reasonHeaderLabel = "Razlog";
+        String reasonHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonHeaderLabel) : reasonHeaderLabel;
+        row.addNewTableCell().setText(reasonHeaderText);
+        styleHeaderRow(table.getRow(0));
+
+        Collator collator = getCollatorForScript(scriptEnum);
+
+        if(scriptEnum == ScriptEnum.CYRILLIC)
+            observers.forEach(o -> {
+                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()));
+                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()));
+            });
+        List<ObserverEntity> sortedObservers = observers.stream()
+                .filter(o -> o.getStatus().getSuccess() == false)
+                .sorted(Comparator.comparing(ObserverEntity::getLastname, collator)
+                        .thenComparing(ObserverEntity::getFirstname, collator))
+                .collect(Collectors.toList());
+
+        int i = 0;
+        for(ObserverEntity observer: sortedObservers) {
+            XWPFTableRow newRow = table.createRow();
+
+            newRow.getCell(0).setText((i+1) + ".");
+            newRow.getCell(1).setText(observer.getLastname());
+            newRow.getCell(2).setText(observer.getFirstname());
+            String reasonLabel = observer.getStatus().getName();
+            String reasonText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonLabel) : cyrillicToLatinConverter.convert(reasonLabel);
+            newRow.getCell(3).setText(reasonText);
+            styleDataRow(newRow, i);
+            i++;
+        }
+
+        addEmptyLine(document);
     }
 }
 

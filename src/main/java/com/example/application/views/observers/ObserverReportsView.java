@@ -27,6 +27,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 
 import java.io.*;
 import java.time.LocalDate;
@@ -86,9 +87,13 @@ public class ObserverReportsView extends VerticalLayout {
 
             for(StackEntity stack: entity.getStacks()) {
                 HorizontalLayout childHorizontalLayout = new HorizontalLayout();
+                HorizontalLayout additionalChildHorizontalLayout = new HorizontalLayout();
                 childHorizontalLayout.setWidthFull();
-                AccordionPanel nestedPanel = nestedAccordion.add(stack.getDecisionNumber() + " (" + stack.getDate() + ")", childHorizontalLayout);
-                addComponentsToNestedReport(childHorizontalLayout, stack, nestedAccordion, nestedPanel);
+                additionalChildHorizontalLayout.setWidthFull();
+                VerticalLayout verticalLayout1 = new VerticalLayout();
+                verticalLayout1.add(childHorizontalLayout, additionalChildHorizontalLayout);
+                AccordionPanel nestedPanel = nestedAccordion.add(stack.getDecisionNumber() + " (" + stack.convertDate() + ")", verticalLayout1);
+                addComponentsToNestedReport(childHorizontalLayout, additionalChildHorizontalLayout, stack, nestedAccordion, nestedPanel);
 
                 nestedPanel.addThemeVariants(DetailsVariant.FILLED);
             }
@@ -112,7 +117,7 @@ public class ObserverReportsView extends VerticalLayout {
         pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_ERROR);
         //pdfButton.addClickListener(e -> observerPdfService.downloadOverallPdf(entity));
-        pdfButton.addClickListener(e -> showAlertForOverallPdf(entity));
+        pdfButton.addClickListener(e -> {}/*showAlertForOverallPdf(entity)*/);
 
 //        Button xlsxButton = new Button("Xlsx");
 //        xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
@@ -124,17 +129,27 @@ public class ObserverReportsView extends VerticalLayout {
         //horizontalLayout.add(span, pdfButton, xlsxButton);
     }
 
-    private void addComponentsToNestedReport(HorizontalLayout horizontalLayout, StackEntity entity, Accordion accordion, AccordionPanel accordionPanel) {
+    private void addComponentsToNestedReport(HorizontalLayout horizontalLayout, HorizontalLayout additionalHorizontalLayout, StackEntity entity, Accordion accordion, AccordionPanel accordionPanel) {
         Button pdfButton = new Button("Generiši akreditacije");
         pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_CONTRAST);
         pdfButton.addClickListener(e -> showAlertForAccreditationsPdf(entity));
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Icon acceptedDownloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Icon rejectedDownloadIcon = new Icon(VaadinIcon.DOWNLOAD);
         Button acceptedButton = new Button("Izvještaj", downloadIcon);
         acceptedButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_SUCCESS);
         acceptedButton.addClickListener(e -> showAlertForAcceptedObservers(entity));
+
+        Button acceptedDecisionButton = new Button("Odluka o prihvatanju", acceptedDownloadIcon);
+        acceptedDecisionButton.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+        acceptedDecisionButton.addClickListener(e -> showAlertForAcceptedObserversForDecision(entity));
+
+        Button rejectedDecisionButton = new Button("Odluka o odbijanju", rejectedDownloadIcon);
+        rejectedDecisionButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        rejectedDecisionButton.addClickListener(e -> showAlertForRejectedObserversForDecision(entity));
 
         // Create a trash icon
         Icon trashIcon = new Icon(VaadinIcon.TRASH);
@@ -151,6 +166,7 @@ public class ObserverReportsView extends VerticalLayout {
 
 
         horizontalLayout.add(pdfButton, acceptedButton, deleteButton);
+        additionalHorizontalLayout.add(acceptedDecisionButton,  rejectedDecisionButton);
     }
 
     private void showAlertForAcceptedObservers(StackEntity entity) {
@@ -188,6 +204,91 @@ public class ObserverReportsView extends VerticalLayout {
         dialog.open();
     }
 
+    private void showAlertForAcceptedObserversForDecision(StackEntity entity) {
+        Dialog dialog = new Dialog();
+        dialog.setDraggable(true);
+
+        dialog.setHeaderTitle("Generisanje odluke o prihvatanju posmatrača");
+
+        VerticalLayout overallPdfLayout = generateOverallXlsxLayout();
+        dialog.add(overallPdfLayout);
+
+        Button saveButton = new Button("Generiši");
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        String fileTitle = entity.getDecisionNumber().replace("/", "_") + "_" + System.currentTimeMillis() + ".docx";
+
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            String stringPath = handleAcceptedObserversForDecision(entity, null, fileTitle);
+            dialog.close();
+            if(stringPath != null)
+                return getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+
+        Button cancelButton = new Button("Otkaži", e -> dialog.close());
+
+        dialog.getFooter().add(cancelButton);
+        dialog.getFooter().add(saveButtonAnchor);
+
+        dialog.open();
+    }
+
+    private void showAlertForRejectedObserversForDecision(StackEntity entity) {
+        Dialog dialog = new Dialog();
+        dialog.setDraggable(true);
+
+        dialog.setHeaderTitle("Generisanje odluke o odbijanju posmatrača");
+
+        VerticalLayout overallPdfLayout = generateOverallXlsxLayout();
+        dialog.add(overallPdfLayout);
+
+        Button saveButton = new Button("Generiši");
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        String fileTitle = entity.getDecisionNumber().replace("/", "_") + "_" + System.currentTimeMillis() + ".docx";
+
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            String stringPath = handleRejectedObserversForDecision(entity, null, fileTitle);
+            dialog.close();
+            if(stringPath != null)
+                return getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+
+        Button cancelButton = new Button("Otkaži", e -> dialog.close());
+
+        dialog.getFooter().add(cancelButton);
+        dialog.getFooter().add(saveButtonAnchor);
+
+        dialog.open();
+    }
+
+    private String handleRejectedObserversForDecision(StackEntity entity, Object o, String fileTitle) {
+        if(scripts.getValue() == null) {
+            Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return null;
+        }
+        try {
+            return observerPdfService.generateRejectedObserversForDecision(entity, fileTitle, scripts.getValue());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidFormatException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private String handleAcceptedObservers(StackEntity entity, Button saveButton, String fileTitle) {
         if(scripts.getValue() == null) {
             Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
@@ -197,66 +298,21 @@ public class ObserverReportsView extends VerticalLayout {
         return observerPdfService.downloadAcceptedObserversXslx(entity, scripts.getValue(), fileTitle);
     }
 
-    private void showAlertForOverallPdf(PoliticalOrganizationEntity entity) {
-        Dialog dialog = new Dialog();
-        dialog.setDraggable(true);
-
-        dialog.setHeaderTitle("Generisanje zbirnog obrasca (PDF)");
-
-        VerticalLayout overallPdfLayout = generateOverallPdfLayout();
-        dialog.add(overallPdfLayout);
-
-        String fileTitle = entity.getCode() + "_" + System.currentTimeMillis() + ".docx";
-
-        Button saveButton = new Button("Generiši");
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
-            if(scripts.getValue() == null) {
-                Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
-                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
-                dialog.close();
-                return null;
-            }
-            String stringPath = null;
-            try {
-                stringPath = observerPdfService.generateOverallReport(entity, fileTitle, scripts.getValue());
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            dialog.close();
-            if(stringPath != null)
-                return observerPdfService.getStream(stringPath);
-            else
-                return null;
-        }), "");
-
-        saveButtonAnchor.getElement().setAttribute("download", true);
-        saveButtonAnchor.removeAll();
-        saveButtonAnchor.add(saveButton);
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-
-        Button cancelButton = new Button("Otkaži", e -> dialog.close());
-
-        dialog.getFooter().add(cancelButton);
-        dialog.getFooter().add(saveButtonAnchor);
-
-        dialog.open();
-    }
-    private VerticalLayout generateOverallPdfLayout() {
-        VerticalLayout layout = new VerticalLayout();
-
-        layout.add(scripts);
-
-        return layout;
-    }
-    private void handleOverallPdf(PoliticalOrganizationEntity entity, Button button) {
+    private String handleAcceptedObserversForDecision(StackEntity entity, Button saveButton, String fileTitle) {
+        if(scripts.getValue() == null) {
+            Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            return null;
+        }
         try {
-            String pdfPath = observerPdfService.downloadOverallPdf(entity);
-        } catch (Exception ex) {
-            ex.printStackTrace();
+            return observerPdfService.generateAcceptedObserversForDecision(entity, fileTitle, scripts.getValue());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidFormatException e) {
+            throw new RuntimeException(e);
         }
     }
+
     private void showAlertForOverallXlsx(PoliticalOrganizationEntity entity) {
         Dialog dialog = new Dialog();
         dialog.setDraggable(true);

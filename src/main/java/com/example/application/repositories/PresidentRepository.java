@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface PresidentRepository extends JpaRepository<PresidentEntity, Long> {
     boolean existsByVotingCouncel_Code(String code);
     Optional<PresidentEntity> findByVotingCouncel_CodeAndIsPresident(String code, boolean isPresident);
+
+    boolean existsByJmbg(String jmbg);
 }

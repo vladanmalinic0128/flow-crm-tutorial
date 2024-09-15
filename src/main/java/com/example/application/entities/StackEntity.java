@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 
 import java.sql.Date;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -35,5 +37,29 @@ public class StackEntity {
                 ", decisionNumber='" + decisionNumber + '\'' +
                 ", date=" + date +
                 '}';
+    }
+
+    public String convertDate() {
+        if(date == null)
+            return null;
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
+        String formattedDate = dateFormat.format(date);
+        return formattedDate;
+    }
+
+    public String getExpirationDate() {
+        if(date == null)
+            return null;
+
+
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date);
+        calendar.add(Calendar.DAY_OF_MONTH, 7);
+        java.util.Date date7DaysAhead = calendar.getTime();
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd.MM.yyyy");
+        String formattedDate = dateFormat.format(date7DaysAhead);
+
+        return formattedDate;
     }
 }

@@ -15,13 +15,13 @@ import java.util.Random;
 
 @Component
 @RequiredArgsConstructor
-public class MobileTeamsInitializer implements ApplicationRunner {
+public class ZMobileTeamsInitializer/* implements ApplicationRunner */{
     private final MentorRepository mentorRepository;
     private final VotingCouncelRepository votingCouncelRepository;
     private final TitleRepository titleRepository;
 
 
-    @Override
+    //@Override
     public void run(ApplicationArguments args) throws Exception {
         Random random = new Random();
 

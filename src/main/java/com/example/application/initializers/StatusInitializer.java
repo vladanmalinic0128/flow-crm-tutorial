@@ -12,10 +12,10 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class StatusInitializer implements ApplicationRunner {
+public class StatusInitializer /*implements ApplicationRunner*/ {
     private final StatusRepository statusRepository;
 
-    @Override
+    //@Override
     public void run(ApplicationArguments args) throws Exception {
         List<StatusEntity> statuses = new ArrayList<>();
 

@@ -3,7 +3,9 @@ package com.example.application.views.observers;
 import com.example.application.entities.ObserverEntity;
 import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.StackEntity;
+import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
+import com.example.application.repositories.PresidentRepository;
 import com.example.application.repositories.StatusRepository;
 import com.example.application.services.CyrillicToLatinConverter;
 import com.example.application.services.JMBGValidator;
@@ -50,10 +52,12 @@ import java.util.stream.Collectors;
 public class AddingObserversForm extends FormLayout {
     private final StackService stackService;
     private final PoliticalOrganizationService politicalOrganizationService;
+    private final MemberRepository memberRepository;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final JMBGValidator jmbgValidator;
     private final StatusRepository statusRepository;
     private final ObserverRepository observerRepository;
+    private final PresidentRepository presidentRepository;
 
     private StackEntity stackEntity = new StackEntity();
 
@@ -65,7 +69,9 @@ public class AddingObserversForm extends FormLayout {
     MemoryBuffer buffer = null;
     boolean isFileEmpty = true;
 
-    public AddingObserversForm(StackService stackService, PoliticalOrganizationService politicalOrganizationService, JMBGValidator jmbgValidator, CyrillicToLatinConverter cyrillicToLatinConverter, StatusRepository statusRepository, ObserverRepository observerRepository) {
+    public AddingObserversForm(StackService stackService, PoliticalOrganizationService politicalOrganizationService, JMBGValidator jmbgValidator, CyrillicToLatinConverter cyrillicToLatinConverter, StatusRepository statusRepository, ObserverRepository observerRepository, PresidentRepository presidentRepository, MemberRepository memberRepository) {
+        this.memberRepository = memberRepository;
+        this.presidentRepository = presidentRepository;
         this.stackService = stackService;
         this.politicalOrganizationService = politicalOrganizationService;
         this.jmbgValidator = jmbgValidator;
@@ -181,6 +187,8 @@ public class AddingObserversForm extends FormLayout {
                     observer.setStatus(statusRepository.findById(2));
                 else if(observerRepository.existsByJmbg(observer.getJmbg()))
                     observer.setStatus(statusRepository.findById(3));
+                else if(memberRepository.existsByJmbg(observer.getJmbg()))
+                    observer.setStatus(statusRepository.findById(4));
                 else if(observer.getCardId().isBlank())
                     observer.setStatus(statusRepository.findById(5));
                 else if(observer.getFirstname().isBlank())
@@ -189,6 +197,8 @@ public class AddingObserversForm extends FormLayout {
                     observer.setStatus(statusRepository.findById(7));
                 else if(observer.getDocumentNumber() == -1)
                     observer.setStatus(statusRepository.findById(8));
+                else if(presidentRepository.existsByJmbg(observer.getJmbg()))
+                    observer.setStatus(statusRepository.findById(9));
                 else
                     observer.setStatus(statusRepository.findById(1));
                 observers.add(observer);
