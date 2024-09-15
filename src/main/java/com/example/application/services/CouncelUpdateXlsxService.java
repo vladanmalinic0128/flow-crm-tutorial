@@ -120,23 +120,20 @@ public class CouncelUpdateXlsxService {
         readBankNumber(bankNumber, memberEntity, deleteEmptyRows);
 
         String bankName = getCellValue(row.getCell(9));
-        if(deleteEmptyRows) {
-            if(bankName == null || bankName.trim().length() == 0)
+
+        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+            memberEntity.setBankName(null);
+        } else if (bankName != null && bankName.trim().length() > 1) {
+            memberEntity.setBankName(bankName);
+        } else if (memberEntity.getBankName() == null || memberEntity.getBankName().trim().isEmpty()) {
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                memberEntity.setBankName(optional.get().getBankName());
+            } else {
                 memberEntity.setBankName(null);
-            else
-                memberEntity.setBankName(bankName);
-        } else {
-            if(bankName != null && bankName.trim().length() > 1) {
-                memberEntity.setBankName(bankName);
-            }
-            else if(memberEntity.getBankName() == null || memberEntity.getBankName().trim().length() == 0) {
-                Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
-                if (optional.isEmpty() || optional.get().getJmbg() == null || optional.get().getJmbg().length() < 1)
-                    memberEntity.setBankName(null);
-                else
-                    memberEntity.setBankName(optional.get().getBankName());
             }
         }
+
     }
 
     public void readNameCell(String value, MemberEntity memberEntity) {
@@ -181,21 +178,16 @@ public class CouncelUpdateXlsxService {
 
     private void readBankNumber(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
         bankNumber = bankNumber.replaceAll("\\D", "");
-        if(deleteEmptyRows) {
-            if(bankNumber == null || bankNumber.trim().length() == 0)
+        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
+            memberEntity.setBankNumber(null);
+        } else if (bankNumber != null && bankNumber.trim().length() > 1) {
+            memberEntity.setBankNumber(bankNumber);
+        } else if (memberEntity.getBankNumber() == null || memberEntity.getBankNumber().trim().isEmpty()) {
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                memberEntity.setBankNumber(optional.get().getBankNumber());
+            } else {
                 memberEntity.setBankNumber(null);
-            else
-                memberEntity.setBankNumber(bankNumber);
-        } else {
-            if(bankNumber != null && bankNumber.trim().length() > 1) {
-                memberEntity.setBankNumber(bankNumber);
-            }
-            else if(memberEntity.getBankNumber() == null || memberEntity.getBankNumber().trim().length() == 0) {
-                Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
-                if (optional.isEmpty() || optional.get().getJmbg() == null || optional.get().getJmbg().length() < 1)
-                    memberEntity.setBankNumber(null);
-                else
-                    memberEntity.setBankNumber(optional.get().getBankNumber());
             }
         }
     }

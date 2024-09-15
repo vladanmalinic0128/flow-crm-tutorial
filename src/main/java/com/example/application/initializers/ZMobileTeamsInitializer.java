@@ -15,7 +15,7 @@ import java.util.Random;
 
 @Component
 @RequiredArgsConstructor
-public class ZMobileTeamsInitializer/* implements ApplicationRunner */{
+public class ZMobileTeamsInitializer /*implements ApplicationRunner*/ {
     private final MentorRepository mentorRepository;
     private final VotingCouncelRepository votingCouncelRepository;
     private final TitleRepository titleRepository;
@@ -27,7 +27,7 @@ public class ZMobileTeamsInitializer/* implements ApplicationRunner */{
 
         Optional<MentorEntity> mentor = mentorRepository.findById(5L);
         if(mentor.isEmpty())
-            throw new RuntimeException("Njie dodijeljen mentor za mobilne timove");
+            throw new RuntimeException("Nije dodijeljen mentor za mobilne timove");
 
         MentorEntity leona = mentor.get();
 
