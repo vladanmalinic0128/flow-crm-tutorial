@@ -1205,7 +1205,7 @@ public class ObserverPdfService {
         XWPFTable table = document.createTable();
         table.setTableAlignment(TableRowAlign.CENTER);
         table.setWidthType(TableWidthType.PCT);
-        table.setWidth("90%");
+        table.setWidth("100%");
 
 
         XWPFTableRow row = table.getRow(0);
