@@ -251,6 +251,13 @@ public class ObserverPdfService {
                 .setBold()
                 .setFont(arialFont);
 
+        Style signatureValueStyle = new Style();
+        signatureValueStyle.setFontSize(11f)
+                .setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE)
+                .setBold()
+                .setItalic()
+                .setFont(arialFont);
+
         Text firstnameKey = new Text(doConvert("Ime: ", scriptEnum)).addStyle(keyStyle);
         Text firstnameValue = new Text(doConvert(observer.getFirstname().toUpperCase(), scriptEnum)).addStyle(valueStyle);
         Paragraph firstname = new Paragraph().add(firstnameKey).add(firstnameValue);
@@ -276,7 +283,7 @@ public class ObserverPdfService {
         politicalOrganization.setTextAlignment(TextAlignment.CENTER);
 
         Text signatureKey = new Text(doConvert("Ovjerava: ", scriptEnum)).addStyle(keyStyle);
-        Text signatureValue = new Text(doConvert("D.M.", scriptEnum)).addStyle(valueStyle);
+        Text signatureValue = new Text(doConvert("D. Malinić", scriptEnum)).addStyle(signatureValueStyle);
         Paragraph signature = new Paragraph().add(signatureKey).add(signatureValue);
 
         Paragraph sealPlace = new Paragraph("_______________").addStyle(keyStyle);
@@ -617,7 +624,7 @@ public class ObserverPdfService {
         setCenteredTitle(document, scriptEnum);
         setFirstParagraphForDecision(document, entity.getPoliticalOrganization(), scriptEnum);
         addMainTable(document, entity.getObservers(), scriptEnum);
-        setSecondParagraphForDecision(document, entity.getExpirationDecisionDate(), scriptEnum);
+        //setSecondParagraphForDecision(document, entity.getExpirationDecisionDate(), scriptEnum);
         setThirdParagraphForDecision(document, scriptEnum);
 
         setCenteredTitleForExplanation(document, scriptEnum);
@@ -856,7 +863,7 @@ public class ObserverPdfService {
     }
 
     public void setFirstParagraphForIntroduction(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String decisionDate, String requestDate, ScriptEnum scriptEnum) {
-        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3., 8., 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 31/24), Градска изборна комисија Бања Лука је, на сједници одржаној " + decisionDate + " године разматрала захтјев политичког субјекта ";
+        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3., 8., 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 31/24, 41/24), Градска изборна комисија Бања Лука је, на сједници одржаној " + decisionDate + " године разматрала захтјев политичког субјекта ";
         String politicalOrganizationPart = politicalOrganization.getName();
         String thirdPart = " (шифра ";
         String code = politicalOrganization.getCode();
@@ -916,7 +923,7 @@ public class ObserverPdfService {
     }
 
     public void setThirdParagraphForDecision(XWPFDocument document, ScriptEnum scriptEnum) {
-        String firstPartLabel = "3. Одлука ће бити достављена подносиоцу захтјева, Централној изборној комисији БиХ, у попис аката и евиденцију Градске изборне комисије.";
+        String firstPartLabel = "2. Одлука ће бити достављена подносиоцу захтјева, Централној изборној комисији БиХ, у попис аката и евиденцију Градске изборне комисије.";
 
         String resultLabel = firstPartLabel;
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
@@ -970,7 +977,7 @@ public class ObserverPdfService {
     }
 
     public void setThirdParagraphForExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
-        String firstPartLabel = "ПРАВНА ПОУКА: Против ове одлуке, може се изјавити жалба у року од 24 сата од пријема. Жалба се подноси Централној изборној комисији путем Градске изборне комисије Бања Лука. Достављање жалбе врши се путем факс апарата или лично у сједиште Градске изборне комисије на прописаном обрасцу.";
+        String firstPartLabel = "ПРАВНА ПОУКА: Против ове одлуке, може се изјавити жалба у року од три дана од дана пријема. Жалба се подноси Централној изборној комисији путем Градске изборне комисије Бања Лука. Достављање жалбе врши се путем факс апарата или лично у сједиште Градске изборне комисије на прописаном обрасцу.";
 
         String resultLabel = firstPartLabel;
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
@@ -1131,7 +1138,7 @@ public class ObserverPdfService {
         setCenteredTitle(document, scriptEnum);
         setFirstParagraphForRejectingDecision(document, entity.getPoliticalOrganization(), scriptEnum);
         addMainTableForRejection(document, entity.getObservers(), scriptEnum);
-        setSecondParagraphForDecision(document, entity.getExpirationDecisionDate(), scriptEnum);
+        //setSecondParagraphForDecision(document, entity.getExpirationDecisionDate(), scriptEnum);
         setThirdParagraphForDecision(document, scriptEnum);
 
 

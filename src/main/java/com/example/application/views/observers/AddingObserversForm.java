@@ -7,10 +7,7 @@ import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.PresidentRepository;
 import com.example.application.repositories.StatusRepository;
-import com.example.application.services.CyrillicToLatinConverter;
-import com.example.application.services.JMBGValidator;
-import com.example.application.services.PoliticalOrganizationService;
-import com.example.application.services.StackService;
+import com.example.application.services.*;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -34,6 +31,7 @@ import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -58,6 +56,7 @@ public class AddingObserversForm extends FormLayout {
     private final StatusRepository statusRepository;
     private final ObserverRepository observerRepository;
     private final PresidentRepository presidentRepository;
+    private final LatinToCyrillicConverter latinToCyrillicConverter;
 
     private StackEntity stackEntity = new StackEntity();
 
@@ -71,7 +70,7 @@ public class AddingObserversForm extends FormLayout {
     MemoryBuffer buffer = null;
     boolean isFileEmpty = true;
 
-    public AddingObserversForm(StackService stackService, PoliticalOrganizationService politicalOrganizationService, JMBGValidator jmbgValidator, CyrillicToLatinConverter cyrillicToLatinConverter, StatusRepository statusRepository, ObserverRepository observerRepository, PresidentRepository presidentRepository, MemberRepository memberRepository) {
+    public AddingObserversForm(StackService stackService, PoliticalOrganizationService politicalOrganizationService, JMBGValidator jmbgValidator, CyrillicToLatinConverter cyrillicToLatinConverter, StatusRepository statusRepository, ObserverRepository observerRepository, PresidentRepository presidentRepository, MemberRepository memberRepository, LatinToCyrillicConverter latinToCyrillicConverter) {
         this.memberRepository = memberRepository;
         this.presidentRepository = presidentRepository;
         this.stackService = stackService;
@@ -80,6 +79,7 @@ public class AddingObserversForm extends FormLayout {
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
         this.statusRepository = statusRepository;
         this.observerRepository = observerRepository;
+        this.latinToCyrillicConverter = latinToCyrillicConverter;
         addClassName("adding-stack-form");
 
         organizations.setItems(politicalOrganizationService.getAll());
@@ -159,6 +159,8 @@ public class AddingObserversForm extends FormLayout {
 
             for(int r=1; r<=rows; r++) {
                 XSSFRow row = sheet.getRow(r);
+                if(row == null)
+                    continue;
                 int cols = row.getLastCellNum();
 
                 if(row.getLastCellNum() < 5)
@@ -168,7 +170,7 @@ public class AddingObserversForm extends FormLayout {
                 int number = cell != null ? (int)cell.getNumericCellValue() : -1;
 
                 cell = row.getCell(1);
-                String jmbg = cell != null ? cell.getStringCellValue() : "";
+                String jmbg = cell != null ? getCellValue(cell) : "";
 
                 cell = row.getCell(2);
                 String cardid = cell != null ? cell.getStringCellValue() : "";
@@ -379,6 +381,24 @@ public class AddingObserversForm extends FormLayout {
         this.organizations.clear();
         this.stackEntity = new StackEntity();
         this.upload.clearFileList();
+    }
 
+    private String getCellValue(Cell cell) {
+        if(cell == null)
+            return null;
+        switch (cell.getCellType()) {
+            case STRING:
+                return latinToCyrillicConverter.convert(cell.getStringCellValue().replaceAll("^\\s+", "").trim());
+            case BOOLEAN:
+                return Boolean.toString(cell.getBooleanCellValue());
+            case NUMERIC:
+                return Long.toString((long)cell.getNumericCellValue());
+            case FORMULA:
+                return cell.getCellFormula();
+            case BLANK:
+                return "";
+            default:
+                return "Unknown Cell Type";
+        }
     }
 }
