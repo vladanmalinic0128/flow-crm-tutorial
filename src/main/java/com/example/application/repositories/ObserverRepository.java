@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface ObserverRepository extends JpaRepository<ObserverEntity, Long> {
     boolean existsByJmbg(String jmbg);
     Optional<ObserverEntity> findByJmbg(String jmbg);
+    Optional<ObserverEntity> findByJmbgAndStatus_Id(String jmbg, Integer id);
 }
