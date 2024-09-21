@@ -173,7 +173,7 @@ public class AddingObserversForm extends FormLayout {
                 String jmbg = cell != null ? getCellValue(cell) : "";
 
                 cell = row.getCell(2);
-                String cardid = cell != null ? cell.getStringCellValue() : "";
+                String cardid = cell != null ? getCellValue(cell) : "";
 
                 cell = row.getCell(3);
                 String lastname = cell != null ? cell.getStringCellValue() : "";
