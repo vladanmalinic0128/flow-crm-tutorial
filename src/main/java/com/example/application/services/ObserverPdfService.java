@@ -5,6 +5,7 @@ import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.StackEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.enums.SideEnum;
+import com.example.application.repositories.ObserverRepository;
 import com.itextpdf.io.image.ImageData;
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.font.PdfFont;
@@ -37,10 +38,8 @@ import java.net.MalformedURLException;
 import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.*;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -50,10 +49,12 @@ public class ObserverPdfService {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
+    private final ObserverRepository observerRepository;
 
-    public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter) {
+    public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter, ObserverRepository observerRepository) {
         this.latinToCyrillicConverter = latinToCyrillicConverter;
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
+        this.observerRepository = observerRepository;
     }
 
     public String downloadOverallPdf(PoliticalOrganizationEntity entity) {
@@ -1234,7 +1235,6 @@ public class ObserverPdfService {
         String reasonHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonHeaderLabel) : reasonHeaderLabel;
         row.addNewTableCell().setText(reasonHeaderText);
         styleHeaderRow(table.getRow(0));
-
         Collator collator = getCollatorForScript(scriptEnum);
 
         if(scriptEnum == ScriptEnum.CYRILLIC)
@@ -1256,6 +1256,8 @@ public class ObserverPdfService {
             newRow.getCell(1).setText(observer.getLastname());
             newRow.getCell(2).setText(observer.getFirstname());
             String reasonLabel = observer.getStatus().getName();
+            if(observer.getStatus().getId() == 3)
+                reasonLabel += addAdditionalInfo(observer);
             String reasonText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonLabel) : cyrillicToLatinConverter.convert(reasonLabel);
             newRow.getCell(3).setText(reasonText);
             styleDataRow(newRow, i);
@@ -1263,6 +1265,18 @@ public class ObserverPdfService {
         }
 
         addEmptyLine(document);
+    }
+
+    private String addAdditionalInfo(ObserverEntity observer) {
+        Optional<ObserverEntity> optional = observerRepository.findByJmbgAndStatus_Id(observer.getJmbg(), 1);
+        if(optional.isEmpty())
+            return "";
+        ObserverEntity accreditatedObserver = optional.get();
+        return " (šifra PS " +
+                accreditatedObserver.getStack().getPoliticalOrganization().getCode() +
+                ", broj odluke " +
+                accreditatedObserver.getStack().getDecisionNumber() +
+                ") ";
     }
 }
 
