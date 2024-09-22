@@ -1279,7 +1279,7 @@ public class ObserverPdfService {
             return "";
         ObserverEntity accreditatedObserver = optional.get();
         if(observer.getStack().getPoliticalOrganization().getCode().equals(accreditatedObserver.getStack().getPoliticalOrganization().getCode()))
-            return " ovog politićkog subjekta (broj odluke " +
+            return " ovog političkog subjekta (broj odluke " +
                     accreditatedObserver.getStack().getDecisionNumber() +
                     ") ";
         else
