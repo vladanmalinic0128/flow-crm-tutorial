@@ -718,8 +718,10 @@ public class CouncelXlsxService {
         councelMemberStyles = generateCellStyleForCounselMembersColumn(sheet);
 
         List<ConstraintEntity> entryConstraints;
-        if(entity.getId() != null)
+        if(entity.getId() != null && entity.getId() > 0)
             entryConstraints = entity.getVotingCouncels().stream().flatMap(e -> e.getConstraints().stream()).collect(Collectors.toList());
+        else if(entity.getId() == -1)
+            entryConstraints = mentorRepository.findAll().stream().flatMap(e -> e.getVotingCouncels().stream()).filter(vc -> vc.getCode().contains("MT") || vc.getCode().contains("МТ")).flatMap(e -> e.getConstraints().stream()).collect(Collectors.toList());
         else
             entryConstraints = mentorRepository.findAll().stream().flatMap(e -> e.getVotingCouncels().stream()).flatMap(e -> e.getConstraints().stream()).collect(Collectors.toList());
 

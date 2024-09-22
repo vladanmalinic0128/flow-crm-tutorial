@@ -63,7 +63,19 @@ public class OverallObserversService {
 
         Collator collator = getCollatorForScript(scriptEnum);
 
-        List<ObserverEntity> filteredObservers = observerRepository.findAll()
+        List<ObserverEntity> translatedObservers  = observerRepository.findAll();
+        if(scriptEnum == ScriptEnum.CYRILLIC) {
+            translatedObservers.forEach(o -> {
+                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()));
+                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()));
+            });
+        } else {
+            translatedObservers.forEach(o -> {
+                o.setFirstname(cyrillicToLatinConverter.convert(o.getFirstname()));
+                o.setLastname(cyrillicToLatinConverter.convert(o.getLastname()));
+            });
+        }
+        List<ObserverEntity> filteredObservers = translatedObservers
                 .stream()
                 .filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
                 .sorted(Comparator.comparing(ObserverEntity::getLastname, collator).thenComparing(ObserverEntity::getFirstname, collator))
@@ -188,6 +200,7 @@ public class OverallObserversService {
         }
         Locale locale = localeBuilder.build();
         Collator collator = Collator.getInstance(locale);
+        collator.setStrength(Collator.PRIMARY);
         return collator;
     }
 

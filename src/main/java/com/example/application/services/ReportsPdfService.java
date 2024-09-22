@@ -487,6 +487,13 @@ public class ReportsPdfService {
                 document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
             }
         }
+        else if("034MT".equals(entity.getCode()) || "034МТ".equals(entity.getCode()))
+        {
+            for(VotingCouncelEntity votingCouncel: votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("MT") || vc.getCode().contains("МТ")).sorted(Comparator.comparing(VotingCouncelEntity::getId)).collect(Collectors.toList())){
+                generateShortContentByCode(votingCouncel, document, value);
+                document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+            }
+        }
         else
             generateShortContentByCode(entity, document, value);
 

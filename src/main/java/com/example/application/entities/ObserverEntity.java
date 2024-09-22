@@ -42,6 +42,7 @@ public class ObserverEntity {
         return firstname + " " + lastname;
     }
 
+
     @Override
     public String toString() {
         return "ObserverEntity{" +
