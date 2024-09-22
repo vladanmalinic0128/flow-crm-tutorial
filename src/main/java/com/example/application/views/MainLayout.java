@@ -8,6 +8,7 @@ import com.example.application.views.list.AddingStackForm;
 import com.example.application.views.list.ListView;
 import com.example.application.views.observers.AddingObserversForm;
 import com.example.application.views.observers.ObserverReportsView;
+import com.example.application.views.observers.OverallReportView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
@@ -158,8 +159,9 @@ public class MainLayout extends AppLayout implements RouterLayout {
         // Create and configure tabs
         Tab tab1 = createTab("Akredituj nove posmatrače", AddingObserversForm.class);
         Tab tab2 = createTab("Preuzmi trenutno stanje", ObserverReportsView.class);
+        Tab tab3 = createTab("Preuzmi zbirni spisak", OverallReportView.class);
 
-        tabs.add(tab1, tab2);
+        tabs.add(tab1, tab2, tab3);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
 
         tabs.setSelectedTab(tab1);
