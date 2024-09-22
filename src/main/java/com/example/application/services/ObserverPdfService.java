@@ -1278,11 +1278,16 @@ public class ObserverPdfService {
         if(optional.isEmpty())
             return "";
         ObserverEntity accreditatedObserver = optional.get();
-        return " (šifra PS " +
-                accreditatedObserver.getStack().getPoliticalOrganization().getCode() +
-                ", broj odluke " +
-                accreditatedObserver.getStack().getDecisionNumber() +
-                ") ";
+        if(observer.getStack().getPoliticalOrganization().getCode().equals(accreditatedObserver.getStack().getPoliticalOrganization().getCode()))
+            return " ovog politićkog subjekta (broj odluke " +
+                    accreditatedObserver.getStack().getDecisionNumber() +
+                    ") ";
+        else
+            return " (šifra PS " +
+                    accreditatedObserver.getStack().getPoliticalOrganization().getCode() +
+                    ", broj odluke " +
+                    accreditatedObserver.getStack().getDecisionNumber() +
+                    ") ";
     }
 }
 
