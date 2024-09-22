@@ -51,6 +51,9 @@ public class ObserverPdfService {
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final ObserverRepository observerRepository;
 
+    ImageData election24rotatedImageData = null;
+    ImageData countryLogoImageData = null;
+
     public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter, ObserverRepository observerRepository) {
         this.latinToCyrillicConverter = latinToCyrillicConverter;
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
@@ -107,6 +110,16 @@ public class ObserverPdfService {
         document.setLeftMargin(leftMargin);
         document.setRightMargin(rightMargin);
         document.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+        String electionLogoPath = "src/main/resources/logo/election24-rotated.png";
+        String countryLogoPath = "src/main/resources/logo/logo_bih.png";
+        try {
+            election24rotatedImageData = ImageDataFactory.create(electionLogoPath);
+            countryLogoImageData = ImageDataFactory.create(countryLogoPath);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+
 
         // Create a 2x5 table
         float[] columnWidths = {340f, 340f}; // Custom column widths
@@ -290,14 +303,7 @@ public class ObserverPdfService {
         Paragraph sealPlace = new Paragraph("_______________").addStyle(keyStyle);
         Paragraph sealText = new Paragraph(doConvert("MP", scriptEnum)).addStyle(keyStyle);
 
-        String electionLogoPath = "src/main/resources/logo/election24-rotated.png";
-        ImageData imageData = null;
-        try {
-            imageData = ImageDataFactory.create(electionLogoPath);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-        Image electionLogo = new Image(imageData);
+        Image electionLogo = new Image(election24rotatedImageData);
         electionLogo.setHeight(50f);
         electionLogo.setWidth(50f);
         electionLogo.setTextAlignment(TextAlignment.CENTER);
@@ -394,9 +400,8 @@ public class ObserverPdfService {
         companyNameSerbian.setFont(cyrillicFont);
         companyNameSerbian.addStyle(companyNameStyle);
 
-        String countryLogoPath = "src/main/resources/logo/logo_bih.png";
-        ImageData imageData = ImageDataFactory.create(countryLogoPath);
-        Image countryLogo = new Image(imageData);
+
+        Image countryLogo = new Image(countryLogoImageData);
         countryLogo.setHeight(23f);
         countryLogo.setWidth(20f);
 
