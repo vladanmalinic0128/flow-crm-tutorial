@@ -57,6 +57,7 @@ public class CouncelsByMentor extends VerticalLayout {
         scripts.setItemLabelGenerator(ScriptEnum::getName);
 
         generateOverallTable(accordion);
+        generateOverallTableForMobileTeams(accordion);
 
         for(MentorEntity entity: mentorRepository.findAll().stream().sorted(Comparator.comparing(MentorEntity::getFirstname)).collect(Collectors.toList())) {
             // Add a HorizontalLayout
@@ -99,6 +100,38 @@ public class CouncelsByMentor extends VerticalLayout {
         mentorEntity.setFirstname("ZBIRNI");
         mentorEntity.setLastname("SPISAK");
         Text description = new Text("Ovde možete preuzeti zbirnu tabelu za biračke odbore: ");
+
+        Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Button xlsxButton = new Button("Preuzmi", downloadIcon);
+        xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_SUCCESS);
+
+        xlsxButton.addClickListener(e -> {
+//
+            Dialog dialog = createDialog(mentorEntity);
+            dialog.open();
+        });
+
+        horizontalLayout.add(description, xlsxButton);
+
+        // Add the VerticalLayout to the main Accordion
+        AccordionPanel panel = accordion.add(mentorEntity.getFirstname() + " " + mentorEntity.getLastname(), horizontalLayout);
+        //panel.addThemeVariants(DetailsVariant.FILLED);
+    }
+
+    void generateOverallTableForMobileTeams(Accordion accordion) {
+        // Add a HorizontalLayout
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        horizontalLayout.setWidthFull();
+        horizontalLayout.setAlignItems(Alignment.CENTER);
+        horizontalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+
+
+        MentorEntity mentorEntity = new MentorEntity();
+        mentorEntity.setId(-1L);
+        mentorEntity.setFirstname("ZBIRNI SPISAK");
+        mentorEntity.setLastname("MOBILNIH TIMOVA");
+        Text description = new Text("Ovde možete preuzeti zbirnu tabelu za mobilne timove: ");
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
         Button xlsxButton = new Button("Preuzmi", downloadIcon);
