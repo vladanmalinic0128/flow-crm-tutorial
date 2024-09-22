@@ -51,8 +51,8 @@ public class ObserverPdfService {
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final ObserverRepository observerRepository;
 
-    ImageData election24rotatedImageData = null;
-    ImageData countryLogoImageData = null;
+    Image electionLogo = null;
+    Image countryLogo = null;
 
     public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter, ObserverRepository observerRepository) {
         this.latinToCyrillicConverter = latinToCyrillicConverter;
@@ -114,8 +114,17 @@ public class ObserverPdfService {
         String electionLogoPath = "src/main/resources/logo/election24-rotated.png";
         String countryLogoPath = "src/main/resources/logo/logo_bih.png";
         try {
-            election24rotatedImageData = ImageDataFactory.create(electionLogoPath);
-            countryLogoImageData = ImageDataFactory.create(countryLogoPath);
+            ImageData election24rotatedImageData = ImageDataFactory.create(electionLogoPath);
+            electionLogo = new Image(election24rotatedImageData);
+            electionLogo.setHeight(50f);
+            electionLogo.setWidth(50f);
+            electionLogo.setTextAlignment(TextAlignment.CENTER);
+            electionLogo.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+            ImageData countryLogoImageData = ImageDataFactory.create(countryLogoPath);
+            countryLogo = new Image(countryLogoImageData);
+            countryLogo.setHeight(23f);
+            countryLogo.setWidth(20f);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
@@ -303,11 +312,7 @@ public class ObserverPdfService {
         Paragraph sealPlace = new Paragraph("_______________").addStyle(keyStyle);
         Paragraph sealText = new Paragraph(doConvert("MP", scriptEnum)).addStyle(keyStyle);
 
-        Image electionLogo = new Image(election24rotatedImageData);
-        electionLogo.setHeight(50f);
-        electionLogo.setWidth(50f);
-        electionLogo.setTextAlignment(TextAlignment.CENTER);
-        electionLogo.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
 
         Cell firstnameCell = new Cell().add(firstname);
         firstnameCell.setBorder(Border.NO_BORDER);
@@ -400,10 +405,6 @@ public class ObserverPdfService {
         companyNameSerbian.setFont(cyrillicFont);
         companyNameSerbian.addStyle(companyNameStyle);
 
-
-        Image countryLogo = new Image(countryLogoImageData);
-        countryLogo.setHeight(23f);
-        countryLogo.setWidth(20f);
 
         //Celije se dodaju po redovima, pa se odmah dodaje span - itext7 plejlista, video 19
         Cell countryNameLatinCell = new Cell().add(countryNameLatin);
