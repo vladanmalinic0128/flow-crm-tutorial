@@ -135,8 +135,12 @@ public class ObserverPdfService {
         Table table = new Table(UnitValue.createPercentArray(columnWidths));
         table.setWidth(UnitValue.createPercentValue(100)); // Set table width
 
+        Collator collator = getCollatorForScript(script);
+
         if(sideNumber == SideEnum.ONE_SIDED) {
-            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true).sorted(Comparator.comparing(ObserverEntity::getDocumentNumber)).collect(Collectors.toList());
+            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
+                    .sorted(Comparator.comparing(ObserverEntity::getLastname, collator).thenComparing(ObserverEntity::getFirstname, collator))
+                    .collect(Collectors.toList());
             for(ObserverEntity observer: filteredObservers) {
                 Cell front = new Cell();
                 front.add(generateFrontPageForAccreditation(observer, datePicker, script));
@@ -154,7 +158,10 @@ public class ObserverPdfService {
             }
         }
         else if(sideNumber == SideEnum.TWO_SIDED) {
-            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true).sorted(Comparator.comparing(ObserverEntity::getDocumentNumber)).collect(Collectors.toList());
+            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
+                    .sorted(Comparator.comparing(ObserverEntity::getLastname, collator)
+                            .thenComparing(ObserverEntity::getFirstname, collator))
+                    .collect(Collectors.toList());
             int chunkSize = 10;
             int numberOfChunks = (filteredObservers.size() + chunkSize - 1) / chunkSize;
 
