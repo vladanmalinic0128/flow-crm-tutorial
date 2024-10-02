@@ -124,7 +124,7 @@ public class HealthCheckView extends VerticalLayout {
                     .filter(m -> {
                         if(observerRepository.existsByJmbg(m.getJmbg()) == false)
                             return false;
-                        Optional<ObserverEntity> optional = observerRepository.findByJmbgAndStatus_Id(m.getJmbg(), 1);
+                        Optional<ObserverEntity> optional = observerRepository.findFirstByJmbgAndStatus_Id(m.getJmbg(), 1);
                         if(optional.isEmpty())
                             return false;
                         return optional.get().getStatus().getSuccess() == true;
