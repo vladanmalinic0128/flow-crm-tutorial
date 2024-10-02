@@ -4,6 +4,7 @@ import com.example.application.entities.MemberEntity;
 import com.example.application.entities.ObserverEntity;
 import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
+import com.example.application.repositories.PresidentRepository;
 import com.example.application.services.BankAccountValidator;
 import com.example.application.services.CyrillicToLatinConverter;
 import com.example.application.services.JMBGValidator;
@@ -29,14 +30,16 @@ public class HealthCheckView extends VerticalLayout {
     private final JMBGValidator jmbgValidator;
     private final BankAccountValidator bankAccountValidator;
     private final ObserverRepository observerRepository;
+    private final PresidentRepository presidentRepository;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
 
-    public HealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, CyrillicToLatinConverter cyrillicToLatinConverter) {
+    public HealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, PresidentRepository presidentRepository, CyrillicToLatinConverter cyrillicToLatinConverter) {
         this.memberRepository = memberRepository;
         this.jmbgValidator = jmbgValidator;
         this.bankAccountValidator = bankAccountValidator;
         this.observerRepository = observerRepository;
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
+        this.presidentRepository = presidentRepository;
 
 
         // Main layout
@@ -154,6 +157,45 @@ public class HealthCheckView extends VerticalLayout {
             }
             Long jmbgCount = memberEntityList.stream().count();
             accordion.add("Posmatrači (" + jmbgCount + ")", verticalLayout);
+        }
+        {
+            // Already a president
+            VerticalLayout verticalLayout = new VerticalLayout();
+            verticalLayout.setWidthFull();
+            verticalLayout.setAlignItems(Alignment.START);
+            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+
+            List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
+                    .filter(m -> m.isEmpty() == false)
+                    .filter(m -> this.presidentRepository.existsByJmbg(m.getJmbg()))
+                    .collect(Collectors.toList());
+
+            for(MemberEntity memberEntity: memberEntityList) {
+                Optional<ObserverEntity> optional = observerRepository.findByJmbg(memberEntity.getJmbg());
+                if(optional.isEmpty())
+                    continue;
+                ObserverEntity observer = optional.get();
+
+                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
+                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
+                Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
+                Span fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
+                Span decisionNumber = new Span("Broj odluke: " + observer.getStack().getDecisionNumber());
+                Span politicalOrganization = new Span("Politički subjekat: " + cyrillicToLatinConverter.convert(observer.getStack().getPoliticalOrganization().getName()).toUpperCase());
+                Span documentNumber = new Span("Redni broj: " + observer.getDocumentNumber());
+
+
+                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, fullName, decisionNumber, politicalOrganization, documentNumber);
+                content.setSpacing(false);
+                content.setPadding(false);
+
+                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
+                details.setOpened(false);
+
+                verticalLayout.add(details);
+            }
+            Long jmbgCount = memberEntityList.stream().count();
+            accordion.add("Predsjednici (" + jmbgCount + ")", verticalLayout);
         }
         {
             // Identify duplicates
