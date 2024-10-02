@@ -11,4 +11,5 @@ public interface ObserverRepository extends JpaRepository<ObserverEntity, Long> 
     boolean existsByJmbg(String jmbg);
     Optional<ObserverEntity> findByJmbg(String jmbg);
     Optional<ObserverEntity> findByJmbgAndStatus_Id(String jmbg, Integer id);
+    Optional<ObserverEntity> findFirstByJmbgAndStatus_Id(String jmbg, Integer id);
 }
