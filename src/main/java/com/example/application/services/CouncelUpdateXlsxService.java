@@ -13,6 +13,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.stereotype.Service;
 
+import java.lang.reflect.Member;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -32,7 +33,7 @@ public class CouncelUpdateXlsxService {
         boolean readingMembers = false;
 
         Sheet sheet = workbook.getSheetAt(0);
-        for (int i = 1; i < sheet.getLastRowNum(); i++) {
+        for (int i = 1; i < sheet.getLastRowNum() + 1; i++) {
             Row row = sheet.getRow(i);
             if(row == null)
                 continue;
@@ -121,22 +122,11 @@ public class CouncelUpdateXlsxService {
 
         String bankNumber = getCellValue(row.getCell(8));
         readBankNumber(bankNumber, memberEntity, deleteEmptyRows);
+        //readBankNumberTemp(bankNumber, memberEntity, deleteEmptyRows);
 
         String bankName = getCellValue(row.getCell(9));
-
-        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
-            memberEntity.setBankName(null);
-        } else if (bankName != null && bankName.trim().length() > 1) {
-            memberEntity.setBankName(bankName);
-        } else if (memberEntity.getBankName() == null || memberEntity.getBankName().trim().isEmpty()) {
-            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
-            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
-                memberEntity.setBankName(optional.get().getBankName());
-            } else {
-                memberEntity.setBankName(null);
-            }
-        }
-
+        readBankName(bankName, memberEntity, deleteEmptyRows);
+        //readBankNameTemp(bankName, memberEntity, deleteEmptyRows);
     }
 
     public void readNameCell(String value, MemberEntity memberEntity) {
@@ -196,6 +186,49 @@ public class CouncelUpdateXlsxService {
         }
     }
 
+    private void readBankName(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows) {
+        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+            memberEntity.setBankName(null);
+        } else if (bankName != null && bankName.trim().length() > 1) {
+            memberEntity.setBankName(bankName);
+        } else if (memberEntity.getBankName() == null || memberEntity.getBankName().trim().isEmpty()) {
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                memberEntity.setBankName(optional.get().getBankName());
+            } else {
+                memberEntity.setBankName(null);
+            }
+        }
+    }
+
+    private void readBankNumberTemp(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
+        if(bankNumber != null)
+            bankNumber = bankNumber.replaceAll("\\D", "");
+        if(memberEntity.isEmpty())
+            memberEntity.setBankNumber(null);
+        else if(memberEntity.getIsGik()){
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                memberEntity.setBankNumber(optional.get().getBankNumber());
+            } else {
+                memberEntity.setBankNumber(null);
+            }
+        }
+    }
+
+
+    private void readBankNameTemp(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows) {
+        if(memberEntity.isEmpty())
+            memberEntity.setBankName(null);
+        else if(memberEntity.getIsGik()){
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                memberEntity.setBankNumber(optional.get().getBankNumber());
+            } else {
+                memberEntity.setBankNumber(null);
+            }
+        }
+    }
 
     private String getCellValue(Cell cell) {
         if(cell == null)
