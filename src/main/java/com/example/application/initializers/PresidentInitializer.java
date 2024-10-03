@@ -33,7 +33,7 @@ public class PresidentInitializer implements ApplicationRunner {
             Workbook workbook = WorkbookFactory.create(inputStream);
             Sheet sheet = workbook.getSheetAt(0);
             List<PresidentEntity> presidentEntityList = new ArrayList<>();
-            for (int i = 1; i < sheet.getLastRowNum(); i++) {
+            for (int i = 1; i < sheet.getLastRowNum() + 1; i++) {
                 Row row = sheet.getRow(i);
                 if(row == null)
                     continue;
