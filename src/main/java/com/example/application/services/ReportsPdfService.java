@@ -444,8 +444,7 @@ public class ReportsPdfService {
     private String createCouncelDetailsSecondPartForSolutionReport(VotingCouncelEntity entity) {
         return entity.getName() +
                 ", " +
-                entity.getLocation() +
-                ", " +
+                (entity.getLocation() != null ? entity.getLocation() + ", " : "") +
                 "број бирача " +
                 entity.getNumberOfVoters() +
                 ", именује се бирачки одбор у саставу:";
