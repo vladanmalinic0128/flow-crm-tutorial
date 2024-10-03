@@ -274,7 +274,7 @@ public class ReportsPdfService {
         document.add(secondParagraphTitle);
 
         List<String> secondParagraphItemsLabels = new ArrayList<>();
-        if(entity.getCode().toUpperCase().contains("Б") || entity.getCode().toUpperCase().contains("B")) {
+        if(this.isRegularTeam(entity)) {
             secondParagraphItemsLabels.add("да су обучени за рад у бирачким одборима;");
             secondParagraphItemsLabels.add("да дана 05. октобра, 2024. године преузму изборни материјал на локацији дистрибуције и припреме бирачко мјесто (предсједник и чланови б/о) на локацији бирачког мјеста;");
             secondParagraphItemsLabels.add("да се бирачки материјал у ноћи прије отварања бирачког мјеста чува у закључаним просторијама, на локацији бирачког мјеста. Полиција осигурава бирачки материјал у ноћи прије отварања бирачких мјеста на локацијама бирачких мјеста;");
@@ -912,7 +912,7 @@ public class ReportsPdfService {
         table.addCell(politicalOrganizationCell);
     }
 
-    private boolean isMobileTeam(VotingCouncelEntity entity) {
+    private boolean isRegularTeam(VotingCouncelEntity entity) {
         return entity.getCode().toUpperCase().contains("Б") || entity.getCode().toUpperCase().contains("B");
     }
 }

@@ -132,7 +132,7 @@ public class HealthCheckView extends VerticalLayout {
                     .collect(Collectors.toList());
 
             for(MemberEntity memberEntity: memberEntityList) {
-                Optional<ObserverEntity> optional = observerRepository.findByJmbg(memberEntity.getJmbg());
+                Optional<ObserverEntity> optional = observerRepository.findFirstByJmbgAndStatus_Id(memberEntity.getJmbg(), 1);
                 if(optional.isEmpty())
                     continue;
                 ObserverEntity observer = optional.get();

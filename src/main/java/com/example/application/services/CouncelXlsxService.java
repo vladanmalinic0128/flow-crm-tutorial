@@ -29,6 +29,7 @@ public class CouncelXlsxService {
     private final MemberRepository memberRepository;
     private final SubstituteRepository substituteRepository;
 
+    private final JMBGValidator jmbgValidator;
     //Globalni stilovi
     XSSFCellStyle firstRowStyle;
     Map<HorizontalAlignment, XSSFCellStyle> councelStyles;
@@ -576,6 +577,13 @@ public class CouncelXlsxService {
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
         if(constraint.getMember() != null && constraint.getMember().getJmbg() != null) {
             label = constraint.getMember().getJmbg();
+            if(jmbgValidator.isValidJMBG(label) == false) {
+                CellStyle coloredStyle = sheet.getWorkbook().createCellStyle();
+                coloredStyle.cloneStyleFrom(councelMemberStyles.get(HorizontalAlignment.CENTER));
+                coloredStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+                coloredStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                cell.setCellStyle(coloredStyle);
+            }
             cell.setCellValue(label);
         }
 
