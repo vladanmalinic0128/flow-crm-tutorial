@@ -2,6 +2,7 @@ package com.example.application.views.counsels;
 
 import com.example.application.entities.MemberEntity;
 import com.example.application.entities.ObserverEntity;
+import com.example.application.entities.PresidentEntity;
 import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.PresidentRepository;
@@ -171,21 +172,22 @@ public class HealthCheckView extends VerticalLayout {
                     .collect(Collectors.toList());
 
             for(MemberEntity memberEntity: memberEntityList) {
-                Optional<ObserverEntity> optional = observerRepository.findByJmbg(memberEntity.getJmbg());
+                Optional<PresidentEntity> optional = presidentRepository.findByJmbg(memberEntity.getJmbg());
                 if(optional.isEmpty())
                     continue;
-                ObserverEntity observer = optional.get();
+                PresidentEntity president = optional.get();
 
                 Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
                 Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
                 Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
                 Span fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
-                Span decisionNumber = new Span("Broj odluke: " + observer.getStack().getDecisionNumber());
-                Span politicalOrganization = new Span("Politički subjekat: " + cyrillicToLatinConverter.convert(observer.getStack().getPoliticalOrganization().getName()).toUpperCase());
-                Span documentNumber = new Span("Redni broj: " + observer.getDocumentNumber());
+                Span presidentCodeNumber;
+                if(president.getIsPresident())
+                    presidentCodeNumber = new Span("Predsjednik na: " + president.getVotingCouncel().getCode());
+                else
+                    presidentCodeNumber = new Span("Zamjenik predsjednika na: " + president.getVotingCouncel().getCode());
 
-
-                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, fullName, decisionNumber, politicalOrganization, documentNumber);
+                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, fullName, presidentCodeNumber);
                 content.setSpacing(false);
                 content.setPadding(false);
 

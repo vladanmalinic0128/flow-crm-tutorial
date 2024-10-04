@@ -12,4 +12,5 @@ public interface PresidentRepository extends JpaRepository<PresidentEntity, Long
     Optional<PresidentEntity> findByVotingCouncel_CodeAndIsPresident(String code, boolean isPresident);
 
     boolean existsByJmbg(String jmbg);
+    Optional<PresidentEntity> findByJmbg(String jmbg);
 }
