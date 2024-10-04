@@ -177,7 +177,7 @@ public class ReportsPdfService {
         String solutionTitleText = scriptEnum == ScriptEnum.CYRILLIC ? solutionTitleLabel : cyrillicToLatinConverter.convert(solutionTitleLabel);
         Paragraph solutionTitleParagraph = new Paragraph(solutionTitleText).addStyle(titleTextStyle).setFixedLeading(13);
 
-        String solutionDetailsLabel = "о именовању чланова бирачких одбора и њихових замјеника за Локалне изборе – 06. октобра, 2024. године";
+        String solutionDetailsLabel = "о именовању чланова бирачких одбора и њихових замјеника \n за Локалне изборе – 06. октобра, 2024. године";
         String solutionDetailsText = scriptEnum == ScriptEnum.CYRILLIC ? solutionDetailsLabel : cyrillicToLatinConverter.convert(solutionDetailsLabel);
         Paragraph solutionDetailsParagraph = new Paragraph(solutionDetailsText).addStyle(titleTextStyle).setFixedLeading(13);
 
