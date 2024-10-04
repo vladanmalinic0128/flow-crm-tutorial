@@ -21,12 +21,12 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class PresidentInitializer implements ApplicationRunner {
+public class PresidentInitializer /*implements ApplicationRunner*/ {
     private final PresidentRepository presidentRepository;
     private final VotingCouncelRepository votingCouncelRepository;
     private final LatinToCyrillicConverter latinToCyrillicConverter;
 
-    @Override
+    //@Override
     public void run(ApplicationArguments args) throws Exception {
         String absolutePath = "src/main/resources/documents/predsjednici.xlsx";
         try (InputStream inputStream = new FileInputStream(absolutePath)) {
