@@ -53,6 +53,7 @@ public class ReportsView extends VerticalLayout {
         scripts.setItemLabelGenerator(ScriptEnum::getName);
 
         generateOverallTable(accordion);
+        generateOverallTableForMobileTeams(accordion);
 
         for(VotingCouncelEntity entity: votingCouncelRepository.findAll().stream().sorted(Comparator.comparing(VotingCouncelEntity::getCode)).collect(Collectors.toList())) {
             // Add a HorizontalLayout
@@ -96,6 +97,36 @@ public class ReportsView extends VerticalLayout {
         VotingCouncelEntity votingCouncel = new VotingCouncelEntity();
         votingCouncel.setCode("034");
         votingCouncel.setName("Zbirna rješenja u jednom fajlu");
+
+        Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Button pdfButton = new Button("Preuzmi", downloadIcon);
+        pdfButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_ERROR);
+
+        pdfButton.addClickListener(e -> {
+//
+            Dialog dialog = createDialog(votingCouncel);
+            dialog.open();
+        });
+
+        horizontalLayout.add(description, pdfButton);
+
+        // Add the VerticalLayout to the main Accordion
+        AccordionPanel panel = accordion.add(votingCouncel.getCode() + ": " + votingCouncel.getName(), horizontalLayout);
+    }
+
+    private void generateOverallTableForMobileTeams(Accordion accordion) {
+        // Add a HorizontalLayout
+        HorizontalLayout horizontalLayout = new HorizontalLayout();
+        horizontalLayout.setWidthFull();
+        horizontalLayout.setAlignItems(Alignment.CENTER);
+        horizontalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+
+        Text description = new Text("Ovde možete preuzeti sva rješenja za mobilne timove na jednom mjestu: ");
+
+        VotingCouncelEntity votingCouncel = new VotingCouncelEntity();
+        votingCouncel.setCode("034МТ");
+        votingCouncel.setName("Zbirna rješenja mobilnih timova u jednom fajlu");
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
         Button pdfButton = new Button("Preuzmi", downloadIcon);
