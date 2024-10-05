@@ -147,7 +147,7 @@ public class ReportsPdfService {
                 .addStyle(headerStyle)
                 .setFixedLeading(13);
 
-        String dateHeaderLabel = "Дана, 06.10.2024. године. ";
+        String dateHeaderLabel = "Дана, 04.10.2024. године. ";
         String dateHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? dateHeaderLabel : cyrillicToLatinConverter.convert(dateHeaderLabel);
         Paragraph dateHeaderParagraph = new Paragraph(dateHeaderText)
                 .addStyle(headerStyle)
