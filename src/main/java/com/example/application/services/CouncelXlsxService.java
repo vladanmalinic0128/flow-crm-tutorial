@@ -5,18 +5,17 @@ import com.example.application.enums.ScriptEnum;
 import com.example.application.enums.TitleEnum;
 import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.MentorRepository;
+import com.example.application.repositories.PresidentRepository;
 import com.example.application.repositories.SubstituteRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.xssf.usermodel.*;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -24,12 +23,15 @@ import java.util.stream.Collectors;
 public class CouncelXlsxService {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
+    private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final TitleService titleService;
     private final MentorRepository mentorRepository;
     private final MemberRepository memberRepository;
     private final SubstituteRepository substituteRepository;
+    private final PresidentRepository presidentRepository;
 
     private final JMBGValidator jmbgValidator;
+    private final BankAccountValidator bankAccountValidator;
     //Globalni stilovi
     XSSFCellStyle firstRowStyle;
     Map<HorizontalAlignment, XSSFCellStyle> councelStyles;
@@ -163,10 +165,16 @@ public class CouncelXlsxService {
         cell.setCellValue(value);
 
         cell = row.createCell(1);
+        text = "Ангажован?";
+        value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
         cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(value);
 
         cell = row.createCell(2);
+        text = "Цијена?";
+        value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
         cell.setCellStyle(firstRowStyle);
+        cell.setCellValue(value);
 
         cell = row.createCell(3);
         text = "Назив бирачког мјеста / име и презиме чланова и замјеника БО";
@@ -487,8 +495,14 @@ public class CouncelXlsxService {
         generateHeader(sheet, scriptEnum, "Чланови БО");
     }
 
+    private void generatePresidentHeaderRow(XSSFSheet sheet, ScriptEnum scriptEnum) {
+        generateHeader(sheet, scriptEnum, "Предсједник БО");
+    }
     private void generateDeputyMemberHeaderRow(XSSFSheet sheet, ScriptEnum scriptEnum) {
         generateHeader(sheet, scriptEnum, "Замјеници чланова БО");
+    }
+    private void generateDeputyPresidentHeaderRow(XSSFSheet sheet, ScriptEnum scriptEnum) {
+        generateHeader(sheet, scriptEnum, "Замјеник предсједника БО");
     }
 
     private void generateHeader(XSSFSheet sheet, ScriptEnum scriptEnum, String text) {
@@ -535,6 +549,8 @@ public class CouncelXlsxService {
     }
 
     private void generateMemberRow(XSSFSheet sheet, ConstraintEntity constraint, ScriptEnum scriptEnum) {
+        String text;
+        String label;
         XSSFRow row = sheet.createRow(sheet.getLastRowNum() + 1);
 
         XSSFCell cell = row.createCell(0);
@@ -542,12 +558,30 @@ public class CouncelXlsxService {
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
 
         cell = row.createCell(1);
+        createCheckboxWithDescription(cell, scriptEnum, new String[]{"DA", "NE"});
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(constraint.getMember() != null && constraint.getMember().getIsAcknowledged() != null) {
+            text = constraint.getMember().getIsAcknowledged() ? "ДА" : "НЕ";
+            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellValue(label);
+        }
+
 
         cell = row.createCell(2);
+        String[] options;
+        if(constraint.getTitle().getId() == 1)
+            options = new String[]{"60"};
+        else
+            options = new String[]{"110"};
+            createCheckboxWithDescription(cell, scriptEnum, options);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
-        String text;
-        String label;
+        if(constraint.getMember() != null && constraint.getMember().getIsAcknowledged() != null) {
+            text = constraint.getMember().getIsAcknowledged() ? "ДА" : "НЕ";
+            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellValue(label);
+        }
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+
         cell = row.createCell(3);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
         if(constraint.getMember() != null && constraint.getMember().getIsGik() != null && constraint.getMember().getFirstname() != null && constraint.getMember().getLastname() != null) {
@@ -598,6 +632,13 @@ public class CouncelXlsxService {
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
         if(constraint.getMember() != null && constraint.getMember().getBankNumber() != null) {
             label = formatBankNumber(constraint.getMember().getBankNumber());
+            if(bankAccountValidator.isValidAccountNumber(constraint.getMember().getBankNumber()) == false) {
+                CellStyle coloredStyle = sheet.getWorkbook().createCellStyle();
+                coloredStyle.cloneStyleFrom(councelMemberStyles.get(HorizontalAlignment.CENTER));
+                coloredStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+                coloredStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                cell.setCellStyle(coloredStyle);
+            }
             cell.setCellValue(label);
         }
 
@@ -616,6 +657,138 @@ public class CouncelXlsxService {
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
     }
 
+
+    private void generatePresidentRow(XSSFSheet sheet, PresidentEntity president, ScriptEnum scriptEnum) {
+        String text;
+        String label;
+        XSSFRow row = sheet.createRow(sheet.getLastRowNum() + 1);
+
+        XSSFCell cell = row.createCell(0);
+        cell.setCellValue(scriptEnum == ScriptEnum.CYRILLIC ? "ГИК" : "GIK");
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+
+        cell = row.createCell(1);
+        createCheckboxWithDescription(cell, scriptEnum, new String[]{"DA", "NE"});
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(president.getIsAcknowledged() != null) {
+            text = president.getIsAcknowledged() ? "ДА" : "НЕ";
+            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellValue(label);
+        }
+
+
+        cell = row.createCell(2);
+        String[] options;
+        if(president.getIsPresident())
+            options = new String[]{"200"};
+        else
+            options = new String[]{"400"};
+        createCheckboxWithDescription(cell, scriptEnum, options);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(president.getPrice() != null) {
+            text = String.valueOf(president.getPrice());
+            cell.setCellValue(text);
+        }
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+
+        cell = row.createCell(3);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
+        if(president != null && president.getFirstname() != null && president.getLastname() != null) {
+            text = generatePresidentNameForTable(president);
+            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellValue(label);
+        }
+
+        cell = row.createCell(4);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
+        text = "-";
+        label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+        cell.setCellValue(label);
+
+        cell = row.createCell(5);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(president != null && president.getIsMale() != null) {
+            text = president.getIsMale() ? "М" : "Ж";
+            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellValue(label);
+        }
+
+
+        cell = row.createCell(6);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(president != null && president.getJmbg() != null) {
+            label = president.getJmbg();
+            if(jmbgValidator.isValidJMBG(label) == false) {
+                CellStyle coloredStyle = sheet.getWorkbook().createCellStyle();
+                coloredStyle.cloneStyleFrom(councelMemberStyles.get(HorizontalAlignment.CENTER));
+                coloredStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+                coloredStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                cell.setCellStyle(coloredStyle);
+            }
+            cell.setCellValue(label);
+        }
+
+        cell = row.createCell(7);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(president != null && president.getPhoneNumber() != null) {
+            label = formatPhoneNumber(president.getPhoneNumber());
+            cell.setCellValue(label);
+        }
+
+        cell = row.createCell(8);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+        if(president != null && president.getBankNumber() != null) {
+            label = formatBankNumber(president.getBankNumber());
+            if(bankAccountValidator.isValidAccountNumber(president.getBankNumber()) == false) {
+                CellStyle coloredStyle = sheet.getWorkbook().createCellStyle();
+                coloredStyle.cloneStyleFrom(councelMemberStyles.get(HorizontalAlignment.CENTER));
+                coloredStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
+                coloredStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                cell.setCellStyle(coloredStyle);
+            }
+            cell.setCellValue(label);
+        }
+
+        cell = row.createCell(9);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
+        if(president!= null && president.getBankName() != null) {
+            text = president.getBankName().toUpperCase();
+            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellValue(label);
+        }
+
+        cell = row.createCell(10);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+
+        cell = row.createCell(11);
+        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+    }
+    public void createCheckboxWithDescription(Cell cell, ScriptEnum scriptEnum, String[] options) {
+        // Dobij radni list iz ćelije
+        Sheet sheet = cell.getSheet();
+
+        // Dobij red i kolonu iz celije
+        int rowIndex = cell.getRowIndex();
+        int columnIndex = cell.getColumnIndex();
+
+        // Kreiraj DataValidationHelper za trenutni sheet
+        DataValidationHelper validationHelper = sheet.getDataValidationHelper();
+
+        String[] result = new String[options.length];
+        for(int i = 0; i < options.length; i++)
+            result[i] = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(options[i]) : cyrillicToLatinConverter.convert(options[i]);
+        DataValidationConstraint constraint = validationHelper.createExplicitListConstraint(result);
+
+        // Postavi opseg ćelija samo za određenu ćeliju
+        CellRangeAddressList addressList = new CellRangeAddressList(rowIndex, rowIndex, columnIndex, columnIndex);
+
+        // Kreiraj validaciju
+        DataValidation dataValidation = validationHelper.createValidation(constraint, addressList);
+
+        // Dodaj validaciju na sheet
+        sheet.addValidationData(dataValidation);
+    }
+
     private String generateNameForTable(MemberEntity member) {
         String result = "";
 
@@ -624,6 +797,16 @@ public class CouncelXlsxService {
         result += member.getFirstname();
         result += " ";
         result += member.getLastname();
+
+        return result.toUpperCase();
+    }
+
+    private String generatePresidentNameForTable(PresidentEntity president) {
+        String result = "";
+
+        result += president.getFirstname();
+        result += " ";
+        result += president.getLastname();
 
         return result.toUpperCase();
     }
@@ -754,6 +937,79 @@ public class CouncelXlsxService {
                 generateMemberRow(sheet, deputyMember, scriptEnum);
         }
 
+        return saveDocument(fileTitle, workbook);
+    }
+
+    public String generateCouncelsWithPresidentsByMentor(MentorEntity entity, String fileTitle, ScriptEnum scriptEnum) {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+
+        String sheetName = scriptEnum == ScriptEnum.CYRILLIC ? "БО-ТАБЕЛА" : cyrillicToLatinConverter.convert("БО-ТАБЕЛА");
+        XSSFSheet sheet = workbook.createSheet(sheetName);
+        this.dataFormat = createDataFormat(sheet);
+
+        defineColumnWidth(sheet);
+
+        generateFrozenHeader(sheet, scriptEnum);
+
+        Map<TitleEnum, TitleEntity> titles = titleService.getTitles();
+        councelStyles = generateCellStyleForCounselsColumn(sheet);
+        councelMemberStyles = generateCellStyleForCounselMembersColumn(sheet);
+
+        List<ConstraintEntity> entryConstraints;
+        if(entity.getId() != null && entity.getId() > 0)
+            entryConstraints = entity.getVotingCouncels().stream().flatMap(e -> e.getConstraints().stream()).collect(Collectors.toList());
+        else if(entity.getId() != null && entity.getId() == -1)
+            entryConstraints = mentorRepository.findAll().stream().flatMap(e -> e.getVotingCouncels().stream()).filter(vc -> vc.getCode().contains("MT") || vc.getCode().contains("МТ")).flatMap(e -> e.getConstraints().stream()).collect(Collectors.toList());
+        else
+            entryConstraints = mentorRepository.findAll().stream().flatMap(e -> e.getVotingCouncels().stream()).flatMap(e -> e.getConstraints().stream()).collect(Collectors.toList());
+
+
+        Map<VotingCouncelEntity, List<ConstraintEntity>> mentorByCounsels = entryConstraints.stream()
+                .collect(Collectors.groupingBy(ConstraintEntity::getVotingCouncel));
+
+        for(Map.Entry<VotingCouncelEntity, List<ConstraintEntity>> entry : mentorByCounsels.entrySet().stream().sorted(Comparator.comparing(c -> c.getKey().getId())).collect(Collectors.toList())) {
+            VotingCouncelEntity votingCouncel = entry.getKey();
+            List<ConstraintEntity> constraints = entry.getValue();
+
+            generateCouncelsRow(sheet, votingCouncel, scriptEnum);
+
+            generateMemberHeaderRow(sheet, scriptEnum);
+            List<ConstraintEntity> members = constraints.stream().filter(c -> c.getTitle().getId() == titles.get(TitleEnum.MEMBER).getId()).sorted(Comparator.comparing(ConstraintEntity::getPosition)).collect(Collectors.toList());
+            for(ConstraintEntity member: members)
+                generateMemberRow(sheet, member, scriptEnum);
+
+            generateDeputyMemberHeaderRow(sheet, scriptEnum);
+            List<ConstraintEntity> deputyMembers = constraints.stream().filter(c -> c.getTitle().getId() == titles.get(TitleEnum.MEMBER_DEPUTY).getId()).sorted(Comparator.comparing(ConstraintEntity::getPosition)).collect(Collectors.toList());
+            for(ConstraintEntity deputyMember: deputyMembers)
+                generateMemberRow(sheet, deputyMember, scriptEnum);
+        }
+
+        //Predsjednici
+        sheetName = scriptEnum == ScriptEnum.CYRILLIC ? "ПРЕДСЈЕДНИЦИ" : cyrillicToLatinConverter.convert("ПРЕДСЈЕДНИЦИ");
+        sheet = workbook.createSheet(sheetName);
+        this.dataFormat = createDataFormat(sheet);
+
+        defineColumnWidth(sheet);
+
+        generateFrozenHeader(sheet, scriptEnum);
+        councelStyles = generateCellStyleForCounselsColumn(sheet);
+        councelMemberStyles = generateCellStyleForCounselMembersColumn(sheet);
+
+        for(VotingCouncelEntity votingCouncel : mentorByCounsels.keySet().stream()
+                .sorted(Comparator.comparing(VotingCouncelEntity::getId)).toList()) {
+            generateCouncelsRow(sheet, votingCouncel, scriptEnum);
+
+            generatePresidentHeaderRow(sheet, scriptEnum);
+            Optional<PresidentEntity> presidentEntityOptional = presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), true);
+            generatePresidentRow(sheet, presidentEntityOptional.get(), scriptEnum);
+
+            generateDeputyPresidentHeaderRow(sheet, scriptEnum);
+            presidentEntityOptional = presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), false);
+            generatePresidentRow(sheet, presidentEntityOptional.get(), scriptEnum);
+
+        }
+
+        //Rezultat
         return saveDocument(fileTitle, workbook);
     }
 

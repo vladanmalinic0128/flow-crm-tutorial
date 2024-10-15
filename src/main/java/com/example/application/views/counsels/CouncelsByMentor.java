@@ -69,12 +69,20 @@ public class CouncelsByMentor extends VerticalLayout {
             Text description = new Text("Ovde možete preuzeti biračke odbore za gore navedenog člana GIK: ");
 
             Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+            Icon downloadIcon2 = new Icon(VaadinIcon.DOWNLOAD);
             Button xlsxButton = new Button("Preuzmi", downloadIcon);
+            Button xlsxButtonWithPresidents = new Button("Preuzmi sa predsjednicima", downloadIcon2);
             xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                    ButtonVariant.LUMO_SUCCESS);
+            xlsxButtonWithPresidents.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                     ButtonVariant.LUMO_SUCCESS);
 
             xlsxButton.addClickListener(e -> {
                 Dialog dialog = createDialog(entity);
+                dialog.open();
+            });
+            xlsxButtonWithPresidents.addClickListener(e -> {
+                Dialog dialog = createDialogWithPresidents(entity);
                 dialog.open();
             });
 
@@ -102,17 +110,24 @@ public class CouncelsByMentor extends VerticalLayout {
         Text description = new Text("Ovde možete preuzeti zbirnu tabelu za biračke odbore: ");
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Icon downloadIcon2 = new Icon(VaadinIcon.DOWNLOAD);
         Button xlsxButton = new Button("Preuzmi", downloadIcon);
+        Button xlsxButtonWithPresidents = new Button("Preuzmi sa predsjednicima", downloadIcon2);
         xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_SUCCESS);
+        xlsxButtonWithPresidents.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_SUCCESS);
 
         xlsxButton.addClickListener(e -> {
-//
             Dialog dialog = createDialog(mentorEntity);
             dialog.open();
         });
+        xlsxButtonWithPresidents.addClickListener(e -> {
+            Dialog dialog = createDialogWithPresidents(mentorEntity);
+            dialog.open();
+        });
 
-        horizontalLayout.add(description, xlsxButton);
+        horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents);
 
         // Add the VerticalLayout to the main Accordion
         AccordionPanel panel = accordion.add(mentorEntity.getFirstname() + " " + mentorEntity.getLastname(), horizontalLayout);
@@ -134,17 +149,24 @@ public class CouncelsByMentor extends VerticalLayout {
         Text description = new Text("Ovde možete preuzeti zbirnu tabelu za mobilne timove: ");
 
         Icon downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Icon downloadIcon2 = new Icon(VaadinIcon.DOWNLOAD);
         Button xlsxButton = new Button("Preuzmi", downloadIcon);
+        Button xlsxButtonWithPresidents = new Button("Preuzmi sa predsjednicima", downloadIcon2);
         xlsxButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_SUCCESS);
+        xlsxButtonWithPresidents.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
                 ButtonVariant.LUMO_SUCCESS);
 
         xlsxButton.addClickListener(e -> {
-//
             Dialog dialog = createDialog(mentorEntity);
             dialog.open();
         });
+        xlsxButtonWithPresidents.addClickListener(e -> {
+            Dialog dialog = createDialogWithPresidents(mentorEntity);
+            dialog.open();
+        });
 
-        horizontalLayout.add(description, xlsxButton);
+        horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents);
 
         // Add the VerticalLayout to the main Accordion
         AccordionPanel panel = accordion.add(mentorEntity.getFirstname() + " " + mentorEntity.getLastname(), horizontalLayout);
@@ -158,6 +180,20 @@ public class CouncelsByMentor extends VerticalLayout {
         dialog.getHeader().add(createDialogHeader());
 
         VerticalLayout dialogLayout = createDialogLayout(dialog, entity);
+        dialog.add(dialogLayout);
+        dialog.setModal(true);
+        dialog.setDraggable(true);
+
+        return dialog;
+    }
+
+    private Dialog createDialogWithPresidents(MentorEntity entity) {
+        Dialog dialog = new Dialog();
+        dialog.getElement().setAttribute("aria-label", "Add note");
+
+        dialog.getHeader().add(createDialogHeader());
+
+        VerticalLayout dialogLayout = createDialogLayoutWithPresidents(dialog, entity);
         dialog.add(dialogLayout);
         dialog.setModal(true);
         dialog.setDraggable(true);
@@ -197,6 +233,47 @@ public class CouncelsByMentor extends VerticalLayout {
                 return null;
             }
             String stringPath = councelXlsxService.generateCouncelsByMentor(entity, fileTitle, scripts.getValue());
+            dialog.close();
+            if(stringPath != null)
+                return councelXlsxService.getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+
+        dialog.getFooter().add(cancelButton);
+        dialog.getFooter().add(saveButtonAnchor);
+
+        return fieldLayout;
+    }
+
+    private VerticalLayout createDialogLayoutWithPresidents(Dialog dialog, MentorEntity entity) {
+        VerticalLayout fieldLayout = new VerticalLayout(scripts);
+        scripts.setValue(ScriptEnum.CYRILLIC);
+        fieldLayout.setSpacing(false);
+        fieldLayout.setPadding(false);
+        fieldLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
+        fieldLayout.getStyle().set("width", "600px").set("max-width", "100%");
+
+        Button cancelButton = new Button("Zatvori", e -> {
+            dialog.close();
+        });
+        String fileTitle = entity.getFirstname() + "_" + entity.getLastname() + "_" + System.currentTimeMillis() + ".xlsx";
+        Button saveButton = new Button("Generiši");
+
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            if(scripts.getValue() == null) {
+                Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                dialog.close();
+                return null;
+            }
+            String stringPath = councelXlsxService.generateCouncelsWithPresidentsByMentor(entity, fileTitle, scripts.getValue());
             dialog.close();
             if(stringPath != null)
                 return councelXlsxService.getStream(stringPath);

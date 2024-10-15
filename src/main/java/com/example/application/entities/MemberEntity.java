@@ -37,6 +37,10 @@ public class MemberEntity {
     private Boolean isForced;
 
     @Basic
+    @Column(name = "isAcknowledged")
+    private Boolean isAcknowledged;
+
+    @Basic
     @Column(name = "isGik")
     private Boolean isGik;
 
@@ -59,6 +63,10 @@ public class MemberEntity {
     @Basic
     @Column(name = "bankName")
     private String bankName;
+
+    @Basic
+    @Column(name = "price")
+    private Integer price;
 
     @OneToOne
     @JoinColumn(name = "constraint_id", referencedColumnName = "id", nullable = false)

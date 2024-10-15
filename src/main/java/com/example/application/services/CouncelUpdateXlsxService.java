@@ -96,6 +96,22 @@ public class CouncelUpdateXlsxService {
     }
 
     private void convertRowStringToMember(Row row, MemberEntity memberEntity, boolean deleteEmptyRows) {
+        String acknowledged = getCellValue(row.getCell(1));
+        if(acknowledged != null && acknowledged.trim().length() > 0) {
+            if("ДА".equalsIgnoreCase(latinToCyrillicConverter.convert(acknowledged.trim())))
+                memberEntity.setIsAcknowledged(true);
+            else if("НЕ".equalsIgnoreCase(latinToCyrillicConverter.convert(acknowledged.trim())))
+                memberEntity.setIsAcknowledged(false);
+        }
+
+        if(memberEntity.getIsAcknowledged()) {
+            String priceString = getCellValue(row.getCell(2));
+            Integer price = Integer.parseInt(priceString);
+            memberEntity.setPrice(price);
+        } else {
+            memberEntity.setPrice(0);
+        }
+
         String name = getCellValue(row.getCell(3));
         if(name == null || name.trim().length() == 0) {
             memberEntity.setFirstname(null);

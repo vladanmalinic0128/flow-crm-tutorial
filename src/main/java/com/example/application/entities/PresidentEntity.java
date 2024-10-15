@@ -42,6 +42,14 @@ public class PresidentEntity {
     @Column(name = "isPresident")
     private Boolean isPresident;
 
+    @Basic
+    @Column(name = "price")
+    private Integer price;
+
+    @Basic
+    @Column(name = "isAcknowledged")
+    private Boolean isAcknowledged;
+
     @ManyToOne
     @JoinColumn(name = "voting_councel_id", referencedColumnName = "id")
     private VotingCouncelEntity votingCouncel;
@@ -75,5 +83,24 @@ public class PresidentEntity {
 
     public String getFullname() {
         return this.firstname + " " + this.lastname;
+    }
+
+    public MemberEntity mapToMemberEntity() {
+        MemberEntity member = new MemberEntity();
+        member.setJmbg(this.jmbg);
+        member.setFirstname(this.firstname);
+        member.setLastname(this.lastname);
+        member.setPhoneNumber(this.phoneNumber);
+        member.setBankNumber(this.bankNumber);
+        member.setBankName(this.bankName);
+        member.setIsForced(false);
+        member.setIsMale(null);
+        member.setPrice(0);
+
+        return member;
+    }
+
+    public Boolean getIsMale() {
+        return true;
     }
 }
