@@ -86,7 +86,7 @@ public class CouncelsByMentor extends VerticalLayout {
                 dialog.open();
             });
 
-            horizontalLayout.add(description, xlsxButton);
+            horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents);
 
             // Add the VerticalLayout to the main Accordion
             AccordionPanel panel = accordion.add(entity.getFirstname() + " " + entity.getLastname(), horizontalLayout);
