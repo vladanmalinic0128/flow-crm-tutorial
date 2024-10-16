@@ -113,4 +113,12 @@ public class PresidentEntity {
             return false;
         }
     }
+
+    public boolean isEmpty() {
+        return bankName == null
+                && bankNumber == null
+                && firstname == null
+                && lastname == null
+                && phoneNumber == null;
+    }
 }

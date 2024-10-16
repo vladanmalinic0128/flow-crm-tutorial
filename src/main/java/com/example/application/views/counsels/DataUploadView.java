@@ -1,8 +1,10 @@
 package com.example.application.views.counsels;
 
 import com.example.application.entities.ConstraintEntity;
+import com.example.application.entities.PresidentEntity;
 import com.example.application.repositories.ConstraintRepository;
 import com.example.application.repositories.MemberRepository;
+import com.example.application.repositories.PresidentRepository;
 import com.example.application.services.CouncelUpdateXlsxService;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.button.Button;
@@ -36,11 +38,13 @@ public class DataUploadView extends FormLayout {
     private final CouncelUpdateXlsxService councelUpdateXlsxService;
     private final MemberRepository memberRepository;
     private final ConstraintRepository constraintRepository;
+    private final PresidentRepository presidentRepository;
 
-    public DataUploadView(CouncelUpdateXlsxService councelUpdateXlsxService, MemberRepository memberRepository, ConstraintRepository constraintRepository) {
+    public DataUploadView(CouncelUpdateXlsxService councelUpdateXlsxService, MemberRepository memberRepository, ConstraintRepository constraintRepository, PresidentRepository presidentRepository) {
         this.councelUpdateXlsxService = councelUpdateXlsxService;
         this.memberRepository = memberRepository;
         this.constraintRepository = constraintRepository;
+        this.presidentRepository = presidentRepository;
 
         addClassName("adding-stack-form");
 
@@ -114,6 +118,10 @@ public class DataUploadView extends FormLayout {
                 memberRepository.save(c.getMember());
                 constraintRepository.save(c);
             }
+
+            List<PresidentEntity> modifiedPresidents = councelUpdateXlsxService.getModifiedPresidents(workbook, selected);
+            for(PresidentEntity presidentEntity: modifiedPresidents)
+                presidentRepository.save(presidentEntity);
 
         } catch (IOException e) {
             e.printStackTrace();

@@ -1,9 +1,7 @@
 package com.example.application.services;
 
-import com.example.application.entities.ConstraintEntity;
-import com.example.application.entities.MemberEntity;
-import com.example.application.entities.SubstituteEntity;
-import com.example.application.entities.VotingCouncelEntity;
+import com.example.application.entities.*;
+import com.example.application.repositories.PresidentRepository;
 import com.example.application.repositories.SubstituteRepository;
 import com.example.application.repositories.VotingCouncelRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +24,7 @@ public class CouncelUpdateXlsxService {
     private final VotingCouncelRepository votingCouncelRepository;
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final SubstituteRepository substituteRepository;
+    private final PresidentRepository presidentRepository;
     public List<ConstraintEntity> getModifiedConstraints(Workbook workbook, boolean deleteEmptyRows) {
         List<ConstraintEntity> result = new ArrayList<>();
 
@@ -66,7 +65,48 @@ public class CouncelUpdateXlsxService {
                 readingMembers = !readingMembers;
             }
         }
+        return result;
+    }
 
+    public List<PresidentEntity> getModifiedPresidents(Workbook workbook, boolean deleteEmptyRows) {
+        List<PresidentEntity> result = new ArrayList<>();
+
+        VotingCouncelEntity activeVotingCouncel = null;
+        boolean readingPresidents = false;
+
+        Sheet sheet = workbook.getSheetAt(1);
+        if(sheet == null)
+            return result;
+        for (int i = 1; i < sheet.getLastRowNum() + 1; i++) {
+            Row row = sheet.getRow(i);
+            if(row == null)
+                continue;
+            Cell cell = row.getCell(0);
+            if(cell == null)
+                continue;
+            String value = getCellValue(cell);
+            if(latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE) || latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE_FOR_MOBILE_TEAMS)) {
+                activeVotingCouncel = tryReadingVotingCouncel(cell);
+            }
+            else if(latinToCyrillicConverter.convert(value.toUpperCase()).equals("ГИК")) {
+                Optional<PresidentEntity> optionalPresidentEntity = presidentRepository.findByVotingCouncel_CodeAndIsPresident(activeVotingCouncel.getCode(), readingPresidents);
+                if(optionalPresidentEntity.isEmpty())
+                    continue;
+                PresidentEntity presidentToUpdate = optionalPresidentEntity.get();
+
+                boolean isEmpty = isPresidentEmpty(row);
+                if(isEmpty == false || (isEmpty && deleteEmptyRows && presidentToUpdate != null)) {
+                    MemberEntity memberEntity = null;
+                    if(presidentToUpdate == null) {
+                        System.out.println("Loggg: " + cell.getRow() + ", " + cell.getColumnIndex());
+                    }
+                    convertRowStringToPresident(row, presidentToUpdate, deleteEmptyRows);
+                    result.add(presidentToUpdate);
+                }
+            } else {
+                readingPresidents = !readingPresidents;
+            }
+        }
         return result;
     }
 
@@ -104,7 +144,7 @@ public class CouncelUpdateXlsxService {
                 memberEntity.setIsAcknowledged(false);
         }
 
-        if(memberEntity.getIsAcknowledged()) {
+        if(memberEntity.getIsAcknowledged() != null && memberEntity.getIsAcknowledged()) {
             String priceString = getCellValue(row.getCell(2));
             Integer price = Integer.parseInt(priceString);
             memberEntity.setPrice(price);
@@ -142,6 +182,37 @@ public class CouncelUpdateXlsxService {
 
         String bankName = getCellValue(row.getCell(9));
         readBankName(bankName, memberEntity, deleteEmptyRows);
+        //readBankNameTemp(bankName, memberEntity, deleteEmptyRows);
+    }
+
+    private void convertRowStringToPresident(Row row, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+        String acknowledged = getCellValue(row.getCell(1));
+        if(acknowledged != null && acknowledged.trim().length() > 0) {
+            if("ДА".equalsIgnoreCase(latinToCyrillicConverter.convert(acknowledged.trim())))
+                presidentEntity.setIsAcknowledged(true);
+            else if("НЕ".equalsIgnoreCase(latinToCyrillicConverter.convert(acknowledged.trim())))
+                presidentEntity.setIsAcknowledged(false);
+        }
+
+        if(presidentEntity.getIsAcknowledged()) {
+            String priceString = getCellValue(row.getCell(2));
+            Integer price;
+            if(priceString.trim().length() < 1)
+                price = presidentEntity.getIsPresident() ? 400 : 200;
+            else
+                price = Integer.parseInt(priceString);
+            presidentEntity.setPrice(price);
+        } else {
+            presidentEntity.setPrice(0);
+        }
+
+
+        String bankNumber = getCellValue(row.getCell(8));
+        readBankNumber(bankNumber, presidentEntity, deleteEmptyRows);
+        //readBankNumberTemp(bankNumber, memberEntity, deleteEmptyRows);
+
+        String bankName = getCellValue(row.getCell(9));
+        readBankName(bankName, presidentEntity, deleteEmptyRows);
         //readBankNameTemp(bankName, memberEntity, deleteEmptyRows);
     }
 
@@ -202,6 +273,23 @@ public class CouncelUpdateXlsxService {
         }
     }
 
+    private void readBankNumber(String bankNumber, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+        if(bankNumber != null)
+            bankNumber = bankNumber.replaceAll("\\D", "");
+        if (presidentEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
+            presidentEntity.setBankNumber(null);
+        } else if (bankNumber != null && bankNumber.trim().length() > 1) {
+            presidentEntity.setBankNumber(bankNumber);
+        } else if (presidentEntity.getBankNumber() == null || presidentEntity.getBankNumber().trim().isEmpty()) {
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(presidentEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                presidentEntity.setBankNumber(optional.get().getBankNumber());
+            } else {
+                presidentEntity.setBankNumber(null);
+            }
+        }
+    }
+
     private void readBankName(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows) {
         if (memberEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
             memberEntity.setBankName(null);
@@ -213,6 +301,21 @@ public class CouncelUpdateXlsxService {
                 memberEntity.setBankName(optional.get().getBankName());
             } else {
                 memberEntity.setBankName(null);
+            }
+        }
+    }
+
+    private void readBankName(String bankName, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+        if (presidentEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+            presidentEntity.setBankName(null);
+        } else if (bankName != null && bankName.trim().length() > 1) {
+            presidentEntity.setBankName(bankName);
+        } else if (presidentEntity.getBankName() == null || presidentEntity.getBankName().trim().isEmpty()) {
+            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(presidentEntity.getJmbg());
+            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+                presidentEntity.setBankName(optional.get().getBankName());
+            } else {
+                presidentEntity.setBankName(null);
             }
         }
     }
@@ -266,6 +369,23 @@ public class CouncelUpdateXlsxService {
     }
 
     private boolean isEmpty(Row row) {
+        if (row == null) {
+            return true;
+        }
+
+        for (int i = 3; i <= 9; i++) {
+            Cell cell = row.getCell(i);
+            if (cell != null) {
+                String cellValue = getCellValue(cell);
+                if (cellValue != null && !cellValue.trim().isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isPresidentEmpty(Row row) {
         if (row == null) {
             return true;
         }
