@@ -102,7 +102,7 @@ public class PresidentEntity {
 
     public Boolean getIsMale() {
         if (jmbg == null || jmbg.length() != 13) {
-            throw new IllegalArgumentException("JMBG must be exactly 13 characters long.");
+            return null;
         }
 
         int genderIndicator = Integer.parseInt(jmbg.substring(9, 12));
