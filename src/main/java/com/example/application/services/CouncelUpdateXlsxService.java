@@ -146,8 +146,37 @@ public class CouncelUpdateXlsxService {
 
         if(memberEntity.getIsAcknowledged() != null && memberEntity.getIsAcknowledged()) {
             String priceString = getCellValue(row.getCell(2));
-            Integer price = Integer.parseInt(priceString);
-            memberEntity.setPrice(price);
+            if(priceString != null) {
+                String cleanedPriceString = priceString.trim().replace(",", ".");
+                try {
+                    double price = Double.parseDouble(cleanedPriceString);
+                    memberEntity.setPrice((int)price);
+                } catch (NumberFormatException e) {
+                    System.err.println("Error parsing price at row: " + row.getRowNum());
+                }
+            } else {
+                String votingCouncelCode = memberEntity.getConstraint().getVotingCouncel().getCode();
+                if(memberEntity.getConstraint().getTitle().getId() == 1) {
+                    if(votingCouncelCode.contains("MT") || votingCouncelCode.contains("МТ"))
+                        memberEntity.setPrice(100);
+                    else if(votingCouncelCode.endsWith("501"))
+                        memberEntity.setPrice(100);
+                    else if(votingCouncelCode.endsWith("NNN") || votingCouncelCode.endsWith("ННН"))
+                        memberEntity.setPrice(100);
+                    else
+                        memberEntity.setPrice(110);
+                }
+                else if(memberEntity.getConstraint().getTitle().getId() == 2) {
+                    if(votingCouncelCode.contains("MT") || votingCouncelCode.contains("МТ"))
+                        memberEntity.setPrice(50);
+                    else if(votingCouncelCode.endsWith("501"))
+                        memberEntity.setPrice(50);
+                    else if(votingCouncelCode.endsWith("NNN") || votingCouncelCode.endsWith("ННН"))
+                        memberEntity.setPrice(50);
+                    else
+                        memberEntity.setPrice(60);
+                }
+            }
         } else {
             memberEntity.setPrice(0);
         }
@@ -194,14 +223,39 @@ public class CouncelUpdateXlsxService {
                 presidentEntity.setIsAcknowledged(false);
         }
 
-        if(presidentEntity.getIsAcknowledged()) {
+        if(presidentEntity.getIsAcknowledged() != null && presidentEntity.getIsAcknowledged()) {
             String priceString = getCellValue(row.getCell(2));
-            Integer price;
-            if(priceString.trim().length() < 1)
-                price = presidentEntity.getIsPresident() ? 400 : 200;
-            else
-                price = Integer.parseInt(priceString);
-            presidentEntity.setPrice(price);
+            if(priceString != null) {
+                String cleanedPriceString = priceString.trim().replace(",", ".");
+                try {
+                    double price = Double.parseDouble(cleanedPriceString);
+                    presidentEntity.setPrice((int)price);
+                } catch (NumberFormatException e) {
+                    System.err.println("Error parsing price at row: " + row.getRowNum());
+                }
+            } else {
+                String votingCouncelCode = presidentEntity.getVotingCouncel().getCode();
+                if(presidentEntity.getIsPresident()) {
+                    if(votingCouncelCode.contains("MT") || votingCouncelCode.contains("МТ"))
+                        presidentEntity.setPrice(200);
+                    else if(votingCouncelCode.endsWith("501"))
+                        presidentEntity.setPrice(200);
+                    else if(votingCouncelCode.endsWith("NNN") || votingCouncelCode.endsWith("ННН"))
+                        presidentEntity.setPrice(200);
+                    else
+                        presidentEntity.setPrice(400);
+                }
+                else  {
+                    if(votingCouncelCode.contains("MT") || votingCouncelCode.contains("МТ"))
+                        presidentEntity.setPrice(100);
+                    else if(votingCouncelCode.endsWith("501"))
+                        presidentEntity.setPrice(100);
+                    else if(votingCouncelCode.endsWith("NNN") || votingCouncelCode.endsWith("ННН"))
+                        presidentEntity.setPrice(100);
+                    else
+                        presidentEntity.setPrice(200);
+                }
+            }
         } else {
             presidentEntity.setPrice(0);
         }
