@@ -570,9 +570,9 @@ public class CouncelXlsxService {
         cell = row.createCell(2);
         String[] options;
         if(constraint.getTitle().getId() == 1)
-            options = new String[]{"60"};
+            options = new String[]{"50"};
         else
-            options = new String[]{"110"};
+            options = new String[]{"100"};
             createCheckboxWithDescription(cell, scriptEnum, options);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
         if(constraint.getMember() != null && constraint.getMember().getIsAcknowledged() != null) {
@@ -680,9 +680,9 @@ public class CouncelXlsxService {
         cell = row.createCell(2);
         String[] options;
         if(president.getIsPresident())
-            options = new String[]{"200"};
+            options = new String[]{"100"};
         else
-            options = new String[]{"400"};
+            options = new String[]{"200"};
         createCheckboxWithDescription(cell, scriptEnum, options);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
         if(president.getPrice() != null) {
