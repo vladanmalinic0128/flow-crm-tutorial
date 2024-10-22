@@ -568,18 +568,8 @@ public class CouncelXlsxService {
 
 
         cell = row.createCell(2);
-        String[] options;
-        if(constraint.getTitle().getId() == 1)
-            options = new String[]{"60"};
-        else
-            options = new String[]{"110"};
-            createCheckboxWithDescription(cell, scriptEnum, options);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
-        if(constraint.getMember() != null && constraint.getMember().getIsAcknowledged() != null) {
-            text = constraint.getMember().getIsAcknowledged() ? "ДА" : "НЕ";
-            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
-            cell.setCellValue(label);
-        }
+        cell.setCellValue(constraint.getMember().getPrice() != null ? constraint.getMember().getPrice() : 0);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
 
         cell = row.createCell(3);

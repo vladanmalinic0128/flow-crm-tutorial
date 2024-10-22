@@ -310,68 +310,101 @@ public class CouncelUpdateXlsxService {
             memberEntity.setPhoneNumber(phoneNumber);
     }
 
+//    private void readBankNumber(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
+//        if(bankNumber != null)
+//            bankNumber = bankNumber.replaceAll("\\D", "");
+//        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
+//            memberEntity.setBankNumber(null);
+//        } else if (bankNumber != null && bankNumber.trim().length() > 1) {
+//            memberEntity.setBankNumber(bankNumber);
+//        } else if (memberEntity.getBankNumber() == null || memberEntity.getBankNumber().trim().isEmpty()) {
+//            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+//            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+//                memberEntity.setBankNumber(optional.get().getBankNumber());
+//            } else {
+//                memberEntity.setBankNumber(null);
+//            }
+//        }
+//    }
+
     private void readBankNumber(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
         if(bankNumber != null)
             bankNumber = bankNumber.replaceAll("\\D", "");
-        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
+        if (memberEntity.isEmpty()) {
             memberEntity.setBankNumber(null);
-        } else if (bankNumber != null && bankNumber.trim().length() > 1) {
+        } else if (bankNumber != null && bankNumber.trim().length() > 1)
             memberEntity.setBankNumber(bankNumber);
-        } else if (memberEntity.getBankNumber() == null || memberEntity.getBankNumber().trim().isEmpty()) {
-            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
-            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
-                memberEntity.setBankNumber(optional.get().getBankNumber());
-            } else {
-                memberEntity.setBankNumber(null);
-            }
-        }
     }
+
+//    private void readBankNumber(String bankNumber, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+//        if(bankNumber != null)
+//            bankNumber = bankNumber.replaceAll("\\D", "");
+//        if (presidentEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
+//            presidentEntity.setBankNumber(null);
+//        } else if (bankNumber != null && bankNumber.trim().length() > 1) {
+//            presidentEntity.setBankNumber(bankNumber);
+//        } else if (presidentEntity.getBankNumber() == null || presidentEntity.getBankNumber().trim().isEmpty()) {
+//            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(presidentEntity.getJmbg());
+//            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+//                presidentEntity.setBankNumber(optional.get().getBankNumber());
+//            } else {
+//                presidentEntity.setBankNumber(null);
+//            }
+//        }
+//    }
 
     private void readBankNumber(String bankNumber, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
         if(bankNumber != null)
             bankNumber = bankNumber.replaceAll("\\D", "");
-        if (presidentEntity.isEmpty() || (deleteEmptyRows && (bankNumber == null || bankNumber.trim().isEmpty()))) {
+        if (presidentEntity.isEmpty()) {
             presidentEntity.setBankNumber(null);
-        } else if (bankNumber != null && bankNumber.trim().length() > 1) {
+        } else if (bankNumber != null && bankNumber.trim().length() > 1)
             presidentEntity.setBankNumber(bankNumber);
-        } else if (presidentEntity.getBankNumber() == null || presidentEntity.getBankNumber().trim().isEmpty()) {
-            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(presidentEntity.getJmbg());
-            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
-                presidentEntity.setBankNumber(optional.get().getBankNumber());
-            } else {
-                presidentEntity.setBankNumber(null);
-            }
-        }
     }
+
+//    private void readBankName(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows) {
+//        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+//            memberEntity.setBankName(null);
+//        } else if (bankName != null && bankName.trim().length() > 1) {
+//            memberEntity.setBankName(bankName);
+//        } else if (memberEntity.getBankName() == null || memberEntity.getBankName().trim().isEmpty()) {
+//            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
+//            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+//                memberEntity.setBankName(optional.get().getBankName());
+//            } else {
+//                memberEntity.setBankName(null);
+//            }
+//        }
+//    }
 
     private void readBankName(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows) {
-        if (memberEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+        if (memberEntity.isEmpty()) {
             memberEntity.setBankName(null);
-        } else if (bankName != null && bankName.trim().length() > 1) {
-            memberEntity.setBankName(bankName);
-        } else if (memberEntity.getBankName() == null || memberEntity.getBankName().trim().isEmpty()) {
-            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(memberEntity.getJmbg());
-            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
-                memberEntity.setBankName(optional.get().getBankName());
-            } else {
-                memberEntity.setBankName(null);
-            }
         }
+        if (bankName != null && bankName.trim().length() > 1)
+            memberEntity.setBankName(bankName);
     }
 
+//    private void readBankName(String bankName, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+//        if (presidentEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+//            presidentEntity.setBankName(null);
+//        } else if (bankName != null && bankName.trim().length() > 1) {
+//            presidentEntity.setBankName(bankName);
+//        } else if (presidentEntity.getBankName() == null || presidentEntity.getBankName().trim().isEmpty()) {
+//            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(presidentEntity.getJmbg());
+//            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
+//                presidentEntity.setBankName(optional.get().getBankName());
+//            } else {
+//                presidentEntity.setBankName(null);
+//            }
+//        }
+//    }
+
     private void readBankName(String bankName, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
-        if (presidentEntity.isEmpty() || (deleteEmptyRows && (bankName == null || bankName.trim().isEmpty()))) {
+        if (presidentEntity.isEmpty()) {
             presidentEntity.setBankName(null);
-        } else if (bankName != null && bankName.trim().length() > 1) {
+        } else if (bankName != null && bankName.trim().length() > 1)
             presidentEntity.setBankName(bankName);
-        } else if (presidentEntity.getBankName() == null || presidentEntity.getBankName().trim().isEmpty()) {
-            Optional<SubstituteEntity> optional = substituteRepository.findFirstByJmbg(presidentEntity.getJmbg());
-            if (optional.isPresent() && optional.get().getJmbg() != null && !optional.get().getJmbg().isEmpty()) {
-                presidentEntity.setBankName(optional.get().getBankName());
-            } else {
-                presidentEntity.setBankName(null);
-            }
-        }
     }
 
     private void readBankNumberTemp(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
