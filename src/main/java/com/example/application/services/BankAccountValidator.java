@@ -10,7 +10,9 @@ public class BankAccountValidator {
         if (accountNumber.length() > 11 && accountNumber.length() != 16) {
             return false;
         }
-        else if(accountNumber.length() <= 11)
+        else if(accountNumber.length() < 7)
+            return false;
+        else if(accountNumber.length() >= 7 && accountNumber.length() <= 11)
             return true;
 
         String baseAccountNumber = accountNumber.substring(0, 14);
