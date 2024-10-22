@@ -186,19 +186,20 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tabs tabs = new Tabs();
 
         // Create and configure tabs
-        Tab tab1 = createTab("Žrijebanje", DrawingView.class);
+        //Tab tab1 = createTab("Žrijebanje", DrawingView.class);
         Tab tab2 = createTab("BO po PS", CouncelsByPoliticalOrganizationView.class);
         Tab tab3 = createTab("BO po članovima GIK", CouncelsByMentor.class);
         Tab tab4 = createTab("Ažuriranje podataka", DataUploadView.class);
         Tab tab5 = createTab("Provjera grešaka", HealthCheckView.class);
-        Tab tab6 = createTab("Rješenja", ReportsView.class);
-        Tab tab7 = createTab("Skraćena rješenja", ShortReportsView.class);
-        Tab tab8 = createTab("Prikaz po bankama", MembersByBankReportView.class);
-        Tab  tab9 = createTab("Rezervni spisak", SubstituteView.class);
+        Tab tab6 = createTab("Provjera grešaka za bankovne račune", BankAccountHealthCheckView.class);
+        Tab tab7 = createTab("Rješenja", ReportsView.class);
+        Tab tab8 = createTab("Skraćena rješenja", ShortReportsView.class);
+        Tab tab9 = createTab("Prikaz po bankama", MembersByBankReportView.class);
+        Tab  tab10 = createTab("Rezervni spisak", SubstituteView.class);
 
-        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9);
+        tabs.add(tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
-        tabs.setSelectedTab(tab1);
+        tabs.setSelectedTab(tab2);
 
         // Add some styling
         tabs.addClassName(LumoUtility.JustifyContent.CENTER);

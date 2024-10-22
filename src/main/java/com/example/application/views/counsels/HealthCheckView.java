@@ -6,6 +6,7 @@ import com.example.application.entities.PresidentEntity;
 import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.PresidentRepository;
+import com.example.application.repositories.VotingCouncelRepository;
 import com.example.application.services.BankAccountValidator;
 import com.example.application.services.CyrillicToLatinConverter;
 import com.example.application.services.JMBGValidator;
@@ -33,14 +34,16 @@ public class HealthCheckView extends VerticalLayout {
     private final ObserverRepository observerRepository;
     private final PresidentRepository presidentRepository;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
+    private final VotingCouncelRepository votingCouncelRepository;
 
-    public HealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, PresidentRepository presidentRepository, CyrillicToLatinConverter cyrillicToLatinConverter) {
+    public HealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, PresidentRepository presidentRepository, CyrillicToLatinConverter cyrillicToLatinConverter, VotingCouncelRepository votingCouncelRepository) {
         this.memberRepository = memberRepository;
         this.jmbgValidator = jmbgValidator;
         this.bankAccountValidator = bankAccountValidator;
         this.observerRepository = observerRepository;
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
         this.presidentRepository = presidentRepository;
+        this.votingCouncelRepository = votingCouncelRepository;
 
 
         // Main layout
@@ -63,7 +66,7 @@ public class HealthCheckView extends VerticalLayout {
                     .filter(m -> jmbgValidator.isValidJMBG(m.getJmbg()) == false)
                     .collect(Collectors.toList());
 
-            for(MemberEntity memberEntity: memberEntityList) {
+            for (MemberEntity memberEntity : memberEntityList) {
                 Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
                 Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
                 Span jmbg = new Span("JMBG: " + memberEntity.getJmbg());
@@ -90,10 +93,11 @@ public class HealthCheckView extends VerticalLayout {
 
             List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
                     .filter(m -> m.isEmpty() == false)
+                    .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged())
                     .filter(m -> bankAccountValidator.isValidAccountNumber(m.getBankNumber()) == false)
                     .collect(Collectors.toList());
 
-            for(MemberEntity memberEntity: memberEntityList) {
+            for (MemberEntity memberEntity : memberEntityList) {
                 Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
                 Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
                 Span bankNumber = new Span("Žiro račun: " + memberEntity.getBankNumber());
@@ -123,18 +127,18 @@ public class HealthCheckView extends VerticalLayout {
             List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
                     .filter(m -> m.isEmpty() == false)
                     .filter(m -> {
-                        if(observerRepository.existsByJmbg(m.getJmbg()) == false)
+                        if (observerRepository.existsByJmbg(m.getJmbg()) == false)
                             return false;
                         Optional<ObserverEntity> optional = observerRepository.findFirstByJmbgAndStatus_Id(m.getJmbg(), 1);
-                        if(optional.isEmpty())
+                        if (optional.isEmpty())
                             return false;
                         return optional.get().getStatus().getSuccess() == true;
                     })
                     .collect(Collectors.toList());
 
-            for(MemberEntity memberEntity: memberEntityList) {
+            for (MemberEntity memberEntity : memberEntityList) {
                 Optional<ObserverEntity> optional = observerRepository.findFirstByJmbgAndStatus_Id(memberEntity.getJmbg(), 1);
-                if(optional.isEmpty())
+                if (optional.isEmpty())
                     continue;
                 ObserverEntity observer = optional.get();
 
@@ -171,11 +175,11 @@ public class HealthCheckView extends VerticalLayout {
                     .filter(m -> this.presidentRepository.existsByJmbg(m.getJmbg()))
                     .collect(Collectors.toList());
 
-            for(MemberEntity memberEntity: memberEntityList) {
-                if(memberEntity.getJmbg() == null)
+            for (MemberEntity memberEntity : memberEntityList) {
+                if (memberEntity.getJmbg() == null)
                     continue;
                 Optional<PresidentEntity> optional = presidentRepository.findByJmbg(memberEntity.getJmbg());
-                if(optional.isEmpty())
+                if (optional.isEmpty())
                     continue;
                 PresidentEntity president = optional.get();
 
@@ -184,7 +188,7 @@ public class HealthCheckView extends VerticalLayout {
                 Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
                 Span fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
                 Span presidentCodeNumber;
-                if(president.getIsPresident())
+                if (president.getIsPresident())
                     presidentCodeNumber = new Span("Predsjednik na: " + president.getVotingCouncel().getCode());
                 else
                     presidentCodeNumber = new Span("Zamjenik predsjednika na: " + president.getVotingCouncel().getCode());
@@ -219,14 +223,14 @@ public class HealthCheckView extends VerticalLayout {
                     .filter(entry -> entry.getValue().size() > 1)
                     .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-            for(Map.Entry<String, List<MemberEntity>> duplicate: duplicates.entrySet()) {
+            for (Map.Entry<String, List<MemberEntity>> duplicate : duplicates.entrySet()) {
                 String jmbg = duplicate.getKey();
                 Span jmbgSpan = new Span("Jmbg: " + jmbg);
                 VerticalLayout content = new VerticalLayout(jmbgSpan);
                 content.setSpacing(false);
                 content.setPadding(false);
 
-                for(MemberEntity member: duplicate.getValue()) {
+                for (MemberEntity member : duplicate.getValue()) {
                     String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
                     Span votingCouncelsSpan = new Span(message);
                     content.add(votingCouncelsSpan);
@@ -255,9 +259,9 @@ public class HealthCheckView extends VerticalLayout {
             List<MemberEntity> allMembers = memberRepository.findAll();
 
             List<MemberEntity> missingNamesMembers = allMembers.stream()
-                .filter(m -> m.isEmpty() == false)
-                .filter(m -> m.getFirstname() == null || m.getLastname() == null)
-                .collect(Collectors.toList());
+                    .filter(m -> m.isEmpty() == false)
+                    .filter(m -> m.getFirstname() == null || m.getLastname() == null)
+                    .collect(Collectors.toList());
 
             addDetailsForMissingData(missingNamesMembers, "Nedostaju ime ili prezime: ", verticalLayout, false, true);
             jmbgCount += missingNamesMembers.stream().count();
@@ -316,19 +320,19 @@ public class HealthCheckView extends VerticalLayout {
     }
 
     private void addDetailsForMissingData(List<MemberEntity> missingDataList, String message, VerticalLayout verticalLayout, boolean showFullName, boolean showJmbg) {
-        for(MemberEntity memberEntity: missingDataList) {
+        for (MemberEntity memberEntity : missingDataList) {
             Span jmbg = null, fullName = null;
             Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode()).toUpperCase() + ", " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
             Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
-            if(showJmbg)
+            if (showJmbg)
                 jmbg = new Span("JMBG: " + memberEntity.getJmbg());
-            if(showFullName)
+            if (showFullName)
                 fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
 
             VerticalLayout content = new VerticalLayout();
-            if(showJmbg)
+            if (showJmbg)
                 content.add(jmbg);
-            if(showFullName)
+            if (showFullName)
                 content.add(fullName);
             content.add(votingCouncelName);
             content.add(mentor);
