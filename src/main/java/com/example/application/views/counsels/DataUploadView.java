@@ -118,11 +118,11 @@ public class DataUploadView extends FormLayout {
                 memberRepository.save(c.getMember());
                 constraintRepository.save(c);
             }
-
-            List<PresidentEntity> modifiedPresidents = councelUpdateXlsxService.getModifiedPresidents(workbook, selected);
-            for(PresidentEntity presidentEntity: modifiedPresidents)
-                presidentRepository.save(presidentEntity);
-
+            if(workbook.getNumberOfSheets() > 1) {
+                List<PresidentEntity> modifiedPresidents = councelUpdateXlsxService.getModifiedPresidents(workbook, selected);
+                for (PresidentEntity presidentEntity : modifiedPresidents)
+                    presidentRepository.save(presidentEntity);
+            }
         } catch (IOException e) {
             e.printStackTrace();
             // Handle exception

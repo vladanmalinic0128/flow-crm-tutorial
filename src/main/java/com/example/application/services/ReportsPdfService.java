@@ -141,7 +141,7 @@ public class ReportsPdfService {
                 .setPadding(0)
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
-        String decisionNumberLabel = "Број: 01-03-1/24-165-" + entity.getId() + ".";
+        String decisionNumberLabel = "Број: 01-03-1/24-165-" + (entity.getCode().contains("МТ")? entity.getId() - 262 : entity.getId()) + ".";
         String decisionNumberText = scriptEnum == ScriptEnum.CYRILLIC ? decisionNumberLabel : cyrillicToLatinConverter.convert(decisionNumberLabel);
         Paragraph decisionNumberParagraph = new Paragraph(decisionNumberText)
                 .addStyle(headerStyle)

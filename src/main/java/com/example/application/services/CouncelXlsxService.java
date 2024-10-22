@@ -568,18 +568,21 @@ public class CouncelXlsxService {
 
 
         cell = row.createCell(2);
-        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
-        cell.setCellValue(constraint.getMember().getPrice() != null ? constraint.getMember().getPrice() : 0);
-        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
-
-        cell = row.createCell(3);
-        cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
-        if(constraint.getMember() != null && constraint.getMember().getIsGik() != null && constraint.getMember().getFirstname() != null && constraint.getMember().getLastname() != null) {
-            text = generateNameForTable(constraint.getMember());
-            label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
-            cell.setCellValue(label);
+        if(constraint.getMember() != null) {
+            cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
+            cell.setCellValue(constraint.getMember().getPrice() != null ? constraint.getMember().getPrice() : 0);
+            cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
         }
 
+        cell = row.createCell(3);
+        if(constraint.getMember() != null) {
+            cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
+            if (constraint.getMember() != null && constraint.getMember().getIsGik() != null && constraint.getMember().getFirstname() != null && constraint.getMember().getLastname() != null) {
+                text = generateNameForTable(constraint.getMember());
+                label = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+                cell.setCellValue(label);
+            }
+        }
         cell = row.createCell(4);
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.LEFT));
         if(constraint.getMember() != null && constraint.getMember().getQualifications() != null) {
