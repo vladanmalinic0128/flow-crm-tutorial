@@ -260,6 +260,19 @@ public class CouncelUpdateXlsxService {
             presidentEntity.setPrice(0);
         }
 
+        String name = getCellValue(row.getCell(3));
+        if(name == null || name.trim().length() == 0) {
+            presidentEntity.setFirstname(null);
+            presidentEntity.setLastname(null);
+        }
+        else
+            readNameCell(name, presidentEntity);
+
+        String jmbg = getCellValue(row.getCell(6));
+        readJmbg(jmbg, presidentEntity);
+
+        String phoneNumber = getCellValue(row.getCell(7));
+        readPhoneNumber(phoneNumber, presidentEntity);
 
         String bankNumber = getCellValue(row.getCell(8));
         readBankNumber(bankNumber, presidentEntity, deleteEmptyRows);
@@ -285,6 +298,15 @@ public class CouncelUpdateXlsxService {
         }
     }
 
+    public void readNameCell(String value, PresidentEntity presidentEntity) {
+        String[] splittingResult = value.split(" ", 2);
+
+        if (splittingResult.length >= 2) {
+            presidentEntity.setFirstname(splittingResult[0]);
+            presidentEntity.setLastname( splittingResult[1]);
+        }
+    }
+
     private void readGenderCell(String gender, MemberEntity memberEntity) {
         if(gender.equalsIgnoreCase("М"))
             memberEntity.setIsMale(true);
@@ -302,12 +324,28 @@ public class CouncelUpdateXlsxService {
             memberEntity.setJmbg(jmbg);
     }
 
+    private void readJmbg(String jmbg, PresidentEntity presidentEntity) {
+        jmbg = jmbg.replaceAll("\\D", "");
+        if(jmbg == null || jmbg.trim().length() == 0)
+            presidentEntity.setJmbg(null);
+        else
+            presidentEntity.setJmbg(jmbg);
+    }
+
     private void readPhoneNumber(String phoneNumber, MemberEntity memberEntity) {
         phoneNumber = phoneNumber.replaceAll("\\D", "");
         if(phoneNumber == null || phoneNumber.trim().length() == 0)
             memberEntity.setPhoneNumber(null);
         else
             memberEntity.setPhoneNumber(phoneNumber);
+    }
+
+    private void readPhoneNumber(String phoneNumber, PresidentEntity presidentEntity) {
+        phoneNumber = phoneNumber.replaceAll("\\D", "");
+        if(phoneNumber == null || phoneNumber.trim().length() == 0)
+            presidentEntity.setPhoneNumber(null);
+        else
+            presidentEntity.setPhoneNumber(phoneNumber);
     }
 
 //    private void readBankNumber(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
