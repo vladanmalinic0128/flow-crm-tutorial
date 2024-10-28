@@ -320,48 +320,6 @@ public class HealthCheckView extends VerticalLayout {
             accordion.add("Nedostaju podaci (" + jmbgCount + ")", verticalLayout);
         }
         {
-            // Identify duplicates
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            // Group members by jmbg
-            Map<String, List<MemberEntity>> groupedByBankNumber = memberRepository.findAll().stream()
-                    .filter(m -> m.getBankNumber() != null && m.getBankNumber().isBlank() == false)
-                    .filter(m -> m.isEmpty() == false)
-                    .collect(Collectors.groupingBy(MemberEntity::getBankNumber));
-
-            // Filter groups to find where the list size is greater than one
-            Map<String, List<MemberEntity>> duplicates = groupedByBankNumber.entrySet().stream()
-                    .filter(entry -> entry.getValue().size() > 1)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            for (Map.Entry<String, List<MemberEntity>> duplicate : duplicates.entrySet()) {
-                String bankNumber = duplicate.getKey();
-                Span bankNumberSpan = new Span("Bankovni račun: " + bankNumber);
-                VerticalLayout content = new VerticalLayout(bankNumberSpan);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                for (MemberEntity member : duplicate.getValue()) {
-                    String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getIsGik() ? "GIK" : member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
-                    Span votingCouncelsSpan = new Span(message);
-                    content.add(votingCouncelsSpan);
-                }
-
-                Details details = new Details(bankNumber, content);
-                details.setOpened(false);
-                styleDetails(details);
-
-                verticalLayout.add(details);
-
-            }
-
-            Long jmbgCount = duplicates.entrySet().stream().count();
-            accordion.add("Duplikati (" + jmbgCount + ")", verticalLayout);
-        }
-        {
             // Identify bank number duplicates
             // Initialize the layout
             VerticalLayout verticalLayout = new VerticalLayout();
