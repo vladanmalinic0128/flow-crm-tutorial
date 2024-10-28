@@ -56,6 +56,11 @@ public class ReportsXlsxService {
         dataStyles.put(membersWithoutBankNumberSheet, councelXlsxService.generateCellStyleForCounselMembersColumn(membersWithoutBankNumberSheet));
 
 
+        XSSFSheet membersWithoutPayment = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("Nisu radili") : cyrillicToLatinConverter.convert("Nisu radili"));
+        createHeaderForSheet(membersWithoutPayment, scriptEnum);
+        dataStyles.put(membersWithoutPayment, councelXlsxService.generateCellStyleForCounselMembersColumn(membersWithoutPayment));
+
+
         XSSFSheet invalidBankNumberSheet = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("Pogrešan broj računa") : cyrillicToLatinConverter.convert("Pogrešan broj računa"));
         createHeaderForSheet(invalidBankNumberSheet, scriptEnum);
         dataStyles.put(invalidBankNumberSheet, councelXlsxService.generateCellStyleForCounselMembersColumn(invalidBankNumberSheet));
@@ -68,32 +73,54 @@ public class ReportsXlsxService {
         }
 
         for(MemberEntity member: memberRepository.findAll()) {
-            if(member.getBankNumber() == null || member.getBankNumber().length() < 1) {
-                writeRowIntoSheet(membersWithoutBankNumberSheet, member, null, scriptEnum);
+            if(!member.getIsAcknowledged()) {
+                writeRowIntoSheet(membersWithoutPayment, member, null, scriptEnum);
                 continue;
             }
-            Optional<BankEntity> bank = banks.stream().filter(b -> member.getBankNumber().startsWith(b.getPrefix())).findAny();
-            if(bank.isPresent() && bankAccountValidator.isValidAccountNumber(member.getBankNumber())) {
-                writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
-                writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), member, bank.get(), scriptEnum);
-            } else {
-                writeRowIntoSheet(invalidBankNumberSheet, member, bank.isPresent() ? bank.get() : null, scriptEnum);
+
+            if (isBankNumberEmpty(member.getBankNumber())) {
+                writeRowIntoSheet(membersWithoutBankNumberSheet, member, null, scriptEnum);
+                writeRowIntoSheet(overallSheet, member, null, scriptEnum);
+                continue;
             }
+
+            Optional<BankEntity> bank = findBankByPrefix(member.getBankNumber());
+            boolean isValidAccountNumber = bankAccountValidator.isValidAccountNumber(member.getBankNumber());
+
+            if (bank.isPresent() && isValidAccountNumber)
+                writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), member, bank.get(), scriptEnum);
+            else if (bank.isPresent())
+                writeRowIntoSheet(invalidBankNumberSheet, member, bank.get(), scriptEnum);
+            else
+                writeRowIntoSheet(invalidBankNumberSheet, member, null, scriptEnum);
+
+            writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
         }
 
 
         for(PresidentEntity president: presidentRepository.findAll()) {
-            if(president.getBankNumber() == null || president.getBankNumber().length() < 1) {
-                writeRowIntoSheet(membersWithoutBankNumberSheet, president, null, scriptEnum);
+            if(!president.getIsAcknowledged()) {
+                writeRowIntoSheet(membersWithoutPayment, president, null, scriptEnum);
                 continue;
             }
-            Optional<BankEntity> bank = banks.stream().filter(b -> president.getBankNumber().startsWith(b.getPrefix())).findAny();
-            if(bank.isPresent() && bankAccountValidator.isValidAccountNumber(president.getBankNumber())) {
-                writeRowIntoSheet(overallSheet, president, bank.get(), scriptEnum);
-                writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), president, bank.get(), scriptEnum);
-            } else {
-                writeRowIntoSheet(invalidBankNumberSheet, president, bank.isPresent() ? bank.get() : null, scriptEnum);
+
+            if (isBankNumberEmpty(president.getBankNumber())) {
+                writeRowIntoSheet(membersWithoutBankNumberSheet, president, null, scriptEnum);
+                writeRowIntoSheet(overallSheet, president, null, scriptEnum);
+                continue;
             }
+
+            Optional<BankEntity> bank = findBankByPrefix(president.getBankNumber());
+            boolean isValidAccountNumber = bankAccountValidator.isValidAccountNumber(president.getBankNumber());
+
+            if (bank.isPresent() && isValidAccountNumber)
+                writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), president, bank.get(), scriptEnum);
+            else if (bank.isPresent())
+                writeRowIntoSheet(invalidBankNumberSheet, president, bank.get(), scriptEnum);
+            else
+                writeRowIntoSheet(invalidBankNumberSheet, president, null, scriptEnum);
+
+            writeRowIntoSheet(overallSheet, president, bank.get(), scriptEnum);
         }
 
 
@@ -105,6 +132,16 @@ public class ReportsXlsxService {
         
 
         return saveDocument(fileTitle, workbook);
+    }
+
+    private boolean isBankNumberEmpty(String bankNumber) {
+        return bankNumber == null || bankNumber.isEmpty();
+    }
+
+    private Optional<BankEntity> findBankByPrefix(String bankNumber) {
+        return bankRepository.findAll().stream()
+                .filter(bank -> bankNumber.startsWith(bank.getPrefix()))
+                .findAny();
     }
 
     private void writeRowIntoSheet(XSSFSheet sheet, MemberEntity member, BankEntity bank, ScriptEnum scriptEnum) {
@@ -164,7 +201,7 @@ public class ReportsXlsxService {
 
         cell = row.createCell(7);
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-        Integer amount = member.getConstraint().getTitle().getId() == 1 ? 110 : 60;
+        Integer amount = member.getPrice();
         cell.setCellValue(amount);
     }
 
@@ -226,10 +263,7 @@ public class ReportsXlsxService {
         cell = row.createCell(7);
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
         Integer amount;
-        if(president.getIsPresident() != null)
-            amount = president.getIsPresident() ? 400 : 200;
-        else
-            amount = 0;
+        amount = president.getPrice();
         cell.setCellValue(amount);
     }
 
