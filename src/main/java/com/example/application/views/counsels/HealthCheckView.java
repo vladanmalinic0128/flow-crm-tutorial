@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @PageTitle("Provjera grešaka")
 @PermitAll
@@ -317,6 +318,114 @@ public class HealthCheckView extends VerticalLayout {
             jmbgCount += missingBankName.stream().count();
 
             accordion.add("Nedostaju podaci (" + jmbgCount + ")", verticalLayout);
+        }
+        {
+            // Identify duplicates
+            VerticalLayout verticalLayout = new VerticalLayout();
+            verticalLayout.setWidthFull();
+            verticalLayout.setAlignItems(Alignment.START);
+            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+
+            // Group members by jmbg
+            Map<String, List<MemberEntity>> groupedByBankNumber = memberRepository.findAll().stream()
+                    .filter(m -> m.getBankNumber() != null && m.getBankNumber().isBlank() == false)
+                    .filter(m -> m.isEmpty() == false)
+                    .collect(Collectors.groupingBy(MemberEntity::getBankNumber));
+
+            // Filter groups to find where the list size is greater than one
+            Map<String, List<MemberEntity>> duplicates = groupedByBankNumber.entrySet().stream()
+                    .filter(entry -> entry.getValue().size() > 1)
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            for (Map.Entry<String, List<MemberEntity>> duplicate : duplicates.entrySet()) {
+                String bankNumber = duplicate.getKey();
+                Span bankNumberSpan = new Span("Bankovni račun: " + bankNumber);
+                VerticalLayout content = new VerticalLayout(bankNumberSpan);
+                content.setSpacing(false);
+                content.setPadding(false);
+
+                for (MemberEntity member : duplicate.getValue()) {
+                    String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
+                    Span votingCouncelsSpan = new Span(message);
+                    content.add(votingCouncelsSpan);
+                }
+
+                Details details = new Details(bankNumber, content);
+                details.setOpened(false);
+                styleDetails(details);
+
+                verticalLayout.add(details);
+
+            }
+
+            Long jmbgCount = duplicates.entrySet().stream().count();
+            accordion.add("Duplikati (" + jmbgCount + ")", verticalLayout);
+        }
+        {
+            // Identify bank number duplicates
+            // Initialize the layout
+            VerticalLayout verticalLayout = new VerticalLayout();
+            verticalLayout.setWidthFull();
+            verticalLayout.setAlignItems(Alignment.START);
+            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+
+            // Retrieve all members and presidents
+            List<MemberEntity> allMembers = memberRepository.findAll().stream().filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged()).collect(Collectors.toList());
+            List<PresidentEntity> allPresidents = presidentRepository.findAll().stream().filter(p -> p.getIsAcknowledged() == null || p.getIsAcknowledged()).collect(Collectors.toList());
+
+            // Combine both lists into one stream and group by bank number
+            Map<String, List<Object>> groupedByBankNumber = Stream.concat(
+                    allMembers.stream().filter(m -> m.getBankNumber() != null && !m.getBankNumber().isBlank()),
+                    allPresidents.stream().filter(p -> p.getBankNumber() != null && !p.getBankNumber().isBlank())
+            ).collect(Collectors.groupingBy(
+                    entity -> {
+                        if (entity instanceof MemberEntity) {
+                            return ((MemberEntity) entity).getBankNumber();
+                        } else {
+                            return ((PresidentEntity) entity).getBankNumber();
+                        }
+                    }
+            ));
+
+            // Filter groups to find where the list size is greater than one (i.e., duplicates)
+            Map<String, List<Object>> duplicates = groupedByBankNumber.entrySet().stream()
+                    .filter(entry -> entry.getValue().size() > 1)
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            for (Map.Entry<String, List<Object>> duplicate : duplicates.entrySet()) {
+                String bankNumber = duplicate.getKey();
+                Span bankNumberSpan = new Span("Bankovni račun: " + bankNumber);
+                VerticalLayout content = new VerticalLayout(bankNumberSpan);
+                content.setSpacing(false);
+                content.setPadding(false);
+
+                for (Object entity : duplicate.getValue()) {
+                    String message;
+                    if (entity instanceof MemberEntity) {
+                        MemberEntity member = (MemberEntity) entity;
+                        message = String.format("BM: %s, pozicija (%s, %s)",
+                                cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(),
+                                member.getConstraint().getPoliticalOrganization().getCode(),
+                                cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
+                    } else {
+                        PresidentEntity president = (PresidentEntity) entity;
+                        message = String.format("BM: %s, pozicija (%s, %s)",
+                                cyrillicToLatinConverter.convert(president.getVotingCouncel().getCode()).toUpperCase(),
+                                president.getIsPresident() ? "Predsjednik" : "Zamjenik predsjednika");
+                    }
+                    Span votingCouncelsSpan = new Span(message);
+                    content.add(votingCouncelsSpan);
+                }
+
+                Details details = new Details(bankNumber, content);
+                details.setOpened(false);
+                styleDetails(details);
+
+                verticalLayout.add(details);
+            }
+
+            Long duplicateCount = (long) duplicates.size();
+            accordion.add("Duplikati (" + duplicateCount + ")", verticalLayout);
         }
         add(accordion);
     }
