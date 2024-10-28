@@ -133,6 +133,7 @@ public class ReportsXlsxService {
 
         writeFinalCalculation(overallSheet, scriptEnum);
         writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum);
+        writeFinalCalculation(invalidBankNumberSheet, scriptEnum);
         for(XSSFSheet sheet: sheetMap.values())
             writeFinalCalculation(sheet, scriptEnum);
         
@@ -187,6 +188,11 @@ public class ReportsXlsxService {
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
         if(bank != null && bank.getName() != null) {
             String bankName = bank.getName();
+            text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bankName) : cyrillicToLatinConverter.convert(bankName);
+            cell.setCellValue(text);
+        }
+        else if(member.getBankName() != null) {
+            String bankName = member.getBankName();
             text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bankName) : cyrillicToLatinConverter.convert(bankName);
             cell.setCellValue(text);
         }
@@ -248,6 +254,10 @@ public class ReportsXlsxService {
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
         if(bank != null && bank.getName() != null) {
             String bankName = bank.getName();
+            text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bankName) : cyrillicToLatinConverter.convert(bankName);
+            cell.setCellValue(text);
+        } else if(president.getBankName() != null) {
+            String bankName = president.getBankName();
             text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bankName) : cyrillicToLatinConverter.convert(bankName);
             cell.setCellValue(text);
         }
