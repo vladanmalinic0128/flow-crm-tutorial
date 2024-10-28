@@ -300,6 +300,7 @@ public class HealthCheckView extends VerticalLayout {
 
             List<MemberEntity> missingBankNumber = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
+                    .filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged())
                     .filter(m -> m.getBankNumber() == null)
                     .collect(Collectors.toList());
 
@@ -308,6 +309,7 @@ public class HealthCheckView extends VerticalLayout {
 
             List<MemberEntity> missingBankName = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
+                    .filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged())
                     .filter(m -> m.getBankName() == null)
                     .collect(Collectors.toList());
 
