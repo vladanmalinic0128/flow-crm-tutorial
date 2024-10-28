@@ -126,8 +126,6 @@ public class ReportsXlsxService {
                 writeRowIntoSheet(invalidBankNumberSheet, president, null, scriptEnum);
                 writeRowIntoSheet(overallSheet, president, null, scriptEnum);
             }
-
-            writeRowIntoSheet(overallSheet, president, bank.get(), scriptEnum);
         }
 
 
