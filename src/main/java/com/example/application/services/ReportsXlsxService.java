@@ -87,14 +87,17 @@ public class ReportsXlsxService {
             Optional<BankEntity> bank = findBankByPrefix(member.getBankNumber());
             boolean isValidAccountNumber = bankAccountValidator.isValidAccountNumber(member.getBankNumber());
 
-            if (bank.isPresent() && isValidAccountNumber)
+            if (bank.isPresent() && isValidAccountNumber) {
                 writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), member, bank.get(), scriptEnum);
-            else if (bank.isPresent())
+                writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
+            } else if (bank.isPresent()) {
                 writeRowIntoSheet(invalidBankNumberSheet, member, bank.get(), scriptEnum);
-            else
+                writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
+            } else {
                 writeRowIntoSheet(invalidBankNumberSheet, member, null, scriptEnum);
+                writeRowIntoSheet(overallSheet, member, null, scriptEnum);
+            }
 
-            writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
         }
 
 
@@ -113,12 +116,16 @@ public class ReportsXlsxService {
             Optional<BankEntity> bank = findBankByPrefix(president.getBankNumber());
             boolean isValidAccountNumber = bankAccountValidator.isValidAccountNumber(president.getBankNumber());
 
-            if (bank.isPresent() && isValidAccountNumber)
+            if (bank.isPresent() && isValidAccountNumber) {
                 writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), president, bank.get(), scriptEnum);
-            else if (bank.isPresent())
+                writeRowIntoSheet(overallSheet, president, bank.get(), scriptEnum);
+            } else if (bank.isPresent()) {
                 writeRowIntoSheet(invalidBankNumberSheet, president, bank.get(), scriptEnum);
-            else
+                writeRowIntoSheet(overallSheet, president, bank.get(), scriptEnum);
+            } else {
                 writeRowIntoSheet(invalidBankNumberSheet, president, null, scriptEnum);
+                writeRowIntoSheet(overallSheet, president, null, scriptEnum);
+            }
 
             writeRowIntoSheet(overallSheet, president, bank.get(), scriptEnum);
         }
