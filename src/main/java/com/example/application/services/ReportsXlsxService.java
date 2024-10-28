@@ -132,6 +132,7 @@ public class ReportsXlsxService {
 
 
         writeFinalCalculation(overallSheet, scriptEnum);
+        writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum);
         for(XSSFSheet sheet: sheetMap.values())
             writeFinalCalculation(sheet, scriptEnum);
         
