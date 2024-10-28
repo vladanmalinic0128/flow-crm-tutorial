@@ -345,7 +345,7 @@ public class HealthCheckView extends VerticalLayout {
                 content.setPadding(false);
 
                 for (MemberEntity member : duplicate.getValue()) {
-                    String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
+                    String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getIsGik() ? "GIK" : member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
                     Span votingCouncelsSpan = new Span(message);
                     content.add(votingCouncelsSpan);
                 }
@@ -370,8 +370,8 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
             // Retrieve all members and presidents
-            List<MemberEntity> allMembers = memberRepository.findAll().stream().filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged()).collect(Collectors.toList());
-            List<PresidentEntity> allPresidents = presidentRepository.findAll().stream().filter(p -> p.getIsAcknowledged() == null || p.getIsAcknowledged()).collect(Collectors.toList());
+            List<MemberEntity> allMembers = memberRepository.findAll().stream().collect(Collectors.toList());
+            List<PresidentEntity> allPresidents = presidentRepository.findAll().stream().collect(Collectors.toList());
 
             // Combine both lists into one stream and group by bank number
             Map<String, List<Object>> groupedByBankNumber = Stream.concat(
@@ -411,6 +411,7 @@ public class HealthCheckView extends VerticalLayout {
                         PresidentEntity president = (PresidentEntity) entity;
                         message = String.format("BM: %s, pozicija (%s, %s)",
                                 cyrillicToLatinConverter.convert(president.getVotingCouncel().getCode()).toUpperCase(),
+                                "GIK",
                                 president.getIsPresident() ? "Predsjednik" : "Zamjenik predsjednika");
                     }
                     Span votingCouncelsSpan = new Span(message);
