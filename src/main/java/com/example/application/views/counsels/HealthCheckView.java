@@ -384,7 +384,7 @@ public class HealthCheckView extends VerticalLayout {
             }
 
             Long duplicateCount = (long) duplicates.size();
-            accordion.add("Duplikati (" + duplicateCount + ")", verticalLayout);
+            accordion.add("Dupli bankovni računi (" + duplicateCount + ")", verticalLayout);
         }
         add(accordion);
     }

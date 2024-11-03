@@ -41,7 +41,7 @@ public class ExternsView extends FormLayout {
         upload = configureFileUpload();
 
 
-        Button executeButton = new Button("Ažuriraj tabelu biračkih odbora");
+        Button executeButton = new Button("Ažuriraj tabelu spoljašnjih saradnika");
         executeButton.addClickListener(event -> handleExecuteButtonClick());
         executeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
