@@ -1027,7 +1027,7 @@ public class CouncelXlsxService {
         for(SubstituteEntity substituteEntity: substituteEntities) {
             if(substituteEntity.getIsPresident() && substituteEntity.getJmbg() != null && memberRepository.existsByJmbg(substituteEntity.getJmbg()))
                 createRow(sheet, substituteEntity, presidentMemberStyles);
-            else if(substituteEntity.getIsPresident())
+            else if(presidentRepository.existsByJmbg(substituteEntity.getJmbg()))
                 createRow(sheet, substituteEntity, presidentStyles);
             else if(memberRepository.existsByJmbg(substituteEntity.getJmbg()))
                 createRow(sheet, substituteEntity, substituteStyles);
