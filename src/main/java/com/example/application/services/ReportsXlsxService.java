@@ -41,6 +41,8 @@ public class ReportsXlsxService {
 
     DataFormat dataFormat;
 
+    private XSSFSheet overallSheet = null;
+
     public String generateReportForBanks(String fileTitle, ScriptEnum scriptEnum) throws IOException {
         XSSFWorkbook workbook = new XSSFWorkbook();
 
@@ -48,6 +50,7 @@ public class ReportsXlsxService {
         Map<String, XSSFSheet> sheetMap = new HashMap<>();
 
         XSSFSheet overallSheet = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("UKUPNO") : cyrillicToLatinConverter.convert("UKUPNO"));
+        this.overallSheet = overallSheet;
         createHeaderForSheet(overallSheet, scriptEnum);
         dataStyles.put(overallSheet, councelXlsxService.generateCellStyleForCounselMembersColumn(overallSheet));
 
@@ -215,6 +218,8 @@ public class ReportsXlsxService {
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
         Integer amount = member.getPrice();
         cell.setCellValue(amount);
+
+        addBrutoCalculation(sheet, row);
     }
 
     private void writeRowIntoSheet(XSSFSheet sheet, PresidentEntity president, BankEntity bank, ScriptEnum scriptEnum) {
@@ -281,6 +286,8 @@ public class ReportsXlsxService {
         Integer amount;
         amount = president.getPrice();
         cell.setCellValue(amount);
+
+        addBrutoCalculation(sheet, row);
     }
 
     private void writeFinalCalculation(XSSFSheet sheet, ScriptEnum scriptEnum) {
@@ -321,13 +328,15 @@ public class ReportsXlsxService {
         String formula = String.format("SUM(H%d:H%d)", 2, sheet.getLastRowNum());
         cell.setCellFormula(formula);
 
+        addBrutoCalculation(sheet, row);
+
         // Evaluate the formula (optional)
         FormulaEvaluator evaluator = sheet.getWorkbook().getCreationHelper().createFormulaEvaluator();
         evaluator.evaluateFormulaCell(cell);
 
     }
 
-    private void createHeaderForSheet(XSSFSheet sheet, ScriptEnum scriptEnum) {
+    public void createHeaderForSheet(XSSFSheet sheet, ScriptEnum scriptEnum) {
         this.dataFormat = createDataFormat(sheet);
 
         defineColumnWidth(sheet);
@@ -391,7 +400,52 @@ public class ReportsXlsxService {
         cell.setCellStyle(firstRowStyle);
         cell.setCellValue(value);
 
-        cell = row.createCell(8);
+        if(this.overallSheet != null && this.overallSheet.equals(sheet)) {
+            cell = row.createCell(8);
+            text = "Бруто доходак";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+
+            cell = row.createCell(9);
+            text = "Доходак-ПИО";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+
+            cell = row.createCell(10);
+            text = "Доходак-ПИО";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+
+            cell = row.createCell(11);
+            text = "Доходак-ЗДР";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+
+            cell = row.createCell(12);
+            text = "Доходак-ДЈ. ЗАШТИТА";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+
+            cell = row.createCell(13);
+            text = "Доходак-НЕЗАПОСЛЕНОСТ";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+
+            cell = row.createCell(14);
+            text = "ПОРЕЗ";
+            value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
+            cell.setCellStyle(firstRowStyle);
+            cell.setCellValue(value);
+        }
+
+        int colNumber = this.overallSheet != null && this.overallSheet.equals(sheet) ? 15 : 8;
+        cell = row.createCell(colNumber);
         text = "Напомена";
         value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
         cell.setCellStyle(firstRowStyle);
@@ -458,5 +512,45 @@ public class ReportsXlsxService {
         sheet.setColumnWidth(7, 15 * 256);
         //Napomena
         sheet.setColumnWidth(8, 60 * 256);
+    }
+
+    private void addBrutoCalculation(XSSFSheet sheet, XSSFRow row) {
+        XSSFCell cell = null;
+        if(this.overallSheet != null && this.overallSheet.equals(sheet)) {
+            cell = row.createCell(8);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            String formula = String.format("H%d/0,6003", sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(9);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("I%d*0,31", sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(10);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("I%d*0,185", sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(11);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("I%d*0,102", sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(12);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("I%d*0,017", sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(13);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("I%d*0,00006", sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(14);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("(I%d-J%d)*0.13", sheet.getLastRowNum(), sheet.getLastRowNum());
+            cell.setCellFormula(formula);
+        }
     }
 }
