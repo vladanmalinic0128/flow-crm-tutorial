@@ -510,46 +510,72 @@ public class ReportsXlsxService {
         sheet.setColumnWidth(6, 30 * 256);
         //Iznos
         sheet.setColumnWidth(7, 15 * 256);
+
+        int note = 8;
+        if(this.overallSheet != null && this.overallSheet.equals(sheet)) {
+            //Bruto
+            sheet.setColumnWidth(8, 15 * 256);
+
+            //Dohodak
+            sheet.setColumnWidth(9, 15 * 256);
+
+            //Dohodak za pio
+            sheet.setColumnWidth(10, 15 * 256);
+
+            //Dohodak za zdr
+            sheet.setColumnWidth(11, 15 * 256);
+
+            //Dohodak za dj.zas.
+            sheet.setColumnWidth(12, 15 * 256);
+
+            //Dohodak za nezap
+            sheet.setColumnWidth(13, 15 * 256);
+
+            //Porez
+            sheet.setColumnWidth(14, 15 * 256);
+
+            note=15;
+        }
         //Napomena
-        sheet.setColumnWidth(8, 60 * 256);
+        sheet.setColumnWidth(note, 60 * 256);
     }
 
     private void addBrutoCalculation(XSSFSheet sheet, XSSFRow row) {
         XSSFCell cell = null;
-        if(this.overallSheet != null && this.overallSheet.equals(sheet)) {
+        if (this.overallSheet != null && this.overallSheet.equals(sheet)) {
             cell = row.createCell(8);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            String formula = String.format("H%d/0,6003", sheet.getLastRowNum());
+            String formula = String.format("ROUND(H%d/0.6003, 2)", sheet.getLastRowNum());
             cell.setCellFormula(formula);
 
             cell = row.createCell(9);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("I%d*0,31", sheet.getLastRowNum());
+            formula = String.format("ROUND(I%d*0.31, 2)", sheet.getLastRowNum());
             cell.setCellFormula(formula);
 
             cell = row.createCell(10);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("I%d*0,185", sheet.getLastRowNum());
+            formula = String.format("ROUND(I%d*0.185, 2)", sheet.getLastRowNum());
             cell.setCellFormula(formula);
 
             cell = row.createCell(11);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("I%d*0,102", sheet.getLastRowNum());
+            formula = String.format("ROUND(I%d*0.102, 2)", sheet.getLastRowNum());
             cell.setCellFormula(formula);
 
             cell = row.createCell(12);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("I%d*0,017", sheet.getLastRowNum());
+            formula = String.format("ROUND(I%d*0.017, 2)", sheet.getLastRowNum());
             cell.setCellFormula(formula);
 
             cell = row.createCell(13);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("I%d*0,00006", sheet.getLastRowNum());
+            formula = String.format("ROUND(I%d*0.00006, 2)", sheet.getLastRowNum());
             cell.setCellFormula(formula);
 
             cell = row.createCell(14);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("(I%d-J%d)*0.13", sheet.getLastRowNum(), sheet.getLastRowNum());
+            formula = String.format("ROUND((I%d-J%d)*0.13, 2)", sheet.getLastRowNum(), sheet.getLastRowNum());
             cell.setCellFormula(formula);
         }
     }
