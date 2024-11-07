@@ -1,6 +1,7 @@
 package com.example.application.services;
 
 import com.example.application.entities.AssociateEntity;
+import com.example.application.entities.BankEntity;
 import com.example.application.entities.MemberEntity;
 import com.example.application.entities.PresidentEntity;
 import com.example.application.enums.ScriptEnum;
@@ -40,10 +41,7 @@ import java.math.BigInteger;
 import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 @RequiredArgsConstructor
 @Service
@@ -305,11 +303,17 @@ public class CollaboratorsXlsxService {
 
         List<AssociateEntity> associates = associateRepository.findAllByIsExtern(isExtern);
 
+        int decisionNumber = 1;
+        if(isExtern)
+            decisionNumber += associateRepository.findAllByIsExtern(false).stream().count();
+
         for(AssociateEntity associate: associates) {
-            generateContractByAssociate(document, associate, value);
+            generateContractByAssociate(document, associate, value, decisionNumber);
             document.add(new AreaBreak());
-            generateReportByAssociate(document, associate, value);
+            generateReportByAssociate(document, associate, value, decisionNumber);
             document.add(new AreaBreak());
+
+            decisionNumber++;
         }
 
         document.close();
@@ -473,7 +477,7 @@ public class CollaboratorsXlsxService {
         footerParagraph.getCTP().addNewFldSimple().setInstr("PAGE");
     }
 
-    private void generateContractByAssociate(Document document, AssociateEntity associate, ScriptEnum scriptEnum) throws IOException {
+    private void generateContractByAssociate(Document document, AssociateEntity associate, ScriptEnum scriptEnum, int decisionNumber) throws IOException {
         PdfFont arialFont = PdfFontFactory.createFont("src/main/resources/font/arial.ttf", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
         SimpleDateFormat dateFormatter = new SimpleDateFormat("dd.MM.yyyy.");
 
@@ -539,7 +543,7 @@ public class CollaboratorsXlsxService {
         addLawArticleTitle(document, arialFont, scriptEnum, "Član 1.");
         addSmallEmptyRow(document);
 
-        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi administrativno tehničke poslove u pripremi i provođenju Lokalnih  izbora 2024. godine.";
+        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Lokalnih  izbora 2024. godine.";
         addLawArticleDescription(document, arialFont, scriptEnum, description);
         addSmallEmptyRow(document);
 
@@ -560,7 +564,7 @@ public class CollaboratorsXlsxService {
         addLawArticleTitle(document, arialFont, scriptEnum, "Član 4.");
         addSmallEmptyRow(document);
         if(associate.getIsExtern())
-            description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla broj " + associate.getBankNumber() + ", otvoren kod " + associate.getBankName() + ", a tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 412900 (0160) – tehnička priprema i provođenje izbora.";
+            description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla broj " + associate.getBankNumber() + ", otvoren kod " + findBankNameByBankNumber(associate) + ", a tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 412900 (0160) – tehnička priprema i provođenje izbora.";
         else
             description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla  na koji mu se isplaćuju redovna mjesečna primanja, kao zaposleniku Gradske uprave Banja Luka, tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 4129000 (0160) – tehnička priprema i provođenje izbora.";
         addLawArticleDescription(document, arialFont, scriptEnum, description);
@@ -581,7 +585,7 @@ public class CollaboratorsXlsxService {
         addSignatureForContract(document, arialFont, scriptEnum);
 
         addSmallEmptyRow(document);
-        description = "Broj: 01-03-1/22-541-1";
+        description = "Broj: 01-03-1/22-541-" + decisionNumber;
         addLawArticleDescription(document, arialFont, scriptEnum, description);
     }
 
@@ -606,7 +610,7 @@ public class CollaboratorsXlsxService {
                 .setTextAlignment(TextAlignment.JUSTIFIED);
         document.add(paragraph);
     }
-    private void generateReportByAssociate(Document document, AssociateEntity associate, ScriptEnum scriptEnum) throws IOException {
+    private void generateReportByAssociate(Document document, AssociateEntity associate, ScriptEnum scriptEnum, int decisionNumber) throws IOException {
         PdfFont arialFont = PdfFontFactory.createFont("src/main/resources/font/arial.ttf", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
         SimpleDateFormat dateFormatter = new SimpleDateFormat("dd.MM.yyyy.");
 
@@ -632,7 +636,7 @@ public class CollaboratorsXlsxService {
         addSmallEmptyRow(document);
         addSmallEmptyRow(document);
 
-        String firstParagraph = "Ugovorom o djelu broj 01-03-1/22-541-" + associate.getId() + "   od dana  " + dateFormatter.format(associate.getContractDate()) + " godine, koji su u Banjaluci zaključili Naručilac posla Gradska izborna komisija Banja Luka, koju zastupa predsjednik Dubravko Malinić i  " + associate.getLastname() + " " + associate.getFirstname() + ", iz opštine " + associate.getResidence() + ", na period od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine, " + associate.getLastname() + " " + associate.getFirstname() + " se, kao ugovorna strana-angažovano lice, obavezao da će za potrebe naručioca posla vršiti administrativno tehničke poslove.";
+        String firstParagraph = "Ugovorom o djelu broj 01-03-1/22-541-" + decisionNumber + "   od dana  " + dateFormatter.format(associate.getContractDate()) + " godine, koji su u Banjaluci zaključili Naručilac posla Gradska izborna komisija Banja Luka, koju zastupa predsjednik Dubravko Malinić i  " + associate.getLastname() + " " + associate.getFirstname() + ", iz opštine " + associate.getResidence() + ", na period od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine, " + associate.getLastname() + " " + associate.getFirstname() + " se, kao ugovorna strana-angažovano lice, obavezao da će za potrebe naručioca posla vršiti " + associate.getStatus().getAkkName() + ".";
         addLawArticleDescription(document, arialFont, scriptEnum, firstParagraph);
         addSmallEmptyRow(document);
 
@@ -640,13 +644,15 @@ public class CollaboratorsXlsxService {
         addLawArticleDescription(document, arialFont, scriptEnum, secondParagraph);
         addSmallEmptyRow(document);
 
-        String thirdParagraph = "S tim u vezi angažovano lice podnosi izvještaj da je preuzete poslove obavilo u predviđenom roku od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine. U navedenom izvještajnom periodu angažovani je obavljao administrativno tehničke poslove.";
+        String thirdParagraph = "S tim u vezi angažovano lice podnosi izvještaj da je preuzete poslove obavilo u predviđenom roku od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine. U navedenom izvještajnom periodu angažovani je obavljao " + associate.getStatus().getAkkName() + ".";
         addLawArticleDescription(document, arialFont, scriptEnum, thirdParagraph);
         addSmallEmptyRow(document);
 
         String endParagraph = "Banja Luka, " + dateFormatter.format(associate.getReportDate());
         addLawArticleDescription(document, arialFont, scriptEnum, endParagraph);
         addSmallEmptyRow(document);
+
+        addSignatureForReport(document, arialFont, scriptEnum);
     }
 
     private String writeWithAppropriateScript(String plainText, ScriptEnum scriptEnum) {
@@ -735,5 +741,13 @@ public class CollaboratorsXlsxService {
 
         // Add the table to the document
         document.add(table);
+    }
+
+    private String findBankNameByBankNumber(AssociateEntity associate) {
+        Optional<BankEntity> bank = bankRepository.findAll().stream().filter(b -> associate.getBankNumber() != null && associate.getBankNumber().startsWith(b.getPrefix())).findFirst();
+        if(bank.isPresent())
+            return bank.get().getName();
+        else
+            return associate.getBankName();
     }
 }

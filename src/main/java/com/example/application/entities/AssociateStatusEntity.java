@@ -20,4 +20,8 @@ public class AssociateStatusEntity {
     @Basic
     @Column(name = "name")
     private String name;
+
+    @Basic
+    @Column(name = "akk_name")
+    private String akkName;
 }
