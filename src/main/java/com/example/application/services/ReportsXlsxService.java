@@ -570,7 +570,7 @@ public class ReportsXlsxService {
 
             cell = row.createCell(13);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("ROUND(I%d*0.0006, 2)", sheet.getLastRowNum() + 1);
+            formula = String.format("ROUND(I%d*0.006, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(14);
