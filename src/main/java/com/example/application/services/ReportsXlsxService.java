@@ -408,7 +408,7 @@ public class ReportsXlsxService {
             cell.setCellValue(value);
 
             cell = row.createCell(9);
-            text = "Доходак-ПИО";
+            text = "Доходак";
             value = scriptEnum == ScriptEnum.CYRILLIC ? text : cyrillicToLatinConverter.convert(text);
             cell.setCellStyle(firstRowStyle);
             cell.setCellValue(value);
@@ -570,7 +570,7 @@ public class ReportsXlsxService {
 
             cell = row.createCell(13);
             cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
-            formula = String.format("ROUND(I%d*0.00006, 2)", sheet.getLastRowNum() + 1);
+            formula = String.format("ROUND(I%d*0.0006, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(14);
