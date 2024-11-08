@@ -11,4 +11,5 @@ import java.util.List;
 public interface AssociateRepository extends JpaRepository<AssociateEntity, Long> {
     public AssociateEntity findById(Integer id);
     public List<AssociateEntity> findAllByIsExtern(boolean isExtern);
+    public List<AssociateEntity> findAllByIsExternAndStatus_Id(boolean isExtern, Integer statusId);
 }
