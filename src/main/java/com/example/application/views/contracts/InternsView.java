@@ -95,6 +95,20 @@ public class InternsView extends FormLayout {
 
         add(decision);
         setColspan(decision, 2);
+
+        downloadIcon = new Icon(VaadinIcon.DOWNLOAD);
+        Button bankReport = new Button("Spisak internih saradnika (sa izračunatim porezima)", downloadIcon);
+
+        bankReport.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                ButtonVariant.LUMO_SUCCESS);
+        bankReport.setWidthFull();
+
+        bankReport.addClickListener(e -> {
+            Dialog dialog = createDialogForBankReport();
+            dialog.open();
+        });
+        add(bankReport);
+        setColspan(bankReport, 2);
     }
 
     private Upload configureFileUpload() {
@@ -240,6 +254,67 @@ public class InternsView extends FormLayout {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             } catch (InvalidFormatException e) {
+                throw new RuntimeException(e);
+            }
+            dialog.close();
+            if(stringPath != null)
+                return collaboratorsXlsxService.getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+
+        dialog.getFooter().add(cancelButton);
+        dialog.getFooter().add(saveButtonAnchor);
+
+        return fieldLayout;
+    }
+
+    private Dialog createDialogForBankReport() {
+        Dialog dialog = new Dialog();
+        dialog.getElement().setAttribute("aria-label", "Add note");
+
+        dialog.getHeader().add(createDialogHeader("Generisanje izvjestaja za finansije"));
+
+        VerticalLayout dialogLayout = createDialogLayoutForBankReport(dialog);
+        dialog.add(dialogLayout);
+        dialog.setModal(true);
+        dialog.setDraggable(true);
+
+        return dialog;
+    }
+
+    private VerticalLayout createDialogLayoutForBankReport(Dialog dialog) {
+        VerticalLayout fieldLayout = new VerticalLayout(scripts);
+        scripts.setValue(ScriptEnum.CYRILLIC);
+        fieldLayout.setSpacing(false);
+        fieldLayout.setPadding(false);
+        fieldLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
+        fieldLayout.getStyle().set("width", "600px").set("max-width", "100%");
+
+        Button cancelButton = new Button("Zatvori", e -> {
+            dialog.close();
+        });
+        String fileTitle = "interni_saradnici_finansije" + "_" + System.currentTimeMillis() + ".xlsx";
+
+        Button saveButton = new Button("Generiši");
+
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            if(scripts.getValue() == null) {
+                Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                dialog.close();
+                return null;
+            }
+            String stringPath = null;
+            try {
+                stringPath = collaboratorsXlsxService.generateReportForBanks(fileTitle, scripts.getValue(), false);
+            } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             dialog.close();

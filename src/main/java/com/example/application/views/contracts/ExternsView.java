@@ -321,7 +321,7 @@ public class ExternsView extends FormLayout {
             }
             String stringPath = null;
             try {
-                stringPath = collaboratorsXlsxService.generateReportForBanks(fileTitle, scripts.getValue());
+                stringPath = collaboratorsXlsxService.generateReportForBanks(fileTitle, scripts.getValue(), true);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

@@ -54,6 +54,8 @@ public class CollaboratorsXlsxService {
     private final AssociateRepository associateRepository;
     private final AssociateStatusRepository associateStatusRepository;
 
+    private final ReportsXlsxService reportsXlsxService;
+
     public InputStream getStream(String fileString) {
         File file = new File(fileString);
         FileInputStream stream = null;
@@ -67,11 +69,8 @@ public class CollaboratorsXlsxService {
         return stream;
     }
 
-    public String generateReportForBanks(String fileTitle, ScriptEnum scriptEnum) throws IOException {
-        XSSFWorkbook workbook = new XSSFWorkbook();
-
-
-        return saveDocument(fileTitle, workbook);
+    public String generateReportForBanks(String fileTitle, ScriptEnum scriptEnum, boolean isExtern) throws IOException {
+        return reportsXlsxService.generateReportForBanksByAssociates(fileTitle, scriptEnum, isExtern);
     }
 
     private String saveDocument(String fileTitle, XSSFWorkbook workbook) {

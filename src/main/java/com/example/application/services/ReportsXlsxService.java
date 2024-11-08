@@ -1,19 +1,14 @@
 package com.example.application.services;
 
 
+import com.example.application.entities.AssociateEntity;
 import com.example.application.entities.BankEntity;
 import com.example.application.entities.MemberEntity;
 import com.example.application.entities.PresidentEntity;
 import com.example.application.enums.ScriptEnum;
-import com.example.application.repositories.BankRepository;
-import com.example.application.repositories.MemberRepository;
-import com.example.application.repositories.PresidentRepository;
-import com.example.application.repositories.VotingCouncelRepository;
+import com.example.application.repositories.*;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.DataFormat;
-import org.apache.poi.ss.usermodel.FormulaEvaluator;
-import org.apache.poi.ss.usermodel.HorizontalAlignment;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +17,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -37,6 +33,9 @@ public class ReportsXlsxService {
     private final CouncelXlsxService councelXlsxService;
     private final BankAccountValidator bankAccountValidator;
 
+    private final AssociateRepository associateRepository;
+
+    private final JMBGValidator jmbgValidator;
     Map<Sheet, Map<HorizontalAlignment, XSSFCellStyle>> dataStyles = new HashMap<>();
 
     DataFormat dataFormat;
@@ -140,6 +139,70 @@ public class ReportsXlsxService {
         for(XSSFSheet sheet: sheetMap.values())
             writeFinalCalculation(sheet, scriptEnum);
         
+
+        return saveDocument(fileTitle, workbook);
+    }
+
+    public String generateReportForBanksByAssociates(String fileTitle, ScriptEnum scriptEnum, boolean isExtern) throws IOException {
+        XSSFWorkbook workbook = new XSSFWorkbook();
+
+        List<BankEntity> banks = bankRepository.findAll();
+        Map<String, XSSFSheet> sheetMap = new HashMap<>();
+
+        XSSFSheet overallSheet = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("UKUPNO") : cyrillicToLatinConverter.convert("UKUPNO"));
+        this.overallSheet = overallSheet;
+        createHeaderForSheet(overallSheet, scriptEnum);
+        dataStyles.put(overallSheet, councelXlsxService.generateCellStyleForCounselMembersColumn(overallSheet));
+
+        XSSFSheet membersWithoutBankNumberSheet = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("Bez računa") : cyrillicToLatinConverter.convert("Bez računa"));
+        createHeaderForSheet(membersWithoutBankNumberSheet, scriptEnum);
+        dataStyles.put(membersWithoutBankNumberSheet, councelXlsxService.generateCellStyleForCounselMembersColumn(membersWithoutBankNumberSheet));
+
+        XSSFSheet invalidBankNumberSheet = workbook.createSheet(scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert("Pogrešan broj računa") : cyrillicToLatinConverter.convert("Pogrešan broj računa"));
+        createHeaderForSheet(invalidBankNumberSheet, scriptEnum);
+        dataStyles.put(invalidBankNumberSheet, councelXlsxService.generateCellStyleForCounselMembersColumn(invalidBankNumberSheet));
+
+        for(BankEntity bank: banks) {
+            XSSFSheet sheet = workbook.createSheet(bank.getCode() + "-" + (scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bank.getName()) : cyrillicToLatinConverter.convert(bank.getName())));
+            createHeaderForSheet(sheet, scriptEnum);
+            sheetMap.put(bank.getPrefix(), sheet);
+            dataStyles.put(sheet, councelXlsxService.generateCellStyleForCounselMembersColumn(sheet));
+        }
+
+        for(AssociateEntity member: associateRepository.findAll().stream().filter(a -> a.getIsExtern() == isExtern).toList()) {
+            if (isBankNumberEmpty(member.getBankNumber())) {
+                if(isExtern)
+                    writeRowIntoSheet(membersWithoutBankNumberSheet, member, null, scriptEnum);
+                writeRowIntoSheet(overallSheet, member, null, scriptEnum);
+                continue;
+            }
+
+            Optional<BankEntity> bank = findBankByPrefix(member.getBankNumber());
+            boolean isValidAccountNumber = bankAccountValidator.isValidAccountNumber(member.getBankNumber());
+
+            if (bank.isPresent() && isValidAccountNumber) {
+                if(isExtern)
+                    writeRowIntoSheet(sheetMap.get(bank.get().getPrefix()), member, bank.get(), scriptEnum);
+                writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
+            } else if (bank.isPresent()) {
+                if(isExtern)
+                    writeRowIntoSheet(invalidBankNumberSheet, member, bank.get(), scriptEnum);
+                writeRowIntoSheet(overallSheet, member, bank.get(), scriptEnum);
+            } else {
+                if(isExtern)
+                    writeRowIntoSheet(invalidBankNumberSheet, member, null, scriptEnum);
+                writeRowIntoSheet(overallSheet, member, null, scriptEnum);
+            }
+
+        }
+
+        writeFinalCalculation(overallSheet, scriptEnum);
+        if(isExtern) {
+            writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum);
+            writeFinalCalculation(invalidBankNumberSheet, scriptEnum);
+            for (XSSFSheet sheet : sheetMap.values())
+                writeFinalCalculation(sheet, scriptEnum);
+        }
 
         return saveDocument(fileTitle, workbook);
     }
@@ -290,7 +353,95 @@ public class ReportsXlsxService {
         addBrutoCalculation(sheet, row);
     }
 
+    private void writeRowIntoSheet(XSSFSheet sheet, AssociateEntity associate, BankEntity bank, ScriptEnum scriptEnum) {
+        XSSFCellStyle firstRowStyle = councelXlsxService.generateCellStyleForFirstColumn(sheet);
+
+        XSSFRow row = sheet.createRow(sheet.getLastRowNum() + 1);
+
+        XSSFCell cell = row.createCell(0);
+        String text = String.valueOf(sheet.getLastRowNum());
+        cell.setCellValue(text);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
+
+        cell = row.createCell(1);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.LEFT));
+        if(associate.getLastname() != null) {
+            String lastname = associate.getLastname();
+            text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(lastname) : cyrillicToLatinConverter.convert(lastname);
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(2);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.LEFT));
+        if(associate.getFirstname() != null) {
+            String firstname = associate.getFirstname();
+            text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(firstname) : cyrillicToLatinConverter.convert(firstname);
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(3);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
+        if(associate.getJmbg() != null) {
+            String jmbg = associate.getJmbg();
+            if(jmbgValidator.isValidJMBG(jmbg) == false) {
+                XSSFCellStyle cellStyle = sheet.getWorkbook().createCellStyle();
+                XSSFColor redColor = new XSSFColor(new java.awt.Color(255, 0, 0), null);
+                cellStyle.setFillForegroundColor(redColor);
+                cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+                // Postavi stil ćelije
+                cell.setCellStyle(cellStyle);
+            }
+            cell.setCellValue(jmbg);
+        }
+
+        cell = row.createCell(4);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
+        if(bank != null && bank.getName() != null) {
+            String bankName = bank.getName();
+            text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bankName) : cyrillicToLatinConverter.convert(bankName);
+            cell.setCellValue(text);
+        }
+        else if(associate.getBankName() != null) {
+            String bankName = associate.getBankName();
+            text = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(bankName) : cyrillicToLatinConverter.convert(bankName);
+            cell.setCellValue(text);
+        }
+
+        cell = row.createCell(5);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
+        if(bank != null && bank.getCode() != null) {
+            String bankCode = bank.getCode();
+            cell.setCellValue(bankCode);
+        }
+
+        cell = row.createCell(6);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.CENTER));
+        if(associate.getBankNumber() != null) {
+            String bankNumber = associate.getBankNumber();
+            if(bankAccountValidator.isValidAccountNumber(bankNumber) == false) {
+                XSSFCellStyle cellStyle = sheet.getWorkbook().createCellStyle();
+                XSSFColor redColor = new XSSFColor(new java.awt.Color(255, 0, 0), null);
+                cellStyle.setFillForegroundColor(redColor);
+                cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+                // Postavi stil ćelije
+                cell.setCellStyle(cellStyle);
+            }
+            cell.setCellValue(bankNumber);
+        }
+
+        cell = row.createCell(7);
+        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+        Double amount = associate.getPrice();
+        cell.setCellValue(amount);
+
+        addBrutoCalculation(sheet, row);
+    }
+
     private void writeFinalCalculation(XSSFSheet sheet, ScriptEnum scriptEnum) {
+        if(sheet.getLastRowNum() == 0)
+            return;
         XSSFCellStyle firstRowStyle = councelXlsxService.generateCellStyleForFirstColumn(sheet);
 
         XSSFRow row = sheet.createRow(sheet.getLastRowNum() + 1);
