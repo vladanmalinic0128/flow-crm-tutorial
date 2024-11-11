@@ -274,8 +274,6 @@ public class CollaboratorsXlsxService {
         List<AssociateEntity> associates = associateRepository.findAllByIsExtern(isExtern);
 
         int decisionNumber = 1;
-        if(isExtern)
-            decisionNumber += associateRepository.findAllByIsExtern(false).stream().count();
 
         for(AssociateEntity associate: associates) {
             generateContractByAssociate(document, associate, value, decisionNumber);
@@ -835,7 +833,7 @@ public class CollaboratorsXlsxService {
     }
 
     public void setFirstParagraphForIntroduction(XWPFDocument document, ScriptEnum scriptEnum) {
-        String resultLabel = "Na osnovu ovlaštenja iz Izbornog zakona BiH („Službeni glasnik BiH br. br.23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 17/14, 31/16,41/20,38 /22, 51/22, 67/22 i 24/24), podzakonskih akata Centralne izborne komisije Bosne i Hercegovine i člana 19. Poslovnika o radu Gradske izborne komisije Banja Luka (broj: 07-03-1/16-64. od 08.07.2016. godine), Gradska izborna komisija Banja Luka je, na sjednici održanoj 08.11. 2022. godine, zaključila je i donijela";
+        String resultLabel = "Na osnovu ovlaštenja iz Izbornog zakona BiH („Službeni glasnik BiH br. br.23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 17/14, 31/16,41/20,38 /22, 51/22, 67/22 i 24/24), podzakonskih akata Centralne izborne komisije Bosne i Hercegovine i člana 19. Poslovnika o radu Gradske izborne komisije Banja Luka (broj: 07-03-1/16-64. od 08.07.2016. godine), Gradska izborna komisija Banja Luka je, na sjednici održanoj 08.11. 2024. godine, zaključila je i donijela";
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
 
         XWPFParagraph paragraph = document.createParagraph();
@@ -910,7 +908,7 @@ public class CollaboratorsXlsxService {
     }
 
     public void setFourthParagraphForIntroduction(XWPFDocument document, ScriptEnum scriptEnum) {
-        String resultLabel = "Prema izbornim i postizbornim aktivnostima, Komisija je angažovanje izvršila u periodu od 01.06. do 10.11.2022.godine, kako slijedi:";
+        String resultLabel = "Prema izbornim i postizbornim aktivnostima, Komisija je angažovanje izvršila u periodu od 01.06. do 10.11.2024. godine, kako slijedi:";
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
 
         XWPFParagraph paragraph = document.createParagraph();
