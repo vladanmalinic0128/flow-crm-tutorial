@@ -263,7 +263,7 @@ public class CollaboratorsXlsxService {
         Document document = new Document(pdfDoc);
 
         //set margins
-        float topMargin = 50f;
+        float topMargin = 40f;
         float leftMargin=52f;
         float rightMargin=52f;
         document.setTopMargin(topMargin);
@@ -513,7 +513,10 @@ public class CollaboratorsXlsxService {
         addLawArticleTitle(document, arialFont, scriptEnum, "Član 1.");
         addSmallEmptyRow(document);
 
-        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Lokalnih  izbora 2024. godine.";
+        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Lokalnih  izbora 2024. godine";
+        if(associate.getJmbg().equals("2011998100010") || associate.getJmbg().equals("0508998100082") || associate.getJmbg().equals("1007998100036") )
+            description += " (razvoj aplikacije za obradu podataka o posmatračima i biračkim odborima, kao i ostali administrativno-tehnički poslovi)";
+        description += ".";
         addLawArticleDescription(document, arialFont, scriptEnum, description);
         addSmallEmptyRow(document);
 
@@ -536,7 +539,7 @@ public class CollaboratorsXlsxService {
         if(associate.getIsExtern())
             description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla broj " + associate.getBankNumber() + ", otvoren kod " + findBankNameByBankNumber(associate) + ", a tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 412900 (0160) – tehnička priprema i provođenje izbora.";
         else
-            description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla  na koji mu se isplaćuju redovna mjesečna primanja, kao zaposleniku Gradske uprave Banja Luka, tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 4129000 (0160) – tehnička priprema i provođenje izbora.";
+            description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla  na koji mu se isplaćuju redovna mjesečna primanja, kao zaposleniku Gradske uprave Banja Luka, tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 412900 (0160) – tehnička priprema i provođenje izbora.";
         addLawArticleDescription(document, arialFont, scriptEnum, description);
         addSmallEmptyRow(document);
 
@@ -556,9 +559,9 @@ public class CollaboratorsXlsxService {
 
         addSmallEmptyRow(document);
         if(associate.getIsExtern())
-            description = "Broj: 01-03-1/22-203-" + decisionNumber;
+            description = "Broj: 01-03-1/24-203-" + decisionNumber;
         else
-            description = "Broj: 01-03-1/22-204-" + decisionNumber;
+            description = "Broj: 01-03-1/24-204-" + decisionNumber;
         addLawArticleDescription(document, arialFont, scriptEnum, description);
     }
 
@@ -769,7 +772,7 @@ public class CollaboratorsXlsxService {
         }
 
         setCenteredTitle(document, scriptEnum, "2.");
-        setFifthParagraphForIntroduction(document, scriptEnum);
+        setFifthParagraphForIntroduction(document, scriptEnum, isExtern);
         setCenteredTitle(document, scriptEnum, "3.");
         setSixthParagraphForIntroduction(document, scriptEnum);
 
@@ -921,8 +924,8 @@ public class CollaboratorsXlsxService {
         addEmptyLine(document);
     }
 
-    public void setFifthParagraphForIntroduction(XWPFDocument document, ScriptEnum scriptEnum) {
-        String resultLabel = "Odluka Gradske izborne komisije je podloga za nastale obaveze prema angažovanim vanjskim saradnicima, po aktivnostima i satnici angažovanja za sačinjavanje ugovora o djelu.";
+    public void setFifthParagraphForIntroduction(XWPFDocument document, ScriptEnum scriptEnum, boolean isExtern) {
+        String resultLabel = "Odluka Gradske izborne komisije je podloga za nastale obaveze prema angažovanim " + (isExtern ? "vanjskim" : "unutrašnjim") + " saradnicima, po aktivnostima i satnici angažovanja za sačinjavanje ugovora o djelu.";
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
 
         XWPFParagraph paragraph = document.createParagraph();
