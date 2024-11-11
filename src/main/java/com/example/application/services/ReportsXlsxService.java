@@ -133,11 +133,11 @@ public class ReportsXlsxService {
 
 
 
-        writeFinalCalculation(overallSheet, scriptEnum);
-        writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum);
-        writeFinalCalculation(invalidBankNumberSheet, scriptEnum);
+        writeFinalCalculation(overallSheet, scriptEnum, false);
+        writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum, false);
+        writeFinalCalculation(invalidBankNumberSheet, scriptEnum, false);
         for(XSSFSheet sheet: sheetMap.values())
-            writeFinalCalculation(sheet, scriptEnum);
+            writeFinalCalculation(sheet, scriptEnum, false);
         
 
         return saveDocument(fileTitle, workbook);
@@ -196,12 +196,12 @@ public class ReportsXlsxService {
 
         }
 
-        writeFinalCalculation(overallSheet, scriptEnum);
+        writeFinalCalculation(overallSheet, scriptEnum, true);
         if(isExtern) {
-            writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum);
-            writeFinalCalculation(invalidBankNumberSheet, scriptEnum);
+            writeFinalCalculation(membersWithoutBankNumberSheet, scriptEnum, true);
+            writeFinalCalculation(invalidBankNumberSheet, scriptEnum, true);
             for (XSSFSheet sheet : sheetMap.values())
-                writeFinalCalculation(sheet, scriptEnum);
+                writeFinalCalculation(sheet, scriptEnum, true);
         }
 
         return saveDocument(fileTitle, workbook);
@@ -436,10 +436,10 @@ public class ReportsXlsxService {
         Double amount = associate.getPrice();
         cell.setCellValue(amount);
 
-        addBrutoCalculation(sheet, row);
+        addBrutoCalculationForAssociates(sheet, row);
     }
 
-    private void writeFinalCalculation(XSSFSheet sheet, ScriptEnum scriptEnum) {
+    private void writeFinalCalculation(XSSFSheet sheet, ScriptEnum scriptEnum, boolean isAssociate) {
         if(sheet.getLastRowNum() == 0)
             return;
         XSSFCellStyle firstRowStyle = councelXlsxService.generateCellStyleForFirstColumn(sheet);
@@ -479,7 +479,10 @@ public class ReportsXlsxService {
         String formula = String.format("SUM(H%d:H%d)", 2, sheet.getLastRowNum());
         cell.setCellFormula(formula);
 
-        addBrutoCalculation(sheet, row);
+        if(isAssociate)
+            addBrutoCalculationForAssociates(sheet, row);
+        else
+            addBrutoCalculation(sheet, row);
 
         // Evaluate the formula (optional)
         FormulaEvaluator evaluator = sheet.getWorkbook().getCreationHelper().createFormulaEvaluator();
@@ -730,4 +733,46 @@ public class ReportsXlsxService {
             cell.setCellFormula(formula);
         }
     }
+
+    private void addBrutoCalculationForAssociates(XSSFSheet sheet, XSSFRow row) {
+        XSSFCell cell = null;
+        if (this.overallSheet != null && this.overallSheet.equals(sheet)) {
+            cell = row.createCell(8);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            String formula = String.format("ROUND(H%d/0.70905, 2)", sheet.getLastRowNum() + 1);
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(9);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("0");
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(10);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("ROUND(I%d*0.185, 2)", sheet.getLastRowNum() + 1);
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(11);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("0");
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(12);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("0");
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(13);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("0");
+            cell.setCellFormula(formula);
+
+            cell = row.createCell(14);
+            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            formula = String.format("ROUND((I%d-K%d)*0.13, 2)", sheet.getLastRowNum() + 1, sheet.getLastRowNum() + 1);
+            cell.setCellFormula(formula);
+        }
+    }
+
+
 }

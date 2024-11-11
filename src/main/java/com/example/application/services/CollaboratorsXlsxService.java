@@ -555,7 +555,10 @@ public class CollaboratorsXlsxService {
         addSignatureForContract(document, arialFont, scriptEnum);
 
         addSmallEmptyRow(document);
-        description = "Broj: 01-03-1/22-541-" + decisionNumber;
+        if(associate.getIsExtern())
+            description = "Broj: 01-03-1/22-203-" + decisionNumber;
+        else
+            description = "Broj: 01-03-1/22-204-" + decisionNumber;
         addLawArticleDescription(document, arialFont, scriptEnum, description);
     }
 
@@ -751,10 +754,12 @@ public class CollaboratorsXlsxService {
         arabianToLatinNumbers.put(9, "IX");
         arabianToLatinNumbers.put(10, "X");
 
-        List<AssociateStatusEntity> statuses = associateStatusRepository.findAll();
+        List<AssociateStatusEntity> statuses = associateStatusRepository.findAll().stream().filter(status -> associateRepository.findAllByIsExternAndStatus_Id(isExtern, status.getId()).stream().count() > 0).toList();
+        int orderNumber = 1;
         for (AssociateStatusEntity status : statuses) {
-            setStatusLabel(document, scriptEnum, arabianToLatinNumbers.get(status.getId()), status.getName());
+            setStatusLabel(document, scriptEnum, arabianToLatinNumbers.get(orderNumber), status.getName());
             addMainTable(document, scriptEnum, status, isExtern);
+            orderNumber++;
         }
 
         setCenteredTitle(document, scriptEnum, "2.");
@@ -980,7 +985,7 @@ public class CollaboratorsXlsxService {
         String lastnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(lastnameHeaderLabel) : lastnameHeaderLabel;
         row.addNewTableCell().setText(lastnameHeaderText);
 
-        String firstnameHeaderLabel = "JMBg".toUpperCase();
+        String firstnameHeaderLabel = "JMBG".toUpperCase();
         String firstnameHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(firstnameHeaderLabel) : firstnameHeaderLabel;
         row.addNewTableCell().setText(firstnameHeaderText);
         styleHeaderRow(table.getRow(0));
