@@ -609,7 +609,13 @@ public class CollaboratorsXlsxService {
         addSmallEmptyRow(document);
         addSmallEmptyRow(document);
 
-        String firstParagraph = "Ugovorom o djelu broj 01-03-1/22-541-" + decisionNumber + "   od dana  " + dateFormatter.format(associate.getContractDate()) + " godine, koji su u Banjaluci zaključili Naručilac posla Gradska izborna komisija Banja Luka, koju zastupa predsjednik Dubravko Malinić i  " + associate.getLastname() + " " + associate.getFirstname() + ", iz opštine " + associate.getResidence() + ", na period od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine, " + associate.getLastname() + " " + associate.getFirstname() + " se, kao ugovorna strana-angažovano lice, obavezao da će za potrebe naručioca posla vršiti " + associate.getStatus().getAkkName() + ".";
+        String text;
+        if(associate.getIsExtern())
+            text = "01-03-1/24-203-" + decisionNumber;
+        else
+            text = "01-03-1/24-204-" + decisionNumber;
+
+        String firstParagraph = "Ugovorom o djelu broj " + text + "   od dana  " + dateFormatter.format(associate.getContractDate()) + " godine, koji su u Banjaluci zaključili Naručilac posla Gradska izborna komisija Banja Luka, koju zastupa predsjednik Dubravko Malinić i  " + associate.getLastname() + " " + associate.getFirstname() + ", iz opštine " + associate.getResidence() + ", na period od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine, " + associate.getLastname() + " " + associate.getFirstname() + " se, kao ugovorna strana-angažovano lice, obavezao da će za potrebe naručioca posla vršiti " + associate.getStatus().getAkkName() + ".";
         addLawArticleDescription(document, arialFont, scriptEnum, firstParagraph);
         addSmallEmptyRow(document);
 
