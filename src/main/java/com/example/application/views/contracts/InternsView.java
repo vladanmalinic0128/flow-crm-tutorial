@@ -23,14 +23,17 @@ import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.io.IOException;
 import java.io.InputStream;
 
-@PermitAll
+@PreAuthorize("hasRole('ADMIN')")
+@RolesAllowed("ADMIN")
 @Route(value = "unutrasnji-saradnici", layout = MainLayout.class)
 public class InternsView extends FormLayout {
     Upload upload = null;

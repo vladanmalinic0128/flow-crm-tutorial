@@ -19,9 +19,13 @@ public class SecurityConfig extends VaadinWebSecurity {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(auth ->
+        http.authorizeHttpRequests(auth -> {
                 auth.requestMatchers(
-                        AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/images/*.png")).permitAll());
+                        AntPathRequestMatcher.antMatcher(HttpMethod.GET, "/images/*.png")).permitAll();
+                auth.requestMatchers("/spoljasnji-saradnici", "/unutrasnji-saradnici").hasRole("ADMIN");
+        });
+
+
         super.configure(http);
         setLoginView(http, LoginView.class);
     }
@@ -35,17 +39,24 @@ public class SecurityConfig extends VaadinWebSecurity {
                 .roles("USER")
                 .build();
 
+        UserDetails ddubravko = User.builder()
+                .username("malinicd")
+                // password = password with this hash, don't tell anybody :-)
+                .password("{bcrypt}$2a$10$6q4U.xYN8kl8CtM5PZvyuOciyVd5jKSSVy16CZZBVH0rRmdCQ8y/K")
+                .roles("USER", "ADMIN")
+                .build();
+
         UserDetails vladan = User.builder()
                 .username("vmalinic")
                 .password("{bcrypt}$2a$10$rozRn5SMxzK4HvHYCaHHa.oL8yumN.p8d0pEKfFloDJmLugeysTOq")
-                .roles("USER", "ADMIN")
+                .roles("USER")
                 .build();
 
         UserDetails branka = User.builder()
                 .username("branka")
                 .password("{bcrypt}$2a$10$ghzyXleqQb9KNt6stWO/SeyvuqBTQqh1JSCR4pLiaFxhOfUniokCu")
-                .roles("USER", "ADMIN")
+                .roles("USER")
                 .build();
-        return new InMemoryUserDetailsManager(dubravko, vladan, branka);
+        return new InMemoryUserDetailsManager(dubravko, vladan, branka, ddubravko);
     }
 }

@@ -141,7 +141,10 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab solutionsTab = new Tab(VaadinIcon.FILE_O.create(), new RouterLink("Ugovori", ListView.class));
 
         // Add Tabs to the Tabs component
-        tabs.add(observersTab, boardTab, solutionsTab);
+        if("malinicd".equals(securityService.getAuthenticatedUser().getUsername()))
+            tabs.add(observersTab, boardTab, solutionsTab);
+        else
+            tabs.add(observersTab, boardTab);
 
         tabs.setSelectedTab(observersTab);
         // Set the font size for each tab
