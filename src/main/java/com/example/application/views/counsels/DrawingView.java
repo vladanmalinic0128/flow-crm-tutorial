@@ -230,6 +230,8 @@ public class DrawingView extends VerticalLayout {
             i++;
         }
 
+        PoliticalOrganizationEntity gikEntity = politicalOrganizationRepository.findByCode("00000");
+
         List<VotingCouncelEntity> votingCouncels = null;
         if(isMT == false)
             votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ") == false).collect(Collectors.toList());
@@ -239,7 +241,7 @@ public class DrawingView extends VerticalLayout {
         if(isMT == false)
             i = 0; //Sluzi da vodi racuna o zrijebanju
         else
-            i = findLastConstraint() + 1;
+            i = 0;//findLastConstraint() + 1;
         int participated = politicalOrganizationEntitiesList.size();
 
         Optional<TitleEntity> optionalMemberTitle = titleRepository.findById(1L);
@@ -252,7 +254,9 @@ public class DrawingView extends VerticalLayout {
             for(int j = 0; j < votingCouncel.getNumberOfMembers(); j++) {
                 ConstraintEntity constraint = new ConstraintEntity();
                 constraint.setVotingCouncel(votingCouncel);
-                constraint.setPoliticalOrganization(politicalOrganizationEntitiesList.get(i % participated));
+                constraint.setPoliticalOrganization((j < politicalOrganizationEntitiesList.size())
+                        ? politicalOrganizationEntitiesList.get(j)
+                        : gikEntity);
                 constraint.setTitle(new TitleEntity());
                 constraint.setPosition(j + 1);
                 constraint.setTitle(memberTitle);
@@ -260,7 +264,9 @@ public class DrawingView extends VerticalLayout {
 
                 ConstraintEntity deputyConstraint = new ConstraintEntity();
                 deputyConstraint.setVotingCouncel(votingCouncel);
-                deputyConstraint.setPoliticalOrganization(politicalOrganizationEntitiesList.get(i % participated));
+                deputyConstraint.setPoliticalOrganization((j < politicalOrganizationEntitiesList.size())
+                        ? politicalOrganizationEntitiesList.get(j)
+                        : gikEntity);
                 deputyConstraint.setTitle(new TitleEntity());
                 deputyConstraint.setPosition(j + 1);
                 deputyConstraint.setTitle(memberDeputyTitle);
@@ -552,7 +558,7 @@ public class DrawingView extends VerticalLayout {
             cell.setCellStyle(regularStyleWithPurpleBackground);
 
             cell = row.createCell(4);
-            //cell.setCellValue(votingCouncel.getNumberOfVoters());
+            cell.setCellValue(votingCouncel.getNumberOfVoters());
             cell.setCellStyle(regularStyleWithPurpleBackgroundAndRightAlignment);
 
             cell = row.createCell(5);

@@ -625,7 +625,7 @@ public class CouncelXlsxService {
         cell.setCellStyle(councelMemberStyles.get(HorizontalAlignment.CENTER));
         if(constraint.getMember() != null && constraint.getMember().getBankNumber() != null) {
             label = formatBankNumber(constraint.getMember().getBankNumber());
-            if(bankAccountValidator.isValidAccountNumber(constraint.getMember().getBankNumber()) == false && (constraint.getMember().getIsAcknowledged() != null && constraint.getMember().getIsAcknowledged())) {
+            if(bankAccountValidator.isValidAccountNumber(constraint.getMember().getBankNumber()) == false) {// && (constraint.getMember().getIsAcknowledged() != null && constraint.getMember().getIsAcknowledged())) {
                 CellStyle coloredStyle = sheet.getWorkbook().createCellStyle();
                 coloredStyle.cloneStyleFrom(councelMemberStyles.get(HorizontalAlignment.CENTER));
                 coloredStyle.setFillForegroundColor(IndexedColors.RED.getIndex());

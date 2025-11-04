@@ -28,7 +28,7 @@ public class PresidentInitializer /*implements ApplicationRunner*/ {
 
     //@Override
     public void run(ApplicationArguments args) throws Exception {
-        String absolutePath = "src/main/resources/documents/predsjednici.xlsx";
+        String absolutePath = "src/main/resources/documents/predsjednici2025.xlsx";
         try (InputStream inputStream = new FileInputStream(absolutePath)) {
             Workbook workbook = WorkbookFactory.create(inputStream);
             Sheet sheet = workbook.getSheetAt(0);

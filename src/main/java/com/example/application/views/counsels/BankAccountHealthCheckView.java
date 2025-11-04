@@ -151,7 +151,7 @@ public class BankAccountHealthCheckView extends VerticalLayout {
                         .flatMap(List::stream)
                         .map(c -> c.getMember())
                         .filter(m -> m != null && m.isEmpty() == false)
-                        .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged() && !bankAccountValidator.isValidAccountNumber(m.getBankNumber()))
+                        .filter(m -> /*m.getIsAcknowledged() != null && m.getIsAcknowledged() &&*/ !bankAccountValidator.isValidAccountNumber(m.getBankNumber()))
                         .collect(Collectors.toList());
 
                 String invalidBankLabel = "Članovi sa nevalidnim bankovnim računom (" + membersWithInvalidBankNumbers.size() + ")";

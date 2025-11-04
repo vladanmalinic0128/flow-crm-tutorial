@@ -47,7 +47,9 @@ public class PoliticalOrganizationInitializer /*implements ApplicationRunner*/ {
                 {"03306", "HOĆEMO EKO BUDUĆNOST"},
                 {"03359", "IGOR JOVANOVIĆ - NEZAVISNI KANDIDAT"},
                 {"03368", "DRAGAN JOKIĆ - NEZAVISNI KANDIDAT"},
-                {"03493", "DNS - NENAD NEŠIĆ - PARTIJA UJEDINJENIH PENZIONERA (PUP)"}
+                {"03493", "DNS - NENAD NEŠIĆ - PARTIJA UJEDINJENIH PENZIONERA (PUP)"},
+                {"00018", "SRPSKA DEMOKRATSKA STRANKA"},
+                {"00000", "GRADSKA IZBORNA KOMISIJA"}
         };
 
         // Initialize and save PoliticalOrganizationEntities
