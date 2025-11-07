@@ -12,6 +12,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Member;
+import java.util.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -21,12 +22,20 @@ import java.util.Optional;
 public class CouncelUpdateXlsxService {
     private final String MUNICIPALITY_CODE = "034Б";
     private final String MUNICIPALITY_CODE_FOR_MOBILE_TEAMS = "034МТ";
+    private final String DEFAULT_POLITICAL_ORGANIZATION_CODE = "00000";
     private final VotingCouncelRepository votingCouncelRepository;
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final SubstituteRepository substituteRepository;
     private final PresidentRepository presidentRepository;
+    
+    // Track used constraints for default organization for current voting council
+    // When we move to a new voting council, this gets cleared
+    private Set<Long> usedDefaultOrgConstraintsInCurrentCouncel = new HashSet<>();
     public List<ConstraintEntity> getModifiedConstraints(Workbook workbook, boolean deleteEmptyRows) {
         List<ConstraintEntity> result = new ArrayList<>();
+        
+        // Clear tracking for new file upload
+        usedDefaultOrgConstraintsInCurrentCouncel.clear();
 
         VotingCouncelEntity activeVotingCouncel = null;
         boolean readingMembers = false;
@@ -42,6 +51,8 @@ public class CouncelUpdateXlsxService {
             String value = getCellValue(cell);
             if(latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE) || latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE_FOR_MOBILE_TEAMS)) {
                 activeVotingCouncel = tryReadingVotingCouncel(cell);
+                // Clear tracking when moving to a new voting council
+                usedDefaultOrgConstraintsInCurrentCouncel.clear();
             }
             else if(value.trim().length() == 5) {
                 ConstraintEntity activeConstraint = tryReadingConstraint(value, activeVotingCouncel, readingMembers);
@@ -114,10 +125,36 @@ public class CouncelUpdateXlsxService {
         if(activeVotingCouncel == null)
             return null;
 
-        Optional<ConstraintEntity> optionalConstraintEntity = activeVotingCouncel.getConstraints().stream()
-                .filter(c -> c.getPoliticalOrganization().getCode().equals(value))
-                .filter(c -> readingMembers ? c.getTitle().getId() == 1 : c.getTitle().getId() == 2)
-                .findFirst();
+        Optional<ConstraintEntity> optionalConstraintEntity;
+        
+        // For default political organization, assign to next lowest available position in order
+        if(DEFAULT_POLITICAL_ORGANIZATION_CODE.equals(value)) {
+            // Get all matching constraints sorted by position
+            List<ConstraintEntity> candidateConstraints = activeVotingCouncel.getConstraints().stream()
+                    .filter(c -> c.getPoliticalOrganization().getCode().equals(value))
+                    .filter(c -> readingMembers ? c.getTitle().getId() == 1 : c.getTitle().getId() == 2)
+                    .sorted((c1, c2) -> {
+                        Integer pos1 = c1.getPosition() != null ? c1.getPosition() : Integer.MAX_VALUE;
+                        Integer pos2 = c2.getPosition() != null ? c2.getPosition() : Integer.MAX_VALUE;
+                        return pos1.compareTo(pos2);
+                    })
+                    .toList();
+            
+            // Find first constraint that hasn't been used yet in current voting council
+            optionalConstraintEntity = candidateConstraints.stream()
+                    .filter(c -> !usedDefaultOrgConstraintsInCurrentCouncel.contains(c.getId()))
+                    .findFirst();
+            
+            // Mark as used if found
+            if(optionalConstraintEntity.isPresent()) {
+                usedDefaultOrgConstraintsInCurrentCouncel.add(optionalConstraintEntity.get().getId());
+            }
+        } else {
+            optionalConstraintEntity = activeVotingCouncel.getConstraints().stream()
+                    .filter(c -> c.getPoliticalOrganization().getCode().equals(value))
+                    .filter(c -> readingMembers ? c.getTitle().getId() == 1 : c.getTitle().getId() == 2)
+                    .findFirst();
+        }
 
         if(optionalConstraintEntity.isPresent())
             return optionalConstraintEntity.get();
