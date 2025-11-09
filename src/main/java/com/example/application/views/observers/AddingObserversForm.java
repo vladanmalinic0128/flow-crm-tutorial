@@ -246,8 +246,8 @@ public class AddingObserversForm extends FormLayout {
         LocalDate requestDate = requestDatePicker.getValue();
 
         // Define the date range
-        LocalDate startDate = LocalDate.of(2024, 6, 1);
-        LocalDate endDate = LocalDate.of(2024, 11, 1);
+        LocalDate startDate = LocalDate.of(2025, 9, 1);
+        LocalDate endDate = LocalDate.of(2025, 11, 23);
 
         // Check if the date is within the range
         boolean isWithinRange = !decisionDate.isBefore(startDate) && !decisionDate.isAfter(endDate);
