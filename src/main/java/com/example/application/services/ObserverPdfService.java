@@ -111,7 +111,7 @@ public class ObserverPdfService {
         document.setRightMargin(rightMargin);
         document.setHorizontalAlignment(HorizontalAlignment.CENTER);
 
-        String electionLogoPath = "src/main/resources/logo/election24-rotated.png";
+        String electionLogoPath = "src/main/resources/logo/election-24-rotated.png";
         String countryLogoPath = "src/main/resources/logo/logo_bih.png";
         try {
             ImageData election24rotatedImageData = ImageDataFactory.create(electionLogoPath);
