@@ -7,4 +7,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface MemberRepository extends JpaRepository<MemberEntity, Long> {
     boolean existsByJmbg(String jmbg);
+    boolean existsByJmbgAndIsGikFalseOrIsGikIsNull(String jmbg);
+
 }

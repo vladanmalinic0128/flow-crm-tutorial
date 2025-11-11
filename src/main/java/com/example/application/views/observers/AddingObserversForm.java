@@ -193,7 +193,7 @@ public class AddingObserversForm extends FormLayout {
                     observer.setStatus(statusRepository.findById(2));
                 else if(observerRepository.existsByJmbg(observer.getJmbg()))
                     observer.setStatus(statusRepository.findById(3));
-                else if(memberRepository.existsByJmbg(observer.getJmbg()))
+                else if(memberRepository.existsByJmbgAndIsGikFalseOrIsGikIsNull(observer.getJmbg()))
                     observer.setStatus(statusRepository.findById(4));
                 else if(observer.getCardId().isBlank())
                     observer.setStatus(statusRepository.findById(5));
