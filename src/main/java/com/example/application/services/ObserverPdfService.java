@@ -139,7 +139,8 @@ public class ObserverPdfService {
 
         if(sideNumber == SideEnum.ONE_SIDED) {
             List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
-                    .sorted(Comparator.comparing(ObserverEntity::getLastname, collator).thenComparing(ObserverEntity::getFirstname, collator))
+                    //.sorted(Comparator.comparing(ObserverEntity::getLastname, collator).thenComparing(ObserverEntity::getFirstname, collator))
+                    .sorted(Comparator.comparingInt(ObserverEntity::getDocumentNumber))
                     .collect(Collectors.toList());
             for(ObserverEntity observer: filteredObservers) {
                 Cell front = new Cell();
