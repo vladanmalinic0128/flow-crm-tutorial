@@ -3,6 +3,7 @@ package com.example.application.views.counsels;
 import com.example.application.entities.MentorEntity;
 import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
+import com.example.application.repositories.MentorRepository;
 import com.example.application.repositories.VotingCouncelRepository;
 import com.example.application.services.ReportsPdfService;
 import com.example.application.views.MainLayout;
@@ -34,11 +35,13 @@ import java.util.stream.Collectors;
 @Route(value = "rjesenja", layout = MainLayout.class)
 public class ReportsView extends VerticalLayout {
     private final VotingCouncelRepository votingCouncelRepository;
+    private final MentorRepository mentorRepository;
     private final ReportsPdfService reportsPdfService;
     ComboBox<ScriptEnum> scripts = new ComboBox<>("Odaberite pismo");
 
-    public ReportsView(VotingCouncelRepository votingCouncelRepository, ReportsPdfService reportsPdfService) {
+    public ReportsView(VotingCouncelRepository votingCouncelRepository, MentorRepository mentorRepository, ReportsPdfService reportsPdfService) {
         this.votingCouncelRepository = votingCouncelRepository;
+        this.mentorRepository = mentorRepository;
         this.reportsPdfService = reportsPdfService;
         // Main layout
         this.setWidth("100%");
@@ -82,7 +85,120 @@ public class ReportsView extends VerticalLayout {
             //panel.addThemeVariants(DetailsVariant.FILLED);
         }
 
+        // Add mentors section
+        generateMentorsSection(accordion);
+
         add(accordion);
+    }
+
+    private void generateMentorsSection(Accordion accordion) {
+        for(MentorEntity mentor: mentorRepository.findAll().stream()
+                .sorted(Comparator.comparing(m -> m.getLastname() + " " + m.getFirstname()))
+                .collect(Collectors.toList())) {
+            
+            if(mentor.getVotingCouncels() == null || mentor.getVotingCouncels().isEmpty()) {
+                continue;
+            }
+
+            // Create main layout for mentor
+            VerticalLayout mentorLayout = new VerticalLayout();
+            mentorLayout.setSpacing(true);
+            mentorLayout.setPadding(false);
+
+            // Header with mentor name and generate all button
+            HorizontalLayout mentorHeaderLayout = new HorizontalLayout();
+            mentorHeaderLayout.setWidthFull();
+            mentorHeaderLayout.setAlignItems(Alignment.CENTER);
+            mentorHeaderLayout.setJustifyContentMode(JustifyContentMode.BETWEEN);
+
+            Text mentorDescription = new Text("Mentor: " + mentor.getFullname() + " - Odaberite sve:");
+            
+            Icon downloadAllIcon = new Icon(VaadinIcon.DOWNLOAD);
+            Button downloadAllButton = new Button("Generiši sve odbore", downloadAllIcon);
+            downloadAllButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY,
+                    ButtonVariant.LUMO_SUCCESS);
+
+            downloadAllButton.addClickListener(e -> {
+                Dialog dialog = createDialogForMentor(mentor);
+                dialog.open();
+            });
+
+            mentorHeaderLayout.add(mentorDescription, downloadAllButton);
+            mentorLayout.add(mentorHeaderLayout);
+
+            // Add the mentor section to accordion
+            accordion.add(mentor.getFullname() + " (" + mentor.getVotingCouncels().size() + " odbora)", mentorLayout);
+        }
+    }
+
+    private Dialog createDialogForMentor(MentorEntity mentor) {
+        Dialog dialog = new Dialog();
+        dialog.getElement().setAttribute("aria-label", "Generiši sve odbore mentora");
+
+        dialog.getHeader().add(createDialogHeaderForMentor(mentor));
+
+        VerticalLayout dialogLayout = createDialogLayoutForMentor(dialog, mentor);
+        dialog.add(dialogLayout);
+        dialog.setModal(true);
+        dialog.setDraggable(true);
+
+        return dialog;
+    }
+
+    private H2 createDialogHeaderForMentor(MentorEntity mentor) {
+        H2 headline = new H2("Generisanje rješenja za mentora: " + mentor.getFullname());
+        headline.addClassName("draggable");
+        headline.getStyle().set("margin", "0").set("font-size", "1.5em")
+                .set("font-weight", "bold").set("cursor", "move")
+                .set("padding", "var(--lumo-space-m) 0").set("flex", "1");
+
+        return headline;
+    }
+
+    private VerticalLayout createDialogLayoutForMentor(Dialog dialog, MentorEntity mentor) {
+        VerticalLayout fieldLayout = new VerticalLayout(scripts);
+        scripts.setValue(ScriptEnum.CYRILLIC);
+        fieldLayout.setSpacing(false);
+        fieldLayout.setPadding(false);
+        fieldLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
+        fieldLayout.getStyle().set("width", "600px").set("max-width", "100%");
+
+        Button cancelButton = new Button("Zatvori", e -> {
+            dialog.close();
+        });
+        
+        String fileTitle = "Mentor_" + mentor.getId() + "_" + System.currentTimeMillis() + ".pdf";
+        Button saveButton = new Button("Generiši sve");
+
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            if(scripts.getValue() == null) {
+                Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                dialog.close();
+                return null;
+            }
+            String stringPath = null;
+            try {
+                stringPath = reportsPdfService.generateReportByMentor(mentor, fileTitle, scripts.getValue());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            dialog.close();
+            if(stringPath != null)
+                return reportsPdfService.getStream(stringPath);
+            else
+                return null;
+        }), "");
+
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        dialog.getFooter().add(cancelButton);
+        dialog.getFooter().add(saveButtonAnchor);
+
+        return fieldLayout;
     }
 
     private void generateOverallTable(Accordion accordion) {

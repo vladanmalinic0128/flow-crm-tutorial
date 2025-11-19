@@ -3,6 +3,7 @@ package com.example.application.services;
 
 import com.example.application.entities.ConstraintEntity;
 import com.example.application.entities.MemberEntity;
+import com.example.application.entities.MentorEntity;
 import com.example.application.entities.PresidentEntity;
 import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
@@ -88,6 +89,44 @@ public class ReportsPdfService {
         document.close();
 
         String fileName = ROOT_PATH + File.separator + entity.getCode() + "_" + System.currentTimeMillis() + ".pdf";
+
+        try (FileOutputStream fos = new FileOutputStream(fileName)) {
+            out.writeTo(fos);
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return fileName;
+    }
+
+    public String generateReportByMentor(MentorEntity mentor, String fileTitle, ScriptEnum value) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(out);
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        Document document = new Document(pdfDoc);
+
+        //set margins
+        float topMargin = 45f;
+        float leftMargin=52f;
+        float rightMargin=52f;
+        document.setTopMargin(topMargin);
+        document.setLeftMargin(leftMargin);
+        document.setRightMargin(rightMargin);
+        document.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+        if(mentor.getVotingCouncels() != null && !mentor.getVotingCouncels().isEmpty()) {
+            for(VotingCouncelEntity votingCouncel: mentor.getVotingCouncels().stream()
+                    .sorted(Comparator.comparing(VotingCouncelEntity::getCode)).collect(Collectors.toList())){
+                generateContentByCode(votingCouncel, document, value);
+                document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+            }
+        }
+
+        document.close();
+
+        String fileName = ROOT_PATH + File.separator + "Mentor_" + mentor.getId() + "_" + System.currentTimeMillis() + ".pdf";
 
         try (FileOutputStream fos = new FileOutputStream(fileName)) {
             out.writeTo(fos);
@@ -245,7 +284,7 @@ public class ReportsPdfService {
         document.add(members);
 
 
-        float[] columnWidths = {11, 46, 6, 20, 17}; // Custom column widths
+        float[] columnWidths = {11, 46, 6, 17}; // Custom column widths
         Table membersTable = new Table(UnitValue.createPercentArray(columnWidths));
         membersTable.setWidth(UnitValue.createPercentValue(100)); // Set table width
 
@@ -366,7 +405,7 @@ public class ReportsPdfService {
                 .setPadding(0);
 
         if(member == null) {
-            for(int i = 0; i<5; i++) {
+            for(int i = 0; i<4; i++) {
                 cell = new Cell();
                 cell.setBorder(border);
                 cell.setHorizontalAlignment(HorizontalAlignment.CENTER);
@@ -413,20 +452,6 @@ public class ReportsPdfService {
         genderCell.setTextAlignment(TextAlignment.CENTER);
         genderCell.add(paragraph);
         table.addCell(genderCell);
-
-        label = member.getJmbg();
-        if(member.getJmbg() != null)
-            paragraph = new Paragraph(label);
-        else
-            paragraph = new Paragraph("");
-        paragraph.addStyle(style).setFixedLeading(12);
-
-        Cell jmbgCell = new Cell();
-        jmbgCell.setBorder(border);
-        jmbgCell.setHorizontalAlignment(HorizontalAlignment.CENTER);
-        jmbgCell.setTextAlignment(TextAlignment.CENTER);
-        jmbgCell.add(paragraph);
-        table.addCell(jmbgCell);
 
         if(member.getPhoneNumber() != null)
             label = member.getPhoneNumber();
