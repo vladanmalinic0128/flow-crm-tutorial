@@ -180,13 +180,13 @@ public class ReportsPdfService {
                 .setPadding(0)
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
-        String decisionNumberLabel = "Број: 01-03-1/24-165-" + (entity.getCode().contains("МТ")? entity.getId() - 262 : entity.getId()) + ".";
+        String decisionNumberLabel = "Број: 01-03-1/25-104-" + (entity.getCode().contains("МТ")? entity.getId() - 262 : entity.getId());
         String decisionNumberText = scriptEnum == ScriptEnum.CYRILLIC ? decisionNumberLabel : cyrillicToLatinConverter.convert(decisionNumberLabel);
         Paragraph decisionNumberParagraph = new Paragraph(decisionNumberText)
                 .addStyle(headerStyle)
                 .setFixedLeading(13);
 
-        String dateHeaderLabel = "Дана, 04.10.2024. године. ";
+        String dateHeaderLabel = "Дана, 20.11.2025. године. ";
         String dateHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? dateHeaderLabel : cyrillicToLatinConverter.convert(dateHeaderLabel);
         Paragraph dateHeaderParagraph = new Paragraph(dateHeaderText)
                 .addStyle(headerStyle)
@@ -203,7 +203,7 @@ public class ReportsPdfService {
                 .setPadding(0)
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
-        String introduceLabel = "На основу члана 2.13 тачке 2. и 3., члана 2.19 и члана 5.3 став 1. Изборног закона БиХ („Службени гласник БиХ бр. 23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 7/14, 31/16, 41/20, 38/22, 51/22, 67/22, 24/24 и 31/24), Градска изборна комисија Бања Лука, на сједници одржаној дана 02.10.2024. године, донијела је";
+        String introduceLabel = "На основу члана 2.13 тачке 2. и 3., члана 2.19 и члана 5.3 став 1. Изборног закона БиХ („Службени гласник БиХ бр. 23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 7/14, 31/16, 41/20, 38/22, 51/22, 67/22, 24/24 и 31/24), Градска изборна комисија Бања Лука, на сједници одржаној дана 20.11.2025. године, донијела је";
         String introduceText = scriptEnum == ScriptEnum.CYRILLIC ? introduceLabel : cyrillicToLatinConverter.convert(introduceLabel);
         Paragraph introduceParagraph = new Paragraph(introduceText).addStyle(introduceTextStyle).setFirstLineIndent(30).setFixedLeading(13);
 
@@ -225,7 +225,7 @@ public class ReportsPdfService {
         String solutionTitleText = scriptEnum == ScriptEnum.CYRILLIC ? solutionTitleLabel : cyrillicToLatinConverter.convert(solutionTitleLabel);
         Paragraph solutionTitleParagraph = new Paragraph(solutionTitleText).addStyle(titleTextStyle).setFixedLeading(13);
 
-        String solutionDetailsLabel = "о именовању чланова бирачких одбора и њихових замјеника \n за Локалне изборе – 06. октобра, 2024. године";
+        String solutionDetailsLabel = "о именовању чланова бирачких одбора и њихових замјеника \n за Пријевремене изборе за предсједника Републике Српске – 23. новембра, 2025. године";
         String solutionDetailsText = scriptEnum == ScriptEnum.CYRILLIC ? solutionDetailsLabel : cyrillicToLatinConverter.convert(solutionDetailsLabel);
         Paragraph solutionDetailsParagraph = new Paragraph(solutionDetailsText).addStyle(titleTextStyle).setFixedLeading(13);
 
@@ -324,16 +324,16 @@ public class ReportsPdfService {
         List<String> secondParagraphItemsLabels = new ArrayList<>();
         if(this.isRegularTeam(entity)) {
             secondParagraphItemsLabels.add("да су обучени за рад у бирачким одборима;");
-            secondParagraphItemsLabels.add("да дана 05. октобра, 2024. године преузму изборни материјал на локацији дистрибуције и припреме бирачко мјесто (предсједник и чланови б/о) на локацији бирачког мјеста;");
+            secondParagraphItemsLabels.add("да дана 22. новембра, 2025. године преузму изборни материјал на локацији дистрибуције и припреме бирачко мјесто (предсједник и чланови б/о) на локацији бирачког мјеста;");
             secondParagraphItemsLabels.add("да се бирачки материјал у ноћи прије отварања бирачког мјеста чува у закључаним просторијама, на локацији бирачког мјеста. Полиција осигурава бирачки материјал у ноћи прије отварања бирачких мјеста на локацијама бирачких мјеста;");
-            secondParagraphItemsLabels.add("да на Дан избора – 06. октобра, 2024. године, предсједник и чланови б/о дођу на бирачко мјесто најкасније у 06.00 сати ујутро;");
+            secondParagraphItemsLabels.add("да на Дан избора – 23. новембра, 2025. године, предсједник и чланови б/о дођу на бирачко мјесто најкасније у 06.00 сати ујутро;");
             secondParagraphItemsLabels.add("да Градској изборној комисији достављају тражене извјештаје на телефоне и у сатницама наведеним у посебном подсјетнику (07.00, 11.00, 15.00 и 19.00 часова);");
             secondParagraphItemsLabels.add("да тачно, прецизно и са пуном одговорношћу попуне све пратеће обрасце и изборни материјал спакују према шеми паковања;");
-            secondParagraphItemsLabels.add("да, у комплетном процесу провођења гласања и пребројавања гласова, поступају непристрасно, професионално и стручно - према Изборном закону БиХ и да, након завршетка изборног процеса и пребројавања гласова, комплетан изборни материјал са бирачких мјеста доставе овој Комисији у објекат Спортске дворане \"Центар.\"");
+            secondParagraphItemsLabels.add("да, у комплетном процесу провођења гласања и пребројавања гласова, поступају непристрасно, професионално и стручно - према Изборном закону БиХ и да, након завршетка изборног процеса и пребројавања гласова, комплетан изборни материјал са бирачких мјеста доставе овој Комисији у објекат Градске управе Бања Лука");
         } else {
             secondParagraphItemsLabels.add("да су обучени за рад у мобилним тимовима;");
-            secondParagraphItemsLabels.add("да дана 06. октобра, 2024. године преузму изборни материјал на локацији дистрибуције – објекат Градске управе Бања Лука;");
-            secondParagraphItemsLabels.add("да на Дан избора – 06. октобра, 2024. године, предсједник и чланови мобилних тимова преузму правце обиласка и обиђу све бираче са допунског списка;");
+            secondParagraphItemsLabels.add("да дана 23. новембра, 2025. године преузму изборни материјал на локацији дистрибуције – објекат Градске управе Бања Лука;");
+            secondParagraphItemsLabels.add("да на Дан избора – 23. новембра, 2025. године, предсједник и чланови мобилних тимова преузму правце обиласка и обиђу све бираче са допунског списка;");
             secondParagraphItemsLabels.add("да предсједници попуне Евиденцију рада на Дан избора са свим траженим подацима;");
             secondParagraphItemsLabels.add("да Градској изборној комисији достављају тражене извјештаје на телефоне и у сатницама наведеним у посебном подсјетнику (07.00, 11.00, 15.00 и 19.00 часова);");
             secondParagraphItemsLabels.add("да, по завршетку обиласка бирача, сав изборни материјал спакују према шеми паковања објекту Градске управе и, по том, доставе Градској изборној комисији;");
