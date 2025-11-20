@@ -111,6 +111,8 @@ public class MemberEntity {
     }
 
     public String getFullname() {
+        if(this.firstname != null || this.lastname != null)
         return this.firstname + " " + this.lastname;
+        else return "";
     }
 }
