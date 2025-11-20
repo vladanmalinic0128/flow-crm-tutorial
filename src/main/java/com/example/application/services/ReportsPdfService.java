@@ -180,7 +180,7 @@ public class ReportsPdfService {
                 .setPadding(0)
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
-        String decisionNumberLabel = "Број: 01-03-1/25-104-" + (entity.getCode().contains("МТ")? entity.getId() - 262 : entity.getId());
+        String decisionNumberLabel = "Број: 01-03-1/25-104-" + entity.getId();
         String decisionNumberText = scriptEnum == ScriptEnum.CYRILLIC ? decisionNumberLabel : cyrillicToLatinConverter.convert(decisionNumberLabel);
         Paragraph decisionNumberParagraph = new Paragraph(decisionNumberText)
                 .addStyle(headerStyle)
@@ -332,7 +332,7 @@ public class ReportsPdfService {
             secondParagraphItemsLabels.add("да, у комплетном процесу провођења гласања и пребројавања гласова, поступају непристрасно, професионално и стручно - према Изборном закону БиХ и да, након завршетка изборног процеса и пребројавања гласова, комплетан изборни материјал са бирачких мјеста доставе овој Комисији у објекат Градске управе Бања Лука");
         } else {
             secondParagraphItemsLabels.add("да су обучени за рад у мобилним тимовима;");
-            secondParagraphItemsLabels.add("да дана 23. новембра, 2025. године преузму изборни материјал на локацији дистрибуције – објекат Градске управе Бања Лука;");
+            secondParagraphItemsLabels.add("да дана 22. новембра, 2025. године преузму изборни материјал на локацији дистрибуције – објекат Градске управе Бања Лука;");
             secondParagraphItemsLabels.add("да на Дан избора – 23. новембра, 2025. године, предсједник и чланови мобилних тимова преузму правце обиласка и обиђу све бираче са допунског списка;");
             secondParagraphItemsLabels.add("да предсједници попуне Евиденцију рада на Дан избора са свим траженим подацима;");
             secondParagraphItemsLabels.add("да Градској изборној комисији достављају тражене извјештаје на телефоне и у сатницама наведеним у посебном подсјетнику (07.00, 11.00, 15.00 и 19.00 часова);");
@@ -479,8 +479,9 @@ public class ReportsPdfService {
         return entity.getName() +
                 ", " +
                 (entity.getLocation() != null ? entity.getLocation() + ", " : "") +
+                (!entity.getCode().contains("МТ")?
                 "број бирача " +
-                entity.getNumberOfVoters() +
+                entity.getNumberOfVoters() : "") +
                 ", именује се бирачки одбор у саставу:";
     }
 
