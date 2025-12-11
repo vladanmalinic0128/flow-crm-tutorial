@@ -511,7 +511,7 @@ public class CollaboratorsXlsxService {
         addLawArticleTitle(document, arialFont, scriptEnum, "Član 1.");
         addSmallEmptyRow(document);
 
-        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Lokalnih  izbora 2024. godine";
+        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Prijevremenih izbora za predsjednika Republike Srpske 2025. godine";
         if(associate.getJmbg().equals("2011998100010") || associate.getJmbg().equals("0508998100082") || associate.getJmbg().equals("1007998100036") )
             description += " (razvoj aplikacije za obradu podataka o posmatračima i biračkim odborima, kao i ostali administrativno-tehnički poslovi)";
         description += ".";
@@ -557,9 +557,9 @@ public class CollaboratorsXlsxService {
 
         addSmallEmptyRow(document);
         if(associate.getIsExtern())
-            description = "Broj: 01-03-1/24-203-" + decisionNumber;
+            description = "Broj: 01-03-1/25-120-" + decisionNumber;
         else
-            description = "Broj: 01-03-1/24-204-" + decisionNumber;
+            description = "Broj: 01-03-1/25-119-" + decisionNumber;
         addLawArticleDescription(document, arialFont, scriptEnum, description);
     }
 
@@ -875,9 +875,9 @@ public class CollaboratorsXlsxService {
     public void setSecondParagraphForIntroduction(XWPFDocument document, ScriptEnum scriptEnum, boolean isExtern) {
         String resultLabel;
         if(isExtern)
-            resultLabel = "o angažovanju potrebnog broja pojedinaca – vanjskih saradnika za potrebe stručne,operativne, administrativne i tehničke podrške u pripremi i provođenju Lokalnih izbora 06. oktobra 2024. godine na području OIJ 034 B - Banja Luka";
+            resultLabel = "o angažovanju potrebnog broja pojedinaca – vanjskih saradnika za potrebe stručne,operativne, administrativne i tehničke podrške u pripremi i provođenju Prijevremenih izbora za predsjednika Republike Srpske 23. novembra 2025. godine na području OIJ 034 B - Banja Luka";
         else
-            resultLabel = "o angažovanju potrebnog broja pojedinca – službenika i namještenika Gradske uprave Grada Banja Luka za potrebe stručne, operativne, administrativne i tehničke podrške u pripremi i provođenju Lokalnih izbora 06. oktobra 2024. godine na području OIJ 034 B - Banja Luka";
+            resultLabel = "o angažovanju potrebnog broja pojedinca – službenika i namještenika Gradske uprave Grada Banja Luka za potrebe stručne, operativne, administrativne i tehničke podrške u pripremi i provođenju Prijevremenih izbora za predsjednika Republike Srpske 23. novembra 2025. godine na području OIJ 034 B - Banja Luka";
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
 
         XWPFParagraph paragraph = document.createParagraph();
@@ -893,7 +893,7 @@ public class CollaboratorsXlsxService {
     }
 
     public void setThirdParagraphForIntroduction(XWPFDocument document, ScriptEnum scriptEnum) {
-        String resultLabel = "Gradska izborna komisija Banja Luka, u skladu sa ovlaštenjima, odgovornostima i rokovima za pripremu i provođenje svih nivoa izbora ovom odlukom – u izbornom periodu, uključujući okončanje svih neophodnih aktivnosti po provođenju Lokalnih izbora, angažovala je potreban broj službenika i namještenika – uposlenika Gradske uprave Banja Luka. Angažovanje je vršeno u skladu sa izbornim rokovima, i to za: obezbjeđivanje uslova za glasanje 193 295 birača na 262 lokacija redovnih biračkih mjesta; za rad 262 biračkih odbora i 25 mobilnih timova; imenovanje, obuku i testiranje sveukupno 2674 pojedinca (pozicije) u b/o i m/t, od čega su 287 predsjednika i 287 zamjenika predsjednika u preko 150 termina obuka i testiranja na lokacijama obuka; za provjeru podataka i izradu akrekditacija za preko 7000 posmatrača; provjere podataka kroz bazu birača i za biračke odbore i za posmatrače, unos podataka u eksel tabele i JIS sistem CIK BiH; provjere podataka kroz baze za prijedloge za biračke odbore i za posmatrače; obavještavanje za obuke; priprema, izrada, selekcija, izdavanje, distribucija i prijem – sveukupnog izbornog matrijala (osjetljivi i neosjetljivi); obezbjeđivanje uslova za obuku; izrada rješenja i izmjena rješenja o imenovanju b/o i m/t; rad na info-linijama; obrada izbornih podataka i rezultata; rad u timovima za izdavanje i prijem izbornog materijala; 2 tima za ponovno otvaranje vreća i pravilno utvrđivanje i objedinjavanje rezultata; domaćini objekata - biračkih mjesta; fizički poslovi; vozači, vozila i drugo neophodno.";
+        String resultLabel = "Gradska izborna komisija Banja Luka, u skladu sa ovlaštenjima, odgovornostima i rokovima za pripremu i provođenje svih nivoa izbora ovom odlukom – u izbornom periodu, uključujući okončanje svih neophodnih aktivnosti po provođenju Prijevremenih izbora za predsjednika Republike Srpske, angažovala je potreban broj službenika i namještenika – uposlenika Gradske uprave Banja Luka. Angažovanje je vršeno u skladu sa izbornim rokovima, i to za: obezbjeđivanje uslova za glasanje 193 295 birača na 262 lokacija redovnih biračkih mjesta; za rad 262 biračkih odbora i 25 mobilnih timova; imenovanje, obuku i testiranje sveukupno 2674 pojedinca (pozicije) u b/o i m/t, od čega su 287 predsjednika i 287 zamjenika predsjednika u preko 150 termina obuka i testiranja na lokacijama obuka; za provjeru podataka i izradu akrekditacija za preko 7000 posmatrača; provjere podataka kroz bazu birača i za biračke odbore i za posmatrače, unos podataka u eksel tabele i JIS sistem CIK BiH; provjere podataka kroz baze za prijedloge za biračke odbore i za posmatrače; obavještavanje za obuke; priprema, izrada, selekcija, izdavanje, distribucija i prijem – sveukupnog izbornog matrijala (osjetljivi i neosjetljivi); obezbjeđivanje uslova za obuku; izrada rješenja i izmjena rješenja o imenovanju b/o i m/t; rad na info-linijama; obrada izbornih podataka i rezultata; rad u timovima za izdavanje i prijem izbornog materijala; 2 tima za ponovno otvaranje vreća i pravilno utvrđivanje i objedinjavanje rezultata; domaćini objekata - biračkih mjesta; fizički poslovi; vozači, vozila i drugo neophodno.";
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
 
         XWPFParagraph paragraph = document.createParagraph();
