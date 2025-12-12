@@ -539,7 +539,6 @@ public class CollaboratorsXlsxService {
         else
             description = "Naručilac posla se obavezuje da će ugovoreni iznos uplatiti na tekući račun Izvršioca posla  na koji mu se isplaćuju redovna mjesečna primanja, kao zaposleniku Gradske uprave Banja Luka, tereteći potrošačku jedinicu 2002111 – GIK Banja Luka, stavku 412900 (0160) – tehnička priprema i provođenje izbora.";
         addLawArticleDescription(document, arialFont, scriptEnum, description);
-        addSmallEmptyRow(document);
 
         addLawArticleTitle(document, arialFont, scriptEnum, "Član 5.");
         addSmallEmptyRow(document);
