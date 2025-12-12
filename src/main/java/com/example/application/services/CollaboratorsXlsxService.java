@@ -494,8 +494,6 @@ public class CollaboratorsXlsxService {
                 .setTextAlignment(TextAlignment.LEFT);
         document.add(thirdSentence);
 
-        addSmallEmptyRow(document);
-
         String firstMainSentencePlain = "Naručilac posla i Izvršilac posla sporazumijeli su se o sljedećem:";
         Paragraph firstMainSentence = new Paragraph(writeWithAppropriateScript(firstMainSentencePlain, scriptEnum))
                 .setFont(arialFont)
