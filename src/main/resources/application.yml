@@ -10,7 +10,7 @@ spring:
   mustache:
     check-template-location: false
   datasource:
-    url: jdbc:mysql://localhost:3306/voting_system
+    url: jdbc:mysql://localhost:3306/voting_system_2026
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver

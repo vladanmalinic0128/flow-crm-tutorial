@@ -4,31 +4,33 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class BankAccountValidator {
+    private static final int SHORT_FORMAT_MIN_LENGTH = 7;
+    private static final int SHORT_FORMAT_MAX_LENGTH = 11;
+    private static final int FULL_FORMAT_LENGTH = 16;
+    private static final int FULL_FORMAT_BASE_LENGTH = 14;
+    private static final int MOD_97 = 97;
+    private static final int MOD_97_TARGET = 98;
+
     public boolean isValidAccountNumber(String accountNumber) {
-        if(accountNumber == null)
-            return false;
-        if (accountNumber.length() > 11 && accountNumber.length() != 16) {
+        if (accountNumber == null || !accountNumber.matches("\\d+")) {
             return false;
         }
-        else if(accountNumber.length() < 7)
-            return false;
-        else if(accountNumber.length() >= 7 && accountNumber.length() <= 11)
+
+        int length = accountNumber.length();
+        if (length >= SHORT_FORMAT_MIN_LENGTH && length <= SHORT_FORMAT_MAX_LENGTH) {
             return true;
-
-        String baseAccountNumber = accountNumber.substring(0, 14);
-        String controlDigits = accountNumber.substring(14);
-
-        if (!baseAccountNumber.matches("\\d+")) {
-            return false;
         }
 
-        String numberToValidate = baseAccountNumber + "00";
+        return length == FULL_FORMAT_LENGTH && hasValidMod97Checksum(accountNumber);
+    }
 
-        long number = Long.parseLong(numberToValidate);
+    private boolean hasValidMod97Checksum(String accountNumber) {
+        String baseAccountNumber = accountNumber.substring(0, FULL_FORMAT_BASE_LENGTH);
+        String controlDigits = accountNumber.substring(FULL_FORMAT_BASE_LENGTH);
+
+        long remainder = Long.parseLong(baseAccountNumber + "00") % MOD_97;
         long controlNumber = Long.parseLong(controlDigits);
 
-        long remainder = number % 97;
-
-        return remainder + controlNumber == 98;
+        return remainder + controlNumber == MOD_97_TARGET;
     }
 }

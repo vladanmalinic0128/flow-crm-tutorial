@@ -13,16 +13,20 @@ import org.springframework.stereotype.Component;
 public class PoliticalOrganizationInitializer /*implements ApplicationRunner*/ {
     private final PoliticalOrganizationRepository politicalOrganizationRepository;
 
-    //@Override
+//    @Override
     public void run(ApplicationArguments args) throws Exception {
         String[][] organizations = {
+                {"00000", "GRADSKA IZBORNA KOMISIJA"},
+                {"00004", "SBIH - STRANKA ZA BOSNU I HERCEGOVINU"},
                 {"00008", "SDP - SOCIJALDEMOKRATSKA PARTIJA BOSNE I HERCEGOVINE"},
-                {"00440", "PDP - PARTIJA DEMOKRATSKOG PROGRESA"},
+                {"00018", "SRPSKA DEMOKRATSKA STRANKA"},
                 {"00027", "HDZ BIH-HRVATSKA DEMOKRATSKA ZAJEDNICA BOSNE I HERCEGOVINE"},
                 {"00036", "MIRNES AJANOVIĆ - BOSS - BOSANSKA STRANKA"},
                 {"00074", "SOCIJALISTIČKA PARTIJA"},
                 {"00090", "SDA - STRANKA DEMOKRATSKE AKCIJE"},
+                {"00440", "PDP - PARTIJA DEMOKRATSKOG PROGRESA"},
                 {"00515", "SAVEZ NEZAVISNIH SOCIJALDEMOKRATA - SNSD - MILORAD DODIK"},
+                {"00877", "NAŠA STRANKA"},
                 {"01290", "HRVATSKA SELJAČKA STRANKA – HSS"},
                 {"01702", "ZA PRAVDU I RED - LISTA NEBOJŠE VUKANOVIĆA"},
                 {"01706", "SAVEZ ZA NOVU POLITIKU - SNP"},
@@ -36,7 +40,9 @@ public class PoliticalOrganizationInitializer /*implements ApplicationRunner*/ {
                 {"02460", "NARODNI POKRET BANJALUKA ZOVE 18"},
                 {"02734", "SRPSKA DEMOKRATSKA STRANKA - VOLJA NARODA"},
                 {"03035", "NARODNA PARTIJA SRPSKE-DARKO BANJAC"},
+                {"03044", "BOSANSKOHERCEGOVAČKA INICIJATIVA - KASUMOVIĆ FUAD"},
                 {"03045", "STRANKA ŽIVOT"},
+                {"03068", "ŽELJKO KOMŠIĆ - ZA GRAĐANSKU DRŽAVU - DF/GS"},
                 {"03122", "NARODNI FRONT - JELENA TRIVIĆ"},
                 {"03187", "DAVOR DRAGIČEVIĆ - NEZAVISNI KANDIDAT"},
                 {"03191", "SNAGA NARODA"},
@@ -48,8 +54,16 @@ public class PoliticalOrganizationInitializer /*implements ApplicationRunner*/ {
                 {"03359", "IGOR JOVANOVIĆ - NEZAVISNI KANDIDAT"},
                 {"03368", "DRAGAN JOKIĆ - NEZAVISNI KANDIDAT"},
                 {"03493", "DNS - NENAD NEŠIĆ - PARTIJA UJEDINJENIH PENZIONERA (PUP)"},
-                {"00018", "SRPSKA DEMOKRATSKA STRANKA"},
-                {"00000", "GRADSKA IZBORNA KOMISIJA"}
+                {"03529", "DNS-NPS BANJAC-NEŠIĆ"},
+                {"03532", "NES BIH, PDA, NAPRIJED! - ZA EVROPSKU BIH ZAJEDNO"},
+                {"03534", "ZA PRAVDU I RED-LISTA NEBOЈŠE VUKANOVIĆA-PDP RS-IGOR CRNADAK"},
+                {"03535", "DRAŠKO STANIVUKOVIĆ - POKRET SIGURNA SRPSKA (PSS,PDP,NPSP..)"},
+                {"03542", "HDZ BIH, HSP BIH, HKDU, HSP AS, HDU, HSP HB, HRAST"},
+                {"03546", "SPS - GORAN SELAK - POKRET ЈEDINSTVENA SRPSKA"},
+                {"03548", "KOALICIJA ZA DRŽAVU"},
+                {"03552", "NAROD I PRAVDA, SDBIH"},
+                {"03553", "SOCIЈALISTIČKA PARTIЈA PETAR ĐOKIĆ - DEMOS - NDP"},
+                {"03555", "HRVATSKA PETORKA HDZ 1990, HRS, HNP, HDS I HSS"}
         };
 
         // Initialize and save PoliticalOrganizationEntities

@@ -1,9 +1,6 @@
 package com.example.application.services;
 
-import com.example.application.entities.ConstraintEntity;
-import com.example.application.entities.MemberEntity;
 import com.example.application.entities.ObserverEntity;
-import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.repositories.ObserverRepository;
 import com.itextpdf.kernel.colors.DeviceRgb;
@@ -15,11 +12,9 @@ import com.itextpdf.layout.Document;
 import com.itextpdf.layout.Style;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.GrooveBorder;
-import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
-import com.itextpdf.layout.properties.AreaBreakType;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
@@ -61,26 +56,7 @@ public class OverallObserversService {
         Table observersTable = new Table(UnitValue.createPercentArray(columnWidths));
         observersTable.setWidth(UnitValue.createPercentValue(100)); // Set table width
 
-        Collator collator = getCollatorForScript(scriptEnum);
-
-        List<ObserverEntity> translatedObservers  = observerRepository.findAll();
-        if(scriptEnum == ScriptEnum.CYRILLIC) {
-            translatedObservers.forEach(o -> {
-                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()));
-                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()));
-            });
-        } else {
-            translatedObservers.forEach(o -> {
-                o.setFirstname(cyrillicToLatinConverter.convert(o.getFirstname()));
-                o.setLastname(cyrillicToLatinConverter.convert(o.getLastname()));
-            });
-        }
-        List<ObserverEntity> filteredObservers = translatedObservers
-                .stream()
-                .filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
-                .sorted(Comparator.comparing(ObserverEntity::getLastname, collator).thenComparing(ObserverEntity::getFirstname, collator))
-                .collect(Collectors.toList());
-        for(ObserverEntity observer: filteredObservers) {
+        for (TranslatedObserver observer : getEligibleObserversSortedByName(scriptEnum)) {
             createObserverRowInTable(observer, observersTable, arialFont, scriptEnum);
         }
         document.add(observersTable);
@@ -100,7 +76,49 @@ public class OverallObserversService {
 
     }
 
-    private void createObserverRowInTable(ObserverEntity observer, Table table, PdfFont arialFont, ScriptEnum scriptEnum) {
+    /**
+     * Fetches all observers, keeps only the ones eligible for the report, and translates their
+     * name into the target script - without mutating the JPA-managed {@link ObserverEntity}
+     * instances returned by the repository (Spring Boot's default open-in-view behaviour keeps
+     * the persistence context open for the whole request, so writing translated names onto a
+     * managed entity risks Hibernate silently flushing them back to the database).
+     */
+    List<TranslatedObserver> getEligibleObserversSortedByName(ScriptEnum scriptEnum) {
+        Collator collator = getCollatorForScript(scriptEnum);
+
+        return observerRepository.findAll().stream()
+                .filter(OverallObserversService::isEligibleForReport)
+                .map(observer -> translateObserverName(observer, scriptEnum))
+                .sorted(Comparator.comparing(TranslatedObserver::lastname, collator)
+                        .thenComparing(TranslatedObserver::firstname, collator))
+                .collect(Collectors.toList());
+    }
+
+    static boolean isEligibleForReport(ObserverEntity observer) {
+        return Boolean.TRUE.equals(observer.getStatus().getSuccess()) || Boolean.TRUE.equals(observer.getForce());
+    }
+
+    private TranslatedObserver translateObserverName(ObserverEntity observer, ScriptEnum scriptEnum) {
+        return new TranslatedObserver(
+                observer,
+                translateName(observer.getFirstname(), scriptEnum),
+                translateName(observer.getLastname(), scriptEnum));
+    }
+
+    private String translateName(String name, ScriptEnum scriptEnum) {
+        if (name == null) {
+            return null;
+        }
+        return scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(name) : cyrillicToLatinConverter.convert(name);
+    }
+
+    /**
+     * An observer paired with its name already translated into the report's target script.
+     * {@code source} stays around only so the row renderer can still reach stack/status data.
+     */
+    record TranslatedObserver(ObserverEntity source, String firstname, String lastname) {}
+
+    private void createObserverRowInTable(TranslatedObserver observer, Table table, PdfFont arialFont, ScriptEnum scriptEnum) {
         Border border = new GrooveBorder(new DeviceRgb(0,0,0), 1);
         Cell cell = new Cell();
         cell.setBorder(border);
@@ -126,19 +144,16 @@ public class OverallObserversService {
             return;
         }
 
-        String label = observer.getStack().getPoliticalOrganization().getCode();
-        String text = label;
+        ObserverEntity source = observer.source();
+
+        String text = source.getStack().getPoliticalOrganization().getCode();
         Paragraph paragraph = new Paragraph(text);
         paragraph.addStyle(style).setFixedLeading(12);
 
         cell.add(paragraph);
         table.addCell(cell);
 
-        if(observer.getLastname() != null)
-            label = observer.getLastname().toUpperCase();
-        else
-            label = null;
-        text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
+        text = observer.lastname() == null ? null : observer.lastname().toUpperCase(Locale.ROOT);
         paragraph = new Paragraph(text);
         paragraph.addStyle(style).setFixedLeading(12);
 
@@ -149,11 +164,7 @@ public class OverallObserversService {
         lastnameCell.add(paragraph);
         table.addCell(lastnameCell);
 
-        if(observer.getFirstname() != null)
-            label = observer.getFirstname().toUpperCase();
-        else
-            label = null;
-        text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
+        text = observer.firstname() == null ? null : observer.firstname().toUpperCase(Locale.ROOT);
         paragraph = new Paragraph(text);
         paragraph.addStyle(style).setFixedLeading(12);
 
@@ -164,11 +175,7 @@ public class OverallObserversService {
         firstnameCell.add(paragraph);
         table.addCell(firstnameCell);
 
-
-        if(observer.getLastname() != null)
-            label = observer.getStack().getDecisionNumber() + "-1";
-        else
-            label = null;
+        String label = observer.lastname() == null ? null : source.getStack().getDecisionNumber() + "-1";
         text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
         paragraph = new Paragraph(text);
         paragraph.addStyle(style).setFixedLeading(12);

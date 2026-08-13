@@ -148,7 +148,7 @@ public class ReportsPdfService {
                 .setMargin(0)
                 .setPadding(0)
                 .setCharacterSpacing(0.25f)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
         String entityLabel = "Р Е П У Б Л И К А   С Р П С К А";
@@ -218,7 +218,7 @@ public class ReportsPdfService {
                 .setMarginRight(30)
                 .setCharacterSpacing(0.25f)
                 .setPadding(0)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.CENTER);
 
         String solutionTitleLabel = "Р Ј Е Ш Е Њ Е";
@@ -245,7 +245,7 @@ public class ReportsPdfService {
                 .setFontSize(10)
                 .setMargin(0)
                 .setPadding(0)
-                .setBold()
+                .simulateBold()
                 .setCharacterSpacing(0.25f)
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
@@ -272,7 +272,7 @@ public class ReportsPdfService {
                 .setMargin(0)
                 .setMarginLeft(30)
                 .setPadding(0)
-                .setBold()
+                .simulateBold()
                 .setCharacterSpacing(0.25f)
                 .setTextAlignment(TextAlignment.JUSTIFIED);
 
@@ -365,7 +365,7 @@ public class ReportsPdfService {
                 .setMargin(0)
                 .setPadding(0)
                 .setCharacterSpacing(0.25f)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.RIGHT);
 
         String footerTitleLabel = "ПРЕДСЈЕДНИК";
@@ -476,12 +476,12 @@ public class ReportsPdfService {
     }
 
     private String createCouncelDetailsSecondPartForSolutionReport(VotingCouncelEntity entity) {
-        return entity.getName() +
+        return entity.getDisplayName() +
                 ", " +
                 (entity.getLocation() != null ? entity.getLocation() + ", " : "") +
                 (!entity.getCode().contains("МТ")?
                 "број бирача " +
-                entity.getNumberOfVoters() + ",": "") +
+                entity.getTotalNumberOfVoters() + ",": "") +
                 " именује се бирачки одбор у саставу:";
     }
 
@@ -565,7 +565,7 @@ public class ReportsPdfService {
                 .setMargin(0)
                 .setPadding(0)
                 .setCharacterSpacing(0.25f)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.CENTER);
 
         String titleLabel = "Списак чланова бирачког одбора";
@@ -582,7 +582,7 @@ public class ReportsPdfService {
                 .setPadding(0)
                 .setCharacterSpacing(0.25f)
                 .setUnderline()
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.CENTER);
 
         String votingCouncelCodeLabel = entity.getCode();
@@ -607,7 +607,7 @@ public class ReportsPdfService {
                 .setFontSize(11)
                 .setMargin(0)
                 .setPadding(0)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.CENTER);
 
         Style descriptionStyle = new Style();
@@ -738,7 +738,7 @@ public class ReportsPdfService {
         String presidentSignatureLabel = "Предсједник ГИК";
         String presidentSignatureText = scriptEnum == ScriptEnum.CYRILLIC ? presidentSignatureLabel : cyrillicToLatinConverter.convert(presidentSignatureLabel);
         Paragraph presidentSignatureParagraph = new Paragraph(presidentSignatureText)
-                .addStyle(descriptionStyle).setFixedLeading(12).setMarginRight(44).setBold();
+                .addStyle(descriptionStyle).setFixedLeading(12).setMarginRight(44).simulateBold();
 
         document.add(new Paragraph("\n").addStyle(emptyRowStyle).setFixedLeading(10));
         document.add(new Paragraph("\n").addStyle(emptyRowStyle).setFixedLeading(10));
@@ -810,7 +810,7 @@ public class ReportsPdfService {
                 .setFontSize(11)
                 .setMargin(0)
                 .setPadding(0)
-                .setBold()
+                .simulateBold()
                 .setTextAlignment(TextAlignment.CENTER);
 
         String label = "Р.Б.";
@@ -845,7 +845,7 @@ public class ReportsPdfService {
                 .setFontSize(11)
                 .setMargin(0)
                 .setPadding(0)
-                .setBold();
+                .simulateBold();
 
         String label = "Р.Б.";
         String text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);

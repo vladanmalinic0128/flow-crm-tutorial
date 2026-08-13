@@ -40,13 +40,72 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 
 @Service
 public class ObserverPdfService {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
+
+    // ---- Fonts ----
+    private static final String ARIAL_FONT_PATH = "src/main/resources/font/arial.ttf";
+    private static final String CYRILLIC_FONT_PATH = "src/main/resources/font/cyrillic-font.ttf";
+
+    // ---- Logos ----
+    private static final String ELECTION_LOGO_PATH = "src/main/resources/logo/election-24-rotated.png";
+    private static final String COUNTRY_LOGO_PATH = "src/main/resources/logo/logo_bih.png";
+    private static final String GIK_LOGO_PATH = "src/main/resources/logo/logo-bl-without-signature.png";
+
+    // ---- Accreditation card layout ----
+    private static final float ACCREDITATION_PDF_TOP_MARGIN = 25f;
+    private static final float ACCREDITATION_PDF_LEFT_MARGIN = 42f;
+    private static final float ACCREDITATION_PDF_RIGHT_MARGIN = 42f;
+    private static final float ACCREDITATION_CARD_HEIGHT = 150f;
+    private static final int ACCREDITATION_CARDS_PER_PAGE = 10; // two-sided layout: cards per page, front and back
+    private static final float ELECTION_LOGO_SIZE = 50f;
+    private static final float COUNTRY_LOGO_WIDTH = 20f;
+    private static final float COUNTRY_LOGO_HEIGHT = 23f;
+
+    // ---- XLSX accepted/rejected sheet colors ----
+    private static final String GREEN_HEADER = "#006a4e";
+    private static final String GREEN_DATA = "#8abaae";
+    private static final String RED_HEADER = "#a00b24";
+    private static final String RED_DATA = "#f9a4b3";
+
+    // ---- Institution header (Grad Banja Luka / GIK), used on decision documents ----
+    private static final String ENTITY_NAME = "Република Српска";
+    private static final String CITY_NAME = "Град Бања Лука";
+    private static final String GIK_NAME = "Градска изборна комисија";
+    private static final String GIK_ADDRESS = "Трг српских владара 1, Бања Лука";
+
+    // ---- Footer contact info, used on decision documents ----
+    private static final String CONTACT_PHONE_AND_FAX = "тел: +387 51 244 532, факс: +387 51 244 532";
+    private static final String WEBSITE = "www.banjaluka.rs.ba";
+    private static final String EMAIL = "gikbl034@banjaluka.rs.ba";
+
+    // ---- Signatory ----
+    private static final String PRESIDENT_TITLE = "ПРЕДСЈЕДНИК";
+    private static final String PRESIDENT_FULL_NAME = "Дубравко Малинић";
+    private static final String PRESIDENT_SHORT_NAME = "D. Malinić";
+
+    // ---- Blank observers template ("Preuzmi prazne izvještaje") ----
+    // Same file used as the upload template in AddingObserversForm - keep
+    // TEMPLATE_FIRST_DATA_ROW in sync with AddingObserversForm.OBSERVERS_XLSX_FIRST_DATA_ROW.
+    private static final String OBSERVERS_TEMPLATE_PATH = "src/main/resources/documents/2026/Primjer posmatraca.xlsx";
+    private static final int TEMPLATE_ORGANIZATION_ROW = 9; // row 10 in Excel
+    private static final int TEMPLATE_ORGANIZATION_COLUMN = 3; // column D
+    private static final int TEMPLATE_FIRST_DATA_ROW = 20; // row 21 in Excel
+    private static final int TEMPLATE_FIRST_DATA_COLUMN = 1; // column B (JMBG) - column A (row number) is left as-is
+    private static final int TEMPLATE_LAST_DATA_COLUMN = 4; // column E (Ime)
+    private static final int TEMPLATE_HEADER_ROW = 18; // row 19 in Excel (Р/Б, ЈМБГ, ..., Име)
+    // "Table1" in the template (rows 20-1220) has no explicit style name, so Excel renders it with
+    // the workbook's own theme accent1 color (xl/theme/theme1.xml) - not a color we picked ourselves.
+    private static final String TEMPLATE_ACCENT_COLOR = "#156082";
+
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final ObserverRepository observerRepository;
@@ -88,10 +147,105 @@ public class ObserverPdfService {
         return null;
     }
 
-    private static final String GREEN_HEADER = "#006a4e";
-    private static final String GREEN_DATA = "#8abaae";
-    private static final String RED_HEADER = "#a00b24";
-    private static final String RED_DATA = "#f9a4b3";
+    /**
+     * Generates a blank observers upload template for the given political organization: the same
+     * form used by {@code AddingObserversForm}'s upload feature, with the organization's name
+     * filled in and every example/leftover observer row cleared, ready to be filled in and
+     * re-uploaded later.
+     */
+    public String downloadBlankObserversTemplate(PoliticalOrganizationEntity entity, String fileTitle) {
+        String filePath = ROOT_PATH + File.separator + fileTitle;
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            fos.write(buildBlankObserversTemplate(entity));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return filePath;
+    }
+
+    /**
+     * Same as {@link #downloadBlankObserversTemplate}, but bundles one blank template per
+     * organization (named after its code and name) into a single ZIP file.
+     */
+    public String downloadBlankObserversTemplatesForAllOrganizations(List<PoliticalOrganizationEntity> organizations, String zipFileTitle) {
+        String filePath = ROOT_PATH + File.separator + zipFileTitle;
+        try (FileOutputStream fos = new FileOutputStream(filePath);
+             ZipOutputStream zip = new ZipOutputStream(fos)) {
+            for (PoliticalOrganizationEntity entity : organizations) {
+                zip.putNextEntry(new ZipEntry(sanitizeForFileName(entity.getCode() + "_" + entity.getName()) + ".xlsx"));
+                zip.write(buildBlankObserversTemplate(entity));
+                zip.closeEntry();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return filePath;
+    }
+
+    private byte[] buildBlankObserversTemplate(PoliticalOrganizationEntity entity) {
+        try (InputStream templateStream = new FileInputStream(OBSERVERS_TEMPLATE_PATH);
+             XSSFWorkbook workbook = new XSSFWorkbook(templateStream)) {
+            XSSFSheet sheet = workbook.getSheetAt(0);
+
+            XSSFCell organizationCell = sheet.getRow(TEMPLATE_ORGANIZATION_ROW).getCell(TEMPLATE_ORGANIZATION_COLUMN);
+            organizationCell.setCellValue(entity.getCode() + " - " + latinToCyrillicConverter.convert(entity.getName()));
+            // Lighter tint of the same theme color, so the auto-filled cell stands out without
+            // competing with the header.
+            organizationCell.setCellStyle(withFill(workbook, organizationCell.getCellStyle(), TEMPLATE_ACCENT_COLOR, 0.6, false));
+
+            XSSFRow headerRow = sheet.getRow(TEMPLATE_HEADER_ROW);
+            for (int c = 0; c <= TEMPLATE_LAST_DATA_COLUMN; c++) {
+                XSSFCell headerCell = headerRow.getCell(c);
+                if (headerCell != null)
+                    headerCell.setCellStyle(withFill(workbook, headerCell.getCellStyle(), TEMPLATE_ACCENT_COLOR, 0, true));
+            }
+
+            for (int r = TEMPLATE_FIRST_DATA_ROW; r <= sheet.getLastRowNum(); r++) {
+                XSSFRow row = sheet.getRow(r);
+                if (row == null)
+                    continue;
+                for (int c = TEMPLATE_FIRST_DATA_COLUMN; c <= TEMPLATE_LAST_DATA_COLUMN; c++) {
+                    XSSFCell cell = row.getCell(c);
+                    if (cell != null)
+                        cell.setBlank();
+                }
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Clones an existing cell style (preserving alignment/wrap/borders already set on the
+     * template) and overlays a fill using the template's own theme color, optionally lightened via
+     * {@code tint} (0 = full color, closer to 1 = lighter - the same mechanism Excel itself uses to
+     * derive banded-row shades from a theme color), and optionally switching to bold white text.
+     */
+    private XSSFCellStyle withFill(XSSFWorkbook workbook, CellStyle baseStyle, String hexColor, double tint, boolean whiteBoldText) {
+        XSSFCellStyle style = workbook.createCellStyle();
+        style.cloneStyleFrom(baseStyle);
+        XSSFColor color = new XSSFColor(java.awt.Color.decode(hexColor), null);
+        if (tint != 0) {
+            color.setTint(tint);
+        }
+        style.setFillForegroundColor(color);
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        if (whiteBoldText) {
+            Font font = workbook.createFont();
+            font.setBold(true);
+            font.setColor(IndexedColors.WHITE.getIndex());
+            style.setFont(font);
+        }
+        return style;
+    }
+
+    private static String sanitizeForFileName(String value) {
+        return value.replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
 
     public String downloadAccreditatationsPdf(StackEntity entity, LocalDate datePicker, ScriptEnum script, SideEnum sideNumber, String fileTitle) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -103,32 +257,12 @@ public class ObserverPdfService {
         //pdfDoc.addNewPage();
 
         //set margins
-        float topMargin = 25f;
-        float leftMargin=42f;
-        float rightMargin=42f;
-        document.setTopMargin(topMargin);
-        document.setLeftMargin(leftMargin);
-        document.setRightMargin(rightMargin);
+        document.setTopMargin(ACCREDITATION_PDF_TOP_MARGIN);
+        document.setLeftMargin(ACCREDITATION_PDF_LEFT_MARGIN);
+        document.setRightMargin(ACCREDITATION_PDF_RIGHT_MARGIN);
         document.setHorizontalAlignment(HorizontalAlignment.CENTER);
 
-        String electionLogoPath = "src/main/resources/logo/election-24-rotated.png";
-        String countryLogoPath = "src/main/resources/logo/logo_bih.png";
-        try {
-            ImageData election24rotatedImageData = ImageDataFactory.create(electionLogoPath);
-            electionLogo = new Image(election24rotatedImageData);
-            electionLogo.setHeight(50f);
-            electionLogo.setWidth(50f);
-            electionLogo.setTextAlignment(TextAlignment.CENTER);
-            electionLogo.setHorizontalAlignment(HorizontalAlignment.CENTER);
-
-            ImageData countryLogoImageData = ImageDataFactory.create(countryLogoPath);
-            countryLogo = new Image(countryLogoImageData);
-            countryLogo.setHeight(23f);
-            countryLogo.setWidth(20f);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-
+        loadAccreditationLogos();
 
         // Create a 2x5 table
         float[] columnWidths = {340f, 340f}; // Custom column widths
@@ -138,7 +272,7 @@ public class ObserverPdfService {
         Collator collator = getCollatorForScript(script);
 
         if(sideNumber == SideEnum.ONE_SIDED) {
-            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
+            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(ObserverPdfService::isAcceptedForOperationalDocuments)
                     //.sorted(Comparator.comparing(ObserverEntity::getLastname, collator).thenComparing(ObserverEntity::getFirstname, collator))
                     .sorted(Comparator.comparingInt(ObserverEntity::getDocumentNumber))
                     .collect(Collectors.toList());
@@ -152,18 +286,18 @@ public class ObserverPdfService {
                 back.setHorizontalAlignment(HorizontalAlignment.CENTER);
                 back.add(generateBackPageForAccreditation(script));
 
-                front.setHeight(150f);
+                front.setHeight(ACCREDITATION_CARD_HEIGHT);
                 table.addCell(front);
-                back.setHeight(150f);
+                back.setHeight(ACCREDITATION_CARD_HEIGHT);
                 table.addCell(back);
             }
         }
         else if(sideNumber == SideEnum.TWO_SIDED) {
-            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true)
+            List<ObserverEntity> filteredObservers = entity.getObservers().stream().filter(ObserverPdfService::isAcceptedForOperationalDocuments)
                     .sorted(Comparator.comparing(ObserverEntity::getLastname, collator)
                             .thenComparing(ObserverEntity::getFirstname, collator))
                     .collect(Collectors.toList());
-            int chunkSize = 10;
+            int chunkSize = ACCREDITATION_CARDS_PER_PAGE;
             int numberOfChunks = (filteredObservers.size() + chunkSize - 1) / chunkSize;
 
             IntStream.range(0, numberOfChunks)
@@ -172,23 +306,23 @@ public class ObserverPdfService {
                         for(ObserverEntity observer: chunk) {
                             Cell front = new Cell();
                             front.add(generateFrontPageForAccreditation(observer, datePicker, script));
-                            front.setHeight(150f);
+                            front.setHeight(ACCREDITATION_CARD_HEIGHT);
                             table.addCell(front);
                         }
-                        if(chunk.size() < 10) {
-                            for(int i = chunk.size(); i < 10; i++) {
+                        if(chunk.size() < chunkSize) {
+                            for(int i = chunk.size(); i < chunkSize; i++) {
                                 Cell front = new Cell();
-                                front.setHeight(150f);
+                                front.setHeight(ACCREDITATION_CARD_HEIGHT);
                                 table.addCell(front);
                             }
                         }
-                        for(int i = 0; i < 10; i++) {
+                        for(int i = 0; i < chunkSize; i++) {
                             Cell back = new Cell();
                             back.setVerticalAlignment(VerticalAlignment.MIDDLE);
                             back.setTextAlignment(TextAlignment.CENTER);
                             back.setHorizontalAlignment(HorizontalAlignment.CENTER);
                             back.add(generateBackPageForAccreditation(script));
-                            back.setHeight(150f);
+                            back.setHeight(ACCREDITATION_CARD_HEIGHT);
                             table.addCell(back);
                         }
                     });
@@ -212,10 +346,72 @@ public class ObserverPdfService {
         return filePath;
     }
 
+    /** Generates a single front/back accreditation card for one observer, regardless of status. */
+    public String downloadSingleAccreditationPdf(ObserverEntity observer, LocalDate localDate, ScriptEnum script, String fileTitle) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfWriter writer = new PdfWriter(out);
+        PdfDocument pdfDoc = new PdfDocument(writer);
+        Document document = new Document(pdfDoc);
+
+        document.setTopMargin(ACCREDITATION_PDF_TOP_MARGIN);
+        document.setLeftMargin(ACCREDITATION_PDF_LEFT_MARGIN);
+        document.setRightMargin(ACCREDITATION_PDF_RIGHT_MARGIN);
+        document.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+        loadAccreditationLogos();
+
+        float[] columnWidths = {340f, 340f};
+        Table table = new Table(UnitValue.createPercentArray(columnWidths));
+        table.setWidth(UnitValue.createPercentValue(100));
+
+        Cell front = new Cell();
+        front.add(generateFrontPageForAccreditation(observer, localDate, script));
+        front.setHeight(ACCREDITATION_CARD_HEIGHT);
+        table.addCell(front);
+
+        Cell back = new Cell();
+        back.setVerticalAlignment(VerticalAlignment.MIDDLE);
+        back.setTextAlignment(TextAlignment.CENTER);
+        back.setHorizontalAlignment(HorizontalAlignment.CENTER);
+        back.add(generateBackPageForAccreditation(script));
+        back.setHeight(ACCREDITATION_CARD_HEIGHT);
+        table.addCell(back);
+
+        document.add(table);
+        document.close();
+
+        String filePath = ROOT_PATH + File.separator + fileTitle;
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            out.writeTo(fos);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        return filePath;
+    }
+
+    private void loadAccreditationLogos() {
+        try {
+            ImageData election24rotatedImageData = ImageDataFactory.create(ELECTION_LOGO_PATH);
+            electionLogo = new Image(election24rotatedImageData);
+            electionLogo.setHeight(ELECTION_LOGO_SIZE);
+            electionLogo.setWidth(ELECTION_LOGO_SIZE);
+            electionLogo.setTextAlignment(TextAlignment.CENTER);
+            electionLogo.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+            ImageData countryLogoImageData = ImageDataFactory.create(COUNTRY_LOGO_PATH);
+            countryLogo = new Image(countryLogoImageData);
+            countryLogo.setHeight(COUNTRY_LOGO_HEIGHT);
+            countryLogo.setWidth(COUNTRY_LOGO_WIDTH);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private Paragraph generateBackPageForAccreditation(ScriptEnum script) {
         PdfFont arialFont = null;
         try {
-            arialFont = PdfFontFactory.createFont("src/main/resources/font/arial.ttf", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+            arialFont = PdfFontFactory.createFont(ARIAL_FONT_PATH, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -263,8 +459,7 @@ public class ObserverPdfService {
     }
 
     private Table generateAccreditationBody(ObserverEntity observer, LocalDate localDate, ScriptEnum scriptEnum) throws IOException {
-        PdfFont cyrillicFont = PdfFontFactory.createFont("src/main/resources/font/cyrillic-font.ttf", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
-        PdfFont arialFont = PdfFontFactory.createFont("src/main/resources/font/arial.ttf", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+        PdfFont arialFont = PdfFontFactory.createFont(ARIAL_FONT_PATH, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
 
 
         float[] columnWidths = {200f, 120f}; // Custom column widths
@@ -279,14 +474,14 @@ public class ObserverPdfService {
         Style valueStyle = new Style();
         valueStyle.setFontSize(11f)
                 .setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE)
-                .setBold()
+                .simulateBold()
                 .setFont(arialFont);
 
         Style signatureValueStyle = new Style();
         signatureValueStyle.setFontSize(11f)
                 .setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE)
-                .setBold()
-                .setItalic()
+                .simulateBold()
+                .simulateItalic()
                 .setFont(arialFont);
 
         Text firstnameKey = new Text(doConvert("Ime: ", scriptEnum)).addStyle(keyStyle);
@@ -298,7 +493,8 @@ public class ObserverPdfService {
         Paragraph lastname = new Paragraph().add(lastnameKey).add(lastnameValue);
 
         Text decisionNumberKey = new Text(doConvert("Pravo posmatranja prema odluci OIK/GIK br. ", scriptEnum) + "\n").addStyle(keyStyle);
-        Text decisionNumberValue = new Text(observer.getStack().getDecisionNumber()).addStyle(valueStyle);
+        String decisionNumberText = observer.getStack().getDecisionNumber() != null ? observer.getStack().getDecisionNumber() : "";
+        Text decisionNumberValue = new Text(decisionNumberText).addStyle(valueStyle);
         Paragraph decisionNumber = new Paragraph().add(decisionNumberKey).add(decisionNumberValue);
 
         DateTimeFormatter customFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy.");
@@ -308,13 +504,13 @@ public class ObserverPdfService {
         Text dateValue = new Text(formattedDate).addStyle(valueStyle);
         Paragraph date = new Paragraph().add(dateKey).add(dateValue);
 
-        Text politicalOrganizationKey = new Text(doConvert(" PS-", scriptEnum)).addStyle(keyStyle).setFontSize(14f).setBold();
+        Text politicalOrganizationKey = new Text(doConvert(" PS-", scriptEnum)).addStyle(keyStyle).setFontSize(14f).simulateBold();
         Text politicalOrganizationValue = new Text(observer.getStack().getPoliticalOrganization().getCode()).addStyle(valueStyle).setFontSize(14f);
         Paragraph politicalOrganization = new Paragraph().add(politicalOrganizationKey).add(politicalOrganizationValue);
         politicalOrganization.setTextAlignment(TextAlignment.CENTER);
 
         Text signatureKey = new Text(doConvert("Ovjerava: ", scriptEnum)).addStyle(keyStyle);
-        Text signatureValue = new Text(doConvert("D. Malinić", scriptEnum)).addStyle(signatureValueStyle);
+        Text signatureValue = new Text(doConvert(PRESIDENT_SHORT_NAME, scriptEnum)).addStyle(signatureValueStyle);
         Paragraph signature = new Paragraph().add(signatureKey).add(signatureValue);
 
         Paragraph sealPlace = new Paragraph("_______________").addStyle(keyStyle);
@@ -396,7 +592,7 @@ public class ObserverPdfService {
         companyNameStyle.setFontSize(5.5f)
                 .setTextAlignment(TextAlignment.CENTER).setVerticalAlignment(VerticalAlignment.MIDDLE);
 
-        PdfFont cyrillicFont = PdfFontFactory.createFont("src/main/resources/font/cyrillic-font.ttf", PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+        PdfFont cyrillicFont = PdfFontFactory.createFont(CYRILLIC_FONT_PATH, PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
 
         Paragraph countryNameLatin = new Paragraph("Bosna i Hercegovina".toUpperCase());
         countryNameLatin.addStyle(countryNameStyle);
@@ -467,7 +663,7 @@ public class ObserverPdfService {
         XSSFCellStyle errorStyle = createCellStyleWithColor(acceptedObservers.getWorkbook(), RED_DATA, false, false);
         XSSFCellStyle npcStyle = createCellStyleWithColor(acceptedObservers.getWorkbook(), "#ffffff", false, false);
 
-        for(ObserverEntity observer: entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == true || o.getForce() == true).sorted(Comparator.comparing(ObserverEntity::getDocumentNumber)).collect(Collectors.toList())) {
+        for(ObserverEntity observer: entity.getObservers().stream().filter(ObserverPdfService::isAcceptedForOperationalDocuments).sorted(Comparator.comparing(ObserverEntity::getDocumentNumber)).collect(Collectors.toList())) {
             writeObserver(acceptedObservers, observer, counter, counter % 2 != 0 ? npcStyle : successStyle, scriptEnum, false);
             counter++;
         }
@@ -476,7 +672,7 @@ public class ObserverPdfService {
         addHeaderForRejectedObservers(rejectedObservers, scriptEnum);
 
         counter = 1;
-        for(ObserverEntity observer: entity.getObservers().stream().filter(o -> o.getStatus().getSuccess() == false && o.getForce() == false).sorted(Comparator.comparing(ObserverEntity::getDocumentNumber)).collect(Collectors.toList())) {
+        for(ObserverEntity observer: entity.getObservers().stream().filter(ObserverPdfService::isRejectedForOperationalDocuments).sorted(Comparator.comparing(ObserverEntity::getDocumentNumber)).collect(Collectors.toList())) {
             writeObserver(rejectedObservers, observer, counter, counter % 2 != 0 ? npcStyle : errorStyle, scriptEnum, true);
             counter++;
         }
@@ -728,7 +924,7 @@ public class ObserverPdfService {
         XWPFParagraph pImage = cellImage.addParagraph();
         pImage.setAlignment(ParagraphAlignment.CENTER);
         XWPFRun runImage = pImage.createRun();
-        String imgFile = "src/main/resources/logo/logo-bl-without-signature.png";
+        String imgFile = GIK_LOGO_PATH;
         try (InputStream is = new FileInputStream(imgFile)) {
             runImage.addPicture(is, XWPFDocument.PICTURE_TYPE_PNG, imgFile, Units.toEMU(67), Units.toEMU(80));
         }
@@ -738,10 +934,10 @@ public class ObserverPdfService {
         removeBorder(cellText);
         cellText.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.TOP);
 
-        String entityLabel = "Република Српска";
-        String cityLabel = "Град Бања Лука";
-        String gikLabel = "Градска изборна комисија";
-        String streetLabel = "Трг српских владара 1, Бања Лука";
+        String entityLabel = ENTITY_NAME;
+        String cityLabel = CITY_NAME;
+        String gikLabel = GIK_NAME;
+        String streetLabel = GIK_ADDRESS;
 
         String entityText = scriptEnum == ScriptEnum.CYRILLIC ? entityLabel : cyrillicToLatinConverter.convert(entityLabel);
         String cityText = scriptEnum == ScriptEnum.CYRILLIC ? cityLabel : cyrillicToLatinConverter.convert(cityLabel);
@@ -804,7 +1000,7 @@ public class ObserverPdfService {
         removeBorder(footerRow.getCell(2));
 
         // First cell for "tel" and "faks"
-        String label = "тел: +387 51 244 532, факс: +387 51 244 532";
+        String label = CONTACT_PHONE_AND_FAX;
         String text = scriptEnum == ScriptEnum.CYRILLIC ? label : latinToCyrillicConverter.convert(label);
         XWPFTableCell cell1 = footerRow.getCell(0);
         XWPFParagraph p1 = cell1.addParagraph();
@@ -821,7 +1017,7 @@ public class ObserverPdfService {
         p2.setIndentationRight(150);
         XWPFRun run2 = p2.createRun();
         run2.setItalic(true);
-        run2.setText("www.banjaluka.rs.ba");
+        run2.setText(WEBSITE);
         run2.setFontSize(10);
 
         // Third cell for email
@@ -831,7 +1027,7 @@ public class ObserverPdfService {
         p3.setIndentationRight(300);
         XWPFRun run3 = p3.createRun();
         run3.setItalic(true);
-        run3.setText("gikbl034@banjaluka.rs.ba");
+        run3.setText(EMAIL);
         run3.setFontSize(10);
 
         // Adjust the column widths (optional, depending on your layout needs)
@@ -1008,7 +1204,7 @@ public class ObserverPdfService {
         addEmptyLine(document);
     }
     public void setSignature(XWPFDocument document, ScriptEnum scriptEnum) {
-        String label = "ПРЕДСЈЕДНИК";
+        String label = PRESIDENT_TITLE;
         String text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
         XWPFParagraph paragraph = document.createParagraph();
         paragraph.setAlignment(ParagraphAlignment.RIGHT);
@@ -1019,7 +1215,7 @@ public class ObserverPdfService {
         run.setBold(true);
 
 
-        label = "Дубравко Малинић";
+        label = PRESIDENT_FULL_NAME;
         text = scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
         paragraph = document.createParagraph();
         paragraph.setAlignment(ParagraphAlignment.RIGHT);
@@ -1056,26 +1252,16 @@ public class ObserverPdfService {
         row.addNewTableCell().setText(firstnameHeaderText);
         styleHeaderRow(table.getRow(0));
 
-        Collator collator = getCollatorForScript(scriptEnum);
-
-        if(scriptEnum == ScriptEnum.CYRILLIC)
-            observers.forEach(o -> {
-                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()).toUpperCase());
-                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()).toUpperCase());
-            });
-        List<ObserverEntity> sortedObservers = observers.stream()
-                .filter(o -> o.getStatus().getSuccess())
-                .sorted(Comparator.comparing(ObserverEntity::getLastname, collator)
-                        .thenComparing(ObserverEntity::getFirstname, collator))
-                .collect(Collectors.toList());
+        List<TranslatedObserverName> sortedObservers =
+                getSortedTranslatedObservers(observers, ObserverPdfService::isFormallyAccepted, scriptEnum);
 
         int i = 0;
-        for(ObserverEntity observer: sortedObservers) {
+        for(TranslatedObserverName observer: sortedObservers) {
             XWPFTableRow newRow = table.createRow();
 
             newRow.getCell(0).setText((i+1) + ".");
-            newRow.getCell(1).setText(observer.getLastname());
-            newRow.getCell(2).setText(observer.getFirstname());
+            newRow.getCell(1).setText(observer.lastname());
+            newRow.getCell(2).setText(observer.firstname());
             styleDataRow(newRow, i);
             i++;
         }
@@ -1092,6 +1278,63 @@ public class ObserverPdfService {
         Collator collator = Collator.getInstance(locale);
         return collator;
     }
+
+    /**
+     * "Accepted" for accreditation cards / the accepted-observers XLSX sheet: either a formal
+     * successful status, or a manual override ({@code force}). Kept separate from
+     * {@link #isFormallyAccepted}, which is stricter and used for the official decision document.
+     */
+    static boolean isAcceptedForOperationalDocuments(ObserverEntity observer) {
+        return Boolean.TRUE.equals(observer.getStatus().getSuccess()) || Boolean.TRUE.equals(observer.getForce());
+    }
+
+    static boolean isRejectedForOperationalDocuments(ObserverEntity observer) {
+        return !isAcceptedForOperationalDocuments(observer);
+    }
+
+    /** Stricter criterion for the official decision document: a formal successful status only. */
+    static boolean isFormallyAccepted(ObserverEntity observer) {
+        return Boolean.TRUE.equals(observer.getStatus().getSuccess());
+    }
+
+    static boolean isFormallyRejected(ObserverEntity observer) {
+        return Boolean.FALSE.equals(observer.getStatus().getSuccess());
+    }
+
+    /**
+     * Filters, sorts (by translated last/first name) and translates observer names into the
+     * report's target script - without mutating the JPA-managed {@link ObserverEntity} instances,
+     * which (unlike a fresh repository query) here come straight from a {@code StackEntity}'s
+     * managed {@code observers} collection.
+     */
+    List<TranslatedObserverName> getSortedTranslatedObservers(List<ObserverEntity> observers, Predicate<ObserverEntity> eligibilityFilter, ScriptEnum scriptEnum) {
+        Collator collator = getCollatorForScript(scriptEnum);
+
+        return observers.stream()
+                .filter(eligibilityFilter)
+                .map(observer -> translateAndUppercaseName(observer, scriptEnum))
+                .sorted(Comparator.comparing(TranslatedObserverName::lastname, collator)
+                        .thenComparing(TranslatedObserverName::firstname, collator))
+                .collect(Collectors.toList());
+    }
+
+    private TranslatedObserverName translateAndUppercaseName(ObserverEntity observer, ScriptEnum scriptEnum) {
+        return new TranslatedObserverName(
+                observer,
+                translateName(observer.getFirstname(), scriptEnum).toUpperCase(Locale.ROOT),
+                translateName(observer.getLastname(), scriptEnum).toUpperCase(Locale.ROOT));
+    }
+
+    private String translateName(String name, ScriptEnum scriptEnum) {
+        // Names are stored in Latin script, so only the Cyrillic target needs an actual conversion.
+        return scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(name) : name;
+    }
+
+    /**
+     * An observer paired with its name already translated (and uppercased) for the report.
+     * {@code source} stays around only so callers can still reach stack/status data.
+     */
+    record TranslatedObserverName(ObserverEntity source, String firstname, String lastname) {}
 
     private static void styleHeaderRow(XWPFTableRow row) {
         row.setHeight(100);
@@ -1249,29 +1492,21 @@ public class ObserverPdfService {
         String reasonHeaderText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonHeaderLabel) : reasonHeaderLabel;
         row.addNewTableCell().setText(reasonHeaderText);
         styleHeaderRow(table.getRow(0));
-        Collator collator = getCollatorForScript(scriptEnum);
 
-        if(scriptEnum == ScriptEnum.CYRILLIC)
-            observers.forEach(o -> {
-                o.setLastname(latinToCyrillicConverter.convert(o.getLastname()).toUpperCase());
-                o.setFirstname(latinToCyrillicConverter.convert(o.getFirstname()).toUpperCase());
-            });
-        List<ObserverEntity> sortedObservers = observers.stream()
-                .filter(o -> o.getStatus().getSuccess() == false)
-                .sorted(Comparator.comparing(ObserverEntity::getLastname, collator)
-                        .thenComparing(ObserverEntity::getFirstname, collator))
-                .collect(Collectors.toList());
+        List<TranslatedObserverName> sortedObservers =
+                getSortedTranslatedObservers(observers, ObserverPdfService::isFormallyRejected, scriptEnum);
 
         int i = 0;
-        for(ObserverEntity observer: sortedObservers) {
+        for(TranslatedObserverName observer: sortedObservers) {
             XWPFTableRow newRow = table.createRow();
+            ObserverEntity source = observer.source();
 
             newRow.getCell(0).setText((i+1) + ".");
-            newRow.getCell(1).setText(observer.getLastname());
-            newRow.getCell(2).setText(observer.getFirstname());
-            String reasonLabel = observer.getStatus().getName();
-            if(observer.getStatus().getId() == 3)
-                reasonLabel += addAdditionalInfo(observer);
+            newRow.getCell(1).setText(observer.lastname());
+            newRow.getCell(2).setText(observer.firstname());
+            String reasonLabel = source.getStatus().getName();
+            if(source.getStatus().getId() == 3)
+                reasonLabel += addAdditionalInfo(source);
             String reasonText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(reasonLabel) : cyrillicToLatinConverter.convert(reasonLabel);
             newRow.getCell(3).setText(reasonText);
             styleDataRow(newRow, i);

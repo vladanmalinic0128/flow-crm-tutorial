@@ -90,11 +90,17 @@ public class PresidentInitializer /*implements ApplicationRunner*/ {
                 entity.setVotingCouncel(null);
             else {
                 VotingCouncelEntity votingCouncel = votingCouncelEntityOptional.get();
-                entity.setVotingCouncel(votingCouncel);
-                if(presidentRepository.existsByVotingCouncel_Code(votingCouncel.getCode()) == false)
-                    entity.setIsPresident(true);
-                else
-                    entity.setIsPresident(false);
+                // A council attached to another one (e.g. "LIČNO"/"ODSUSTVO") shares its primary
+                // council's election board - it doesn't get its own president/deputy.
+                if(votingCouncel.getPrimaryVotingCouncel() != null) {
+                    entity.setVotingCouncel(null);
+                } else {
+                    entity.setVotingCouncel(votingCouncel);
+                    if(presidentRepository.existsByVotingCouncel_Code(votingCouncel.getCode()) == false)
+                        entity.setIsPresident(true);
+                    else
+                        entity.setIsPresident(false);
+                }
             }
         }
         return entity;

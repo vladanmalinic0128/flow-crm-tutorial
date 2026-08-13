@@ -300,7 +300,7 @@ public class CouncelXlsxService {
 
         cell = row.createCell(3);
         cell.setCellStyle(this.councelStyles.get(HorizontalAlignment.LEFT));
-        String votingCouncelName = entity.getName() + (entity.getLocation() == null || entity.getLocation().length() < 1 ? "" : ", " + entity.getLocation());
+        String votingCouncelName = entity.getDisplayName() + (entity.getLocation() == null || entity.getLocation().length() < 1 ? "" : ", " + entity.getLocation());
         text = scriptEnum == ScriptEnum.CYRILLIC ? votingCouncelName : cyrillicToLatinConverter.convert(votingCouncelName);
         cell.setCellValue(text);
         cell = row.createCell(4);

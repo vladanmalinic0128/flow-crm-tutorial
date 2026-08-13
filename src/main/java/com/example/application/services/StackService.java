@@ -1,6 +1,5 @@
 package com.example.application.services;
 
-import com.example.application.entities.ObserverEntity;
 import com.example.application.entities.StackEntity;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.StackRepository;
@@ -16,10 +15,7 @@ public class StackService {
 
     @Transactional
     public void deleteStack(StackEntity entity) {
-        for(ObserverEntity observer: entity.getObservers()) {
-            System.out.println("Id: " + observer.getId());
-            observerRepository.delete(observer);
-        }
+        observerRepository.deleteByStack(entity);
         stackRepository.delete(entity);
     }
 }

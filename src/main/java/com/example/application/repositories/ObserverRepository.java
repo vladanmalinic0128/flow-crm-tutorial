@@ -1,6 +1,7 @@
 package com.example.application.repositories;
 
 import com.example.application.entities.ObserverEntity;
+import com.example.application.entities.StackEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,4 +14,5 @@ public interface ObserverRepository extends JpaRepository<ObserverEntity, Long> 
     Optional<ObserverEntity> findByJmbgAndStatus_Id(String jmbg, Integer id);
     Optional<ObserverEntity> findFirstByJmbgAndStatus_Id(String jmbg, Integer id);
     Optional<ObserverEntity> findFirstByJmbg(String jmbg);
+    void deleteByStack(StackEntity stack);
 }

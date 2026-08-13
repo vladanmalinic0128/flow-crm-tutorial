@@ -13,7 +13,8 @@ import java.util.stream.Collectors;
 
 @Data
 @Service
-public class PoliticalOrganizationService {
+public class
+PoliticalOrganizationService {
     private final PoliticalOrganizationRepository politicalOrganizationRepository;
 
     @Transactional

@@ -48,6 +48,10 @@ import java.util.stream.Collectors;
 @PermitAll
 @Route(value = "posmatraci/akredituj", layout = MainLayout.class)
 public class AddingObserversForm extends FormLayout {
+    // Data starts on row 21 of the current template ("Primjer posmatraca.xlsx"): rows 1-18
+    // are the org/activity preamble, and rows 19-20 are the column headers.
+    private static final int OBSERVERS_XLSX_FIRST_DATA_ROW = 20;
+
     private final StackService stackService;
     private final PoliticalOrganizationService politicalOrganizationService;
     private final MemberRepository memberRepository;
@@ -157,13 +161,9 @@ public class AddingObserversForm extends FormLayout {
 
             List<ObserverEntity> observers = new ArrayList<>();
 
-            for(int r=1; r<=rows; r++) {
+            for(int r=OBSERVERS_XLSX_FIRST_DATA_ROW; r<=rows; r++) {
                 XSSFRow row = sheet.getRow(r);
                 if(row == null)
-                    continue;
-                int cols = row.getLastCellNum();
-
-                if(row.getLastCellNum() < 5)
                     continue;
 
                 XSSFCell cell = row.getCell(0);
@@ -180,6 +180,14 @@ public class AddingObserversForm extends FormLayout {
 
                 cell = row.getCell(4);
                 String firstname =cell != null ? cell.getStringCellValue() : "";
+
+                // The upload template is an Excel Table spanning ~1200 rows, so every row in range
+                // has real (but often empty) cells in columns B-E - row.getLastCellNum() is always
+                // 5 regardless of whether the row was actually filled in. Column A (the row-number
+                // placeholder) doesn't count as "filled in" either, so a genuinely empty row must be
+                // detected by content, not by cell count.
+                if(jmbg.isBlank() && cardid.isBlank() && lastname.isBlank() && firstname.isBlank())
+                    continue;
 
                 ObserverEntity observer = new ObserverEntity();
                 observer.setJmbg(jmbg);

@@ -30,6 +30,8 @@ import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.RegionUtil;
+import org.apache.poi.ss.util.SheetUtil;
 import org.apache.poi.xssf.usermodel.*;
 
 import java.io.*;
@@ -40,6 +42,25 @@ import java.util.stream.Collectors;
 @Route(value = "bo/zrijebanje", layout = MainLayout.class)
 public class DrawingView extends VerticalLayout {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
+
+    // Column widths for the drawing ("žrijebanje") XLSX print layout, in Excel "characters" - used
+    // both to size the columns and to estimate how many lines wrapped text will need, so the row
+    // can be made tall enough that wrapped lines don't get clipped/overlapped when printed. This
+    // sizing is specific to this table only - other generated XLSX/PDF documents are unaffected.
+    // Matches the column widths (in characters) from the reference layout in
+    // resources/documents/2026/zapisnik.xlsx, except columns A/B/C: A was widened by 2 characters
+    // so codes like "034Б501/ННН" have comfortable room, C was doubled (narrow for its "Шифра
+    // политичког субјекта" content) and B was narrowed by the same amount C grew, so the table's
+    // total width otherwise matches the reference.
+    private static final double COLUMN_CHARS_0 = 15.0;
+    private static final double COLUMN_CHARS_1 = 34.14453125;
+    private static final double COLUMN_CHARS_2 = 8.28125;
+    private static final double COLUMN_CHARS_3 = 66.42578125;
+    private static final double COLUMN_CHARS_4 = 14.0;
+    private static final double COLUMN_CHARS_5 = 6.7109375;
+    // Comfortably taller than the 16pt font actually used in this sheet, so wrapped lines have
+    // enough room and don't overlap the row below when printed.
+    private static final float WRAPPED_LINE_HEIGHT_POINTS = 22f;
     private final PoliticalOrganizationService politicalOrganizationService;
     private final PoliticalOrganizationRepository politicalOrganizationRepository;
     private final VotingCouncelRepository votingCouncelRepository;
@@ -232,11 +253,13 @@ public class DrawingView extends VerticalLayout {
 
         PoliticalOrganizationEntity gikEntity = politicalOrganizationRepository.findByCode("00000");
 
+        // Voting councils attached to another one (e.g. "LIČNO"/"ODSUSTVO") share their primary
+        // council's election board - they don't get their own members/president/deputies.
         List<VotingCouncelEntity> votingCouncels = null;
         if(isMT == false)
-            votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ") == false).collect(Collectors.toList());
+            votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ") == false && vc.getPrimaryVotingCouncel() == null).collect(Collectors.toList());
         else
-            votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ")).collect(Collectors.toList());
+            votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ") && vc.getPrimaryVotingCouncel() == null).collect(Collectors.toList());
 
         if(isMT == false)
             i = 0; //Sluzi da vodi racuna o zrijebanju
@@ -250,13 +273,22 @@ public class DrawingView extends VerticalLayout {
         TitleEntity memberTitle = optionalMemberTitle.get();
         TitleEntity memberDeputyTitle = optionalMemberDeputyTitle.get();
 
+        // Rotating draw: each council's real-subject positions continue where the previous
+        // council's left off (mod participated), instead of every council restarting from
+        // subject #1 - otherwise subjects beyond position numberOfMembers (e.g. the 5th+ of 5)
+        // would never be assigned anywhere. Councils with fewer real subjects than positions
+        // still get the leftover positions filled with GIK, same as before.
+        int rotationOffset = 0;
         for(VotingCouncelEntity votingCouncel: votingCouncels) {
+            int realSlots = Math.min(votingCouncel.getNumberOfMembers(), participated);
             for(int j = 0; j < votingCouncel.getNumberOfMembers(); j++) {
+                PoliticalOrganizationEntity assignedOrganization = (j < realSlots)
+                        ? politicalOrganizationEntitiesList.get((rotationOffset + j) % participated)
+                        : gikEntity;
+
                 ConstraintEntity constraint = new ConstraintEntity();
                 constraint.setVotingCouncel(votingCouncel);
-                constraint.setPoliticalOrganization((j < politicalOrganizationEntitiesList.size())
-                        ? politicalOrganizationEntitiesList.get(j)
-                        : gikEntity);
+                constraint.setPoliticalOrganization(assignedOrganization);
                 constraint.setTitle(new TitleEntity());
                 constraint.setPosition(j + 1);
                 constraint.setTitle(memberTitle);
@@ -264,9 +296,7 @@ public class DrawingView extends VerticalLayout {
 
                 ConstraintEntity deputyConstraint = new ConstraintEntity();
                 deputyConstraint.setVotingCouncel(votingCouncel);
-                deputyConstraint.setPoliticalOrganization((j < politicalOrganizationEntitiesList.size())
-                        ? politicalOrganizationEntitiesList.get(j)
-                        : gikEntity);
+                deputyConstraint.setPoliticalOrganization(assignedOrganization);
                 deputyConstraint.setTitle(new TitleEntity());
                 deputyConstraint.setPosition(j + 1);
                 deputyConstraint.setTitle(memberDeputyTitle);
@@ -274,6 +304,7 @@ public class DrawingView extends VerticalLayout {
 
                 i++;
             }
+            rotationOffset = (rotationOffset + realSlots) % participated;
         }
     }
 
@@ -300,13 +331,26 @@ public class DrawingView extends VerticalLayout {
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("БО-жријебање");
 
-        //setovanje sirine kolona
-        sheet.setColumnWidth(0, 13 * 256);
-        sheet.setColumnWidth(1, 45 * 256);
-        sheet.setColumnWidth(2, 11 * 256);
-        sheet.setColumnWidth(3, 90 * 256);
-        sheet.setColumnWidth(4, 14 * 256);
-        sheet.setColumnWidth(5, 8 * 256);
+        //setovanje sirine kolona (poklapa se sa resources/documents/2026/zapisnik.xlsx)
+        sheet.setColumnWidth(0, (int) Math.round(COLUMN_CHARS_0 * 256));
+        sheet.setColumnWidth(1, (int) Math.round(COLUMN_CHARS_1 * 256));
+        sheet.setColumnWidth(2, (int) Math.round(COLUMN_CHARS_2 * 256));
+        sheet.setColumnWidth(3, (int) Math.round(COLUMN_CHARS_3 * 256));
+        sheet.setColumnWidth(4, (int) Math.round(COLUMN_CHARS_4 * 256));
+        sheet.setColumnWidth(5, (int) Math.round(COLUMN_CHARS_5 * 256));
+
+        //Podešavanje štampe: pejzažna orijentacija, uklapanje po širini na jednu stranicu
+        //(visina/broj stranica nije ograničen, jer tabela ima mnogo redova)
+        sheet.setFitToPage(true);
+        PrintSetup printSetup = sheet.getPrintSetup();
+        printSetup.setLandscape(true);
+        printSetup.setPaperSize(PrintSetup.A4_PAPERSIZE);
+        printSetup.setFitWidth((short) 1);
+        printSetup.setFitHeight((short) 0);
+        sheet.setMargin(Sheet.LeftMargin, 0.3);
+        sheet.setMargin(Sheet.RightMargin, 0.3);
+        sheet.setMargin(Sheet.TopMargin, 0.4);
+        sheet.setMargin(Sheet.BottomMargin, 0.4);
 
         // Create a regular font
         Font regularFont = workbook.createFont();
@@ -329,12 +373,14 @@ public class DrawingView extends VerticalLayout {
         boldStyleWithAlignment.setFont(boldFont);
         boldStyleWithAlignment.setVerticalAlignment(VerticalAlignment.TOP);
         boldStyleWithAlignment.setAlignment(HorizontalAlignment.CENTER);
+        boldStyleWithAlignment.setWrapText(true);
 
         // Create a cell style and set the bold font
         CellStyle regularStyleWithAlignment = workbook.createCellStyle();
         regularStyleWithAlignment.setFont(regularFont);
         regularStyleWithAlignment.setVerticalAlignment(VerticalAlignment.TOP);
         regularStyleWithAlignment.setAlignment(HorizontalAlignment.CENTER);
+        regularStyleWithAlignment.setWrapText(true);
 
         //Dodavanje imena entiteta
         XSSFRow row = sheet.createRow(1);
@@ -379,7 +425,7 @@ public class DrawingView extends VerticalLayout {
         row = sheet.createRow(6);
         XSSFCell decisionNumber = row.createCell(0);
          row.createCell(1);
-        decisionNumber.setCellValue("Број: 01-01-23");
+        decisionNumber.setCellValue("Број: 01-03-1/26-85");
         decisionNumber.setCellStyle(regularStyle);
         sheet.addMergedRegion(new CellRangeAddress(
                 6,  // start row
@@ -392,7 +438,7 @@ public class DrawingView extends VerticalLayout {
         row = sheet.createRow(7);
         XSSFCell dateNumber1 = row.createCell(0);
         row.createCell(1);
-        dateNumber1.setCellValue("Датум: 01.01.2023");
+        dateNumber1.setCellValue("Датум: 13.08.2026");
         dateNumber1.setCellStyle(regularStyle);
         sheet.addMergedRegion(new CellRangeAddress(
                 7,  // start row
@@ -408,9 +454,8 @@ public class DrawingView extends VerticalLayout {
         row.createCell(2);
         row.createCell(3);
         row.createCell(4);
-        row.createCell(5);
-        row.setHeightInPoints(60);
-        title.setCellValue("З  А  П  И  С  Н  И  К  \n СА ЈАВНЕ ПРЕЗЕНТАЦИЈЕ ЈАВНЕ ДОДЈЕЛЕ ПОЗИЦИЈА У БИРАЧКИМ ОДБОРИМА У ОИЈ 034Б - БАЊА ЛУКА\nодржаног 07. 08. 2024. године у 15.00 часова, у сали 33 у Градској управи Бања Лука");
+        row.setHeightInPoints(60f);
+        title.setCellValue("З  А  П  И  С  Н  И  К  \n СА ЈАВНЕ ПРЕЗЕНТАЦИЈЕ ЈАВНЕ ДОДЈЕЛЕ ПОЗИЦИЈА У БИРАЧКИМ ОДБОРИМА У ОИЈ 034Б - БАЊА ЛУКА\nодржаног 13. 08. 2026. године у 20.00 часова, у сали 33 у Градској управи Бања Лука");
 
         title.setCellStyle(boldStyleWithAlignment);
         sheet.addMergedRegion(new CellRangeAddress(
@@ -428,14 +473,12 @@ public class DrawingView extends VerticalLayout {
         row.createCell(3);
         row.createCell(4);
         row.createCell(5);
-        row.setHeightInPoints(260);
+        row.setHeightInPoints(260.1f);
         description.setCellValue("Јавној презентацији додјелe позиција у бирачким одборима  у основној изборној јединици 034Б-Бања Лука присуствују овлашћени представници политичких субјеката, предсједник и чланови Градске изборне комисије Бања Лука и информатичка подршка. \n" +
                 "\n" +
-                "Изборна јединица 034Б Бања Лука има    ???       бирачких одбора са 5 чланова и      ???    бирачких одбора са  ??   члана, што је укупно        бирачких одбора са    ???      чланова и исто толико замјеника, што је укупно     ???     позиције за редовна бирачка мјеста. \n" +
-                "У распоређивању позиција у бирачким одборима учествује       ????     овјерених политичких субјеката.\n" +
-                "Прије презентације јавне додјеле позиција, утврђен је број кругова додјеле за редовна бирачка мјеста према формули из чл.12 Правилника Централне изборне комисије БиХ, који износи 20 . Политички субјекти су заступљени према омјеру учешћа у додјели који је утврдила Централна изборна комисија БиХ (Табела 1.).            ПРОВЈЕРИТИ !!!!!!!!!!!!!!!\n" +
-                "\n" +
-                "У наставку је табела (Табела 2.) са додијељеним позицијама у бирачким одборима, уз напомену да за сваку додијељену позицију члана бирачког одбора овјерени политички субјекат доставља приједлоге и за члана и за његовог замјеника. \n" +
+                "Изборна јединица 034Б Бања Лука има 256 бирачких одбора са 4 члана и 5 бирачких одбора са 2 члана, што је укупно 261 бирачки одбор са 1034 члана и исто толико замјеника, што је укупно 2068 позицијa за редовна бирачка мјеста. \n" +
+                "У распоређивању позиција у бирачким одборима учествује 16 овјерених политичких субјеката, који су добили мандате у тренутку потврђивања резултата Општих избора 2022. године.\n" +
+                "Централна изборна комисија БиХ доставила је свим изборним комисијама листу политичких субјеката који, у складу са одредбом члана 2.19 став (7) Изборног закона БиХ, учествују у жријебању и имају право достављати приједлоге за чланове бирачких одбора. Након жријебања, утврђен је редослијед политичких субјеката за попуњавање позиција у бирачким одборима (Табела 1.).            \n" +
                 "\n");
         description.setCellStyle(regularStyleWithAlignment);
         sheet.addMergedRegion(new CellRangeAddress(
@@ -445,18 +488,51 @@ public class DrawingView extends VerticalLayout {
                 5   // end column
         ));
 
+        CellStyle tableOneHeaderStyle = workbook.createCellStyle();
+        tableOneHeaderStyle.cloneStyleFrom(boldStyleWithAlignment);
+        tableOneHeaderStyle.setBorderBottom(BorderStyle.THIN);
+        tableOneHeaderStyle.setBorderTop(BorderStyle.THIN);
+        tableOneHeaderStyle.setBorderLeft(BorderStyle.THIN);
+        tableOneHeaderStyle.setBorderRight(BorderStyle.THIN);
+
+        CellStyle tableOneOrderStyle = workbook.createCellStyle();
+        tableOneOrderStyle.cloneStyleFrom(regularStyleWithAlignment);
+        tableOneOrderStyle.setAlignment(HorizontalAlignment.CENTER);
+        tableOneOrderStyle.setBorderBottom(BorderStyle.THIN);
+        tableOneOrderStyle.setBorderTop(BorderStyle.THIN);
+        tableOneOrderStyle.setBorderLeft(BorderStyle.THIN);
+        tableOneOrderStyle.setBorderRight(BorderStyle.THIN);
+
+        CellStyle tableOneBodyStyle = workbook.createCellStyle();
+        tableOneBodyStyle.cloneStyleFrom(regularStyleWithAlignment);
+        tableOneBodyStyle.setBorderBottom(BorderStyle.THIN);
+        tableOneBodyStyle.setBorderTop(BorderStyle.THIN);
+        tableOneBodyStyle.setBorderLeft(BorderStyle.THIN);
+        tableOneBodyStyle.setBorderRight(BorderStyle.THIN);
+
+        // Political organization codes are always a 5-digit number with leading zeros
+        // (e.g. "00027", "00000") - stored as a real number with a "00000" format so the
+        // leading zeros survive and Excel doesn't flag it as "number stored as text", and
+        // never wrapped so the code always stays on one line.
+        CellStyle politicalOrgCodeStyle = workbook.createCellStyle();
+        politicalOrgCodeStyle.cloneStyleFrom(tableOneBodyStyle);
+        politicalOrgCodeStyle.setWrapText(false);
+        politicalOrgCodeStyle.setAlignment(HorizontalAlignment.CENTER);
+        politicalOrgCodeStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        politicalOrgCodeStyle.setDataFormat(workbook.createDataFormat().getFormat("00000"));
+
         int rowNumber = 21;
         row = sheet.createRow(rowNumber);
         row.createCell(0);
         XSSFCell orderNumber = row.createCell(1);
         orderNumber.setCellValue("Редни број");
-        orderNumber.setCellStyle(boldStyleWithAlignment);
+        orderNumber.setCellStyle(tableOneHeaderStyle);
         XSSFCell code = row.createCell(2);
         code.setCellValue("Шифра");
-        code.setCellStyle(boldStyleWithAlignment);
+        code.setCellStyle(tableOneHeaderStyle);
         XSSFCell name = row.createCell(3);
         name.setCellValue("ПОЛИТИЧКИ СУБЈЕКТИ");
-        name.setCellStyle(boldStyleWithAlignment);
+        name.setCellStyle(tableOneHeaderStyle);
         rowNumber++;
 
         int startRowNumber = rowNumber;
@@ -469,20 +545,37 @@ public class DrawingView extends VerticalLayout {
             row.createCell(0);
             orderNumber = row.createCell(1);
             orderNumber.setCellValue(politicalOrganization.getDrawNumber() + ".");
-            regularStyleWithAlignment.setAlignment(HorizontalAlignment.RIGHT);
-            orderNumber.setCellStyle(regularStyleWithAlignment);
-            regularStyleWithAlignment.setAlignment(HorizontalAlignment.CENTER);
+            orderNumber.setCellStyle(tableOneOrderStyle);
             code = row.createCell(2);
-            code.setCellValue(politicalOrganization.getCode());
-            code.setCellStyle(regularStyleWithAlignment);
+            code.setCellValue(Integer.parseInt(politicalOrganization.getCode()));
+            code.setCellStyle(politicalOrgCodeStyle);
             name = row.createCell(3);
             name.setCellValue(latinToCyrillicConverter.convert(politicalOrganization.getName()));
-            name.setCellStyle(regularStyleWithAlignment);
+            name.setCellStyle(tableOneBodyStyle);
 
             rowNumber++;
         }
 
-        rowNumber += 5;
+        rowNumber += 2;
+
+        row = sheet.createRow(rowNumber);
+        XSSFCell tableTwoDescription = row.createCell(0);
+        row.createCell(1);
+        row.createCell(2);
+        row.createCell(3);
+        row.createCell(4);
+        row.createCell(5);
+        row.setHeightInPoints(49.5f);
+        tableTwoDescription.setCellValue("У наставку је табела (Табела 2.) са додијељеним позицијама у бирачким одборима, уз напомену да за сваку додијељену позицију члана бирачког одбора овјерени политички субјекат доставља приједлоге и за члана и за његовог замјеника.");
+        tableTwoDescription.setCellStyle(regularStyleWithAlignment);
+        sheet.addMergedRegion(new CellRangeAddress(
+                rowNumber,  // start row
+                rowNumber,  // end row
+                0,  // start column
+                5   // end column
+        ));
+
+        rowNumber += 2;
 
         CellStyle borderedStyle = workbook.createCellStyle();
         borderedStyle.setFont(boldFont);
@@ -494,6 +587,7 @@ public class DrawingView extends VerticalLayout {
         borderedStyle.setBorderLeft(BorderStyle.THIN);
         borderedStyle.setBorderRight(BorderStyle.THIN);
 
+        int votingCouncelHeaderRowIndex = rowNumber;
         row = sheet.createRow(rowNumber);
         row.setHeightInPoints(60);
         XSSFCell cell = row.createCell(0);
@@ -501,15 +595,22 @@ public class DrawingView extends VerticalLayout {
         cell.setCellValue("Шифра бирачког мјеста");
 
         cell = row.createCell(1);
-        row.createCell(2);
         cell.setCellStyle(borderedStyle);
         cell.setCellValue("НАЗИВ БИРАЧКОГ МЈЕСТА / ШИФРА ПОЛИТИЧКОГ СУБЈЕКТА");
-        sheet.addMergedRegion(new CellRangeAddress(
+        row.createCell(2).setCellStyle(borderedStyle);
+        CellRangeAddress nameHeaderRange = new CellRangeAddress(
                 rowNumber,  // start row
                 rowNumber,  // end row
                 1,  // start column
                 2   // end column
-        ));
+        );
+        sheet.addMergedRegion(nameHeaderRange);
+        // Border on a merged range's individual cell styles alone leaves the merge's outer edge
+        // unclosed (e.g. the right border is missing) - RegionUtil draws it across the whole range.
+        RegionUtil.setBorderTop(BorderStyle.THIN, nameHeaderRange, sheet);
+        RegionUtil.setBorderBottom(BorderStyle.THIN, nameHeaderRange, sheet);
+        RegionUtil.setBorderLeft(BorderStyle.THIN, nameHeaderRange, sheet);
+        RegionUtil.setBorderRight(BorderStyle.THIN, nameHeaderRange, sheet);
 
         cell = row.createCell(3);
         cell.setCellStyle(borderedStyle);
@@ -531,14 +632,34 @@ public class DrawingView extends VerticalLayout {
         XSSFColor color = new XSSFColor(new java.awt.Color(204, 204, 255), null);
         regularStyleWithPurpleBackground.setFillForegroundColor(color);
         regularStyleWithPurpleBackground.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        regularStyleWithPurpleBackground.setWrapText(true);
+        regularStyleWithPurpleBackground.setVerticalAlignment(VerticalAlignment.TOP);
 
         XSSFCellStyle regularStyleWithPurpleBackgroundAndRightAlignment = workbook.createCellStyle();
         regularStyleWithPurpleBackgroundAndRightAlignment.setFont(regularFont);
         regularStyleWithPurpleBackgroundAndRightAlignment.setFillForegroundColor(color);
         regularStyleWithPurpleBackgroundAndRightAlignment.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         regularStyleWithPurpleBackgroundAndRightAlignment.setAlignment(HorizontalAlignment.RIGHT);
+        regularStyleWithPurpleBackgroundAndRightAlignment.setVerticalAlignment(VerticalAlignment.TOP);
 
-        List<VotingCouncelEntity> votingCouncelEntities = votingCouncelRepository.findAll();
+        CellStyle regularStyleWrapped = workbook.createCellStyle();
+        regularStyleWrapped.cloneStyleFrom(regularStyle);
+        regularStyleWrapped.setWrapText(true);
+        regularStyleWrapped.setVerticalAlignment(VerticalAlignment.TOP);
+
+        // Same reasoning as politicalOrgCodeStyle above - a real number formatted "00000" so
+        // leading zeros survive, never wrapped so the code stays on one line.
+        CellStyle candidateCodeStyle = workbook.createCellStyle();
+        candidateCodeStyle.cloneStyleFrom(regularStyle);
+        candidateCodeStyle.setWrapText(false);
+        candidateCodeStyle.setAlignment(HorizontalAlignment.CENTER);
+        candidateCodeStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        candidateCodeStyle.setDataFormat(workbook.createDataFormat().getFormat("00000"));
+
+        // Councils attached to another one aren't shown separately - see the note above.
+        List<VotingCouncelEntity> votingCouncelEntities = votingCouncelRepository.findAll().stream()
+                .filter(vc -> vc.getPrimaryVotingCouncel() == null)
+                .collect(Collectors.toList());
         for(VotingCouncelEntity votingCouncel: votingCouncelEntities) {
             row = sheet.createRow(rowNumber);
 
@@ -547,7 +668,7 @@ public class DrawingView extends VerticalLayout {
             cell.setCellStyle(regularStyleWithPurpleBackground);
 
             cell = row.createCell(1);
-            cell.setCellValue(votingCouncel.getName());
+            cell.setCellValue(votingCouncel.getDisplayName());
             cell.setCellStyle(regularStyleWithPurpleBackground);
 
             cell = row.createCell(2);
@@ -558,7 +679,7 @@ public class DrawingView extends VerticalLayout {
             cell.setCellStyle(regularStyleWithPurpleBackground);
 
             cell = row.createCell(4);
-            cell.setCellValue(votingCouncel.getNumberOfVoters());
+            cell.setCellValue(votingCouncel.getTotalNumberOfVoters());
             cell.setCellStyle(regularStyleWithPurpleBackgroundAndRightAlignment);
 
             cell = row.createCell(5);
@@ -567,6 +688,8 @@ public class DrawingView extends VerticalLayout {
                 cell.setCellValue("4+4");
             else if(votingCouncel.getNumberOfMembers() == 2)
                 cell.setCellValue("2+2");
+
+            growRowHeightToFitWrappedText(row, Map.of(1, COLUMN_CHARS_1, 3, COLUMN_CHARS_3));
 
             rowNumber++;
             List<ConstraintEntity> constraintEntities = votingCouncel.getConstraints().stream()
@@ -580,8 +703,8 @@ public class DrawingView extends VerticalLayout {
                 row.createCell(0);
 
                 cell = row.createCell(1);
-                cell.setCellValue(constraint.getPoliticalOrganization().getCode());
-                cell.setCellStyle(regularStyle);
+                cell.setCellValue(Integer.parseInt(constraint.getPoliticalOrganization().getCode()));
+                cell.setCellStyle(candidateCodeStyle);
 
                 row.createCell(2);
                 sheet.addMergedRegion(new CellRangeAddress(
@@ -593,7 +716,7 @@ public class DrawingView extends VerticalLayout {
 
                 cell = row.createCell(3);
                 cell.setCellValue(latinToCyrillicConverter.convert(constraint.getPoliticalOrganization().getName()));
-                cell.setCellStyle(regularStyle);
+                cell.setCellStyle(regularStyleWrapped);
 
                 row.createCell(4);
                 row.createCell(5);
@@ -604,6 +727,10 @@ public class DrawingView extends VerticalLayout {
                         3,  // start column
                         5   // end column
                 ));
+
+                growRowHeightToFitWrappedText(row, Map.of(
+                        1, COLUMN_CHARS_1 + COLUMN_CHARS_2,
+                        3, COLUMN_CHARS_3 + COLUMN_CHARS_4 + COLUMN_CHARS_5));
 
                 rowNumber++;
             }
@@ -617,6 +744,9 @@ public class DrawingView extends VerticalLayout {
             ));
             rowNumber++;
         }
+
+        //Ponavljanje zaglavlja tabele ("Šifra bir. mjesta" i sl.) na svakoj odštampanoj stranici
+        sheet.setRepeatingRows(new CellRangeAddress(votingCouncelHeaderRowIndex, votingCouncelHeaderRowIndex, 0, 5));
 
         rowNumber += 5;
 
@@ -633,7 +763,7 @@ public class DrawingView extends VerticalLayout {
         row.createCell(2);
         row.createCell(3);
         footer2.setCellStyle(regularStyle);
-        footer2.setCellValue("1. Свим политичким субјектима, ____x.");
+        footer2.setCellValue("1. Свим политичким субјектима, " + politicalOrganizationEntities.size() + "x.");
         rowNumber++;
 
         row = sheet.createRow(rowNumber);
@@ -693,6 +823,58 @@ public class DrawingView extends VerticalLayout {
         }
 
         return fileName;
+    }
+
+    /**
+     * Excel auto-fits row height for wrapped text when the file is opened, but that isn't reliable
+     * enough for printing straight away - a row that's too short lets a wrapped line spill into the
+     * row below it. This estimates how many lines each given cell's text will wrap to (based on its
+     * column width in characters) and grows the row height to fit the tallest one, so printed text
+     * never overlaps between rows. Only touches the row when wrapping is actually needed.
+     *
+     * @param columnCharWidths column index (the merged range's first column) -> that column's
+     *                         (or merged range's combined) width in characters
+     */
+    private void growRowHeightToFitWrappedText(Row row, Map<Integer, Double> columnCharWidths) {
+        Workbook workbook = row.getSheet().getWorkbook();
+        int defaultCharWidth = SheetUtil.getDefaultCharWidth(workbook);
+        DataFormatter formatter = new DataFormatter();
+        int maxLines = 1;
+        boolean sawStringContent = false;
+        for (Map.Entry<Integer, Double> entry : columnCharWidths.entrySet()) {
+            Cell cell = row.getCell(entry.getKey());
+            if (cell == null || cell.getCellType() != CellType.STRING)
+                continue;
+            String value = cell.getStringCellValue();
+            if (value == null || value.isEmpty())
+                continue;
+            // getCellWidth measures the widest single line of the cell's text with its actual font
+            // via AWT metrics - the same mechanism POI uses for autoSizeColumn - instead of assuming
+            // a fixed chars-per-line ratio, which over- or under-counts depending on glyph width and
+            // font size. But it collapses any hard line breaks ("\n") already in the text down to
+            // that one widest line, so a 3-line title measures the same as its longest line alone.
+            // Each "\n" segment is measured (and wrapped) separately here and the per-segment line
+            // counts are summed, or a hard-broken cell ends up the same height as a single long line.
+            int lines = 0;
+            for (String segment : value.split("\n", -1)) {
+                if (segment.isEmpty()) {
+                    lines += 1;
+                    continue;
+                }
+                cell.setCellValue(segment);
+                double requiredWidthChars = SheetUtil.getCellWidth(cell, defaultCharWidth, formatter, false);
+                lines += (int) Math.ceil(requiredWidthChars / entry.getValue());
+            }
+            cell.setCellValue(value);
+            maxLines = Math.max(maxLines, lines);
+            sawStringContent = true;
+        }
+        // Always (not just when wrapping to >1 line) - the sheet's default row height (15.75pt)
+        // is shorter than this table's 16pt font, so even a single-line row needs its height set
+        // explicitly or the text gets clipped top/bottom.
+        if (sawStringContent) {
+            row.setHeightInPoints(maxLines * WRAPPED_LINE_HEIGHT_POINTS);
+        }
     }
 
     private InputStream getStream(String fileString) {
