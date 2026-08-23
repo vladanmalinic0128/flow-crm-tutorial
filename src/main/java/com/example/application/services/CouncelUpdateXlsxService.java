@@ -58,13 +58,15 @@ public class CouncelUpdateXlsxService {
             else if(value.trim().length() == 5) {
                 ConstraintEntity activeConstraint = tryReadingConstraint(value, activeVotingCouncel, readingMembers);
 
+                if(activeConstraint == null) {
+                    System.out.println("Loggg: preskačem red " + (i + 1) + " - nema constraint zapisa za organizaciju '"
+                            + value + "' na mjestu " + (activeVotingCouncel != null ? activeVotingCouncel.getCode() : "nepoznato"));
+                    continue;
+                }
 
                 boolean isEmpty = isEmpty(row);
                 if(isEmpty == false || (isEmpty && deleteEmptyRows && activeConstraint.getMember() != null)) {
-                    MemberEntity memberEntity = null;
-                    if(activeConstraint == null)
-                        System.out.println("Loggg: " + cell.getRow() + ", " + cell.getColumnIndex());
-                    memberEntity = activeConstraint.getMember() != null ? activeConstraint.getMember() : new MemberEntity();
+                    MemberEntity memberEntity = activeConstraint.getMember() != null ? activeConstraint.getMember() : new MemberEntity();
                     memberEntity.setConstraint(activeConstraint);
                     activeConstraint.setMember(memberEntity);
 
