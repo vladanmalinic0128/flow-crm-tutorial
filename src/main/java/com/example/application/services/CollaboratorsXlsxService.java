@@ -54,6 +54,7 @@ public class CollaboratorsXlsxService {
     private final AssociateStatusRepository associateStatusRepository;
 
     private final ReportsXlsxService reportsXlsxService;
+    private final JMBGValidator jmbgValidator;
 
     public InputStream getStream(String fileString) {
         File file = new File(fileString);
@@ -183,7 +184,10 @@ public class CollaboratorsXlsxService {
             case BOOLEAN:
                 return Boolean.toString(cell.getBooleanCellValue());
             case NUMERIC:
-                return Double.toString(cell.getNumericCellValue());
+                // Avoid Double.toString() switching to scientific notation for large
+                // whole numbers (JMBG, phone, bank account digits typed as a number in
+                // Excel) - that would corrupt the digits once non-digit chars are stripped.
+                return java.math.BigDecimal.valueOf(cell.getNumericCellValue()).toPlainString();
             case FORMULA:
                 return cell.getCellFormula();
             case BLANK:
@@ -198,7 +202,18 @@ public class CollaboratorsXlsxService {
         if(jmbg == null || jmbg.trim().length() == 0)
             associateEntity.setJmbg(null);
         else
-            associateEntity.setJmbg(jmbg);
+            associateEntity.setJmbg(recoverLeadingZeroIfValid(jmbg));
+    }
+
+    // Excel drops a leading zero from a JMBG typed into a numeric cell (0206... becomes 206...).
+    // If padding it back to 13 digits yields a checksum-valid JMBG, that recovers the original value.
+    private String recoverLeadingZeroIfValid(String jmbg) {
+        if(jmbg.length() == 12) {
+            String padded = "0" + jmbg;
+            if(jmbgValidator.isValidJMBG(padded))
+                return padded;
+        }
+        return jmbg;
     }
 
     public void readNameCell(String value, AssociateEntity associateEntity) {

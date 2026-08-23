@@ -27,6 +27,7 @@ public class CouncelUpdateXlsxService {
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final SubstituteRepository substituteRepository;
     private final PresidentRepository presidentRepository;
+    private final JMBGValidator jmbgValidator;
     
     // Track used constraints for default organization for current voting council
     // When we move to a new voting council, this gets cleared
@@ -358,7 +359,7 @@ public class CouncelUpdateXlsxService {
         if(jmbg == null || jmbg.trim().length() == 0)
             memberEntity.setJmbg(null);
         else
-            memberEntity.setJmbg(jmbg);
+            memberEntity.setJmbg(recoverLeadingZeroIfValid(jmbg));
     }
 
     private void readJmbg(String jmbg, PresidentEntity presidentEntity) {
@@ -366,7 +367,18 @@ public class CouncelUpdateXlsxService {
         if(jmbg == null || jmbg.trim().length() == 0)
             presidentEntity.setJmbg(null);
         else
-            presidentEntity.setJmbg(jmbg);
+            presidentEntity.setJmbg(recoverLeadingZeroIfValid(jmbg));
+    }
+
+    // Excel drops a leading zero from a JMBG typed into a numeric cell (0206... becomes 206...).
+    // If padding it back to 13 digits yields a checksum-valid JMBG, that recovers the original value.
+    private String recoverLeadingZeroIfValid(String jmbg) {
+        if(jmbg.length() == 12) {
+            String padded = "0" + jmbg;
+            if(jmbgValidator.isValidJMBG(padded))
+                return padded;
+        }
+        return jmbg;
     }
 
     private void readPhoneNumber(String phoneNumber, MemberEntity memberEntity) {
@@ -520,7 +532,10 @@ public class CouncelUpdateXlsxService {
             case BOOLEAN:
                 return Boolean.toString(cell.getBooleanCellValue());
             case NUMERIC:
-                return Double.toString(cell.getNumericCellValue());
+                // Avoid Double.toString() switching to scientific notation for large
+                // whole numbers (JMBG, phone, bank account digits typed as a number in
+                // Excel) - that would corrupt the digits once non-digit chars are stripped.
+                return java.math.BigDecimal.valueOf(cell.getNumericCellValue()).toPlainString();
             case FORMULA:
                 return cell.getCellFormula();
             case BLANK:
