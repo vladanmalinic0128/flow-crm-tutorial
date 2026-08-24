@@ -99,9 +99,9 @@ public class ObserverPdfService {
     private static final int TEMPLATE_ORGANIZATION_ROW = 9; // row 10 in Excel
     private static final int TEMPLATE_ORGANIZATION_COLUMN = 3; // column D
     private static final int TEMPLATE_FIRST_DATA_ROW = 20; // row 21 in Excel
-    private static final int TEMPLATE_FIRST_DATA_COLUMN = 1; // column B (JMBG) - column A (row number) is left as-is
-    private static final int TEMPLATE_LAST_DATA_COLUMN = 4; // column E (Ime)
-    private static final int TEMPLATE_HEADER_ROW = 18; // row 19 in Excel (Р/Б, ЈМБГ, ..., Име)
+    private static final int TEMPLATE_FIRST_DATA_COLUMN = 1; // column B (Prezime) - column A (row number) is left as-is
+    private static final int TEMPLATE_LAST_DATA_COLUMN = 5; // column F (JMBG)
+    private static final int TEMPLATE_HEADER_ROW = 18; // row 19 in Excel (Р/Б, Презиме, Име, Број исправе, Држава, ЈМБГ)
     // "Table1" in the template (rows 20-1220) has no explicit style name, so Excel renders it with
     // the workbook's own theme accent1 color (xl/theme/theme1.xml) - not a color we picked ourselves.
     private static final String TEMPLATE_ACCENT_COLOR = "#156082";

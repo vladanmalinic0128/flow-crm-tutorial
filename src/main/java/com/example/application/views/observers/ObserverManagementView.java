@@ -71,6 +71,7 @@ public class ObserverManagementView extends VerticalLayout {
         grid.addColumn(ObserverEntity::getFirstname).setHeader("Ime").setSortable(true);
         grid.addColumn(ObserverEntity::getJmbg).setHeader("JMBG");
         grid.addColumn(ObserverEntity::getCardId).setHeader("Broj isprave");
+        grid.addColumn(ObserverEntity::getDocumentIssuingCountry).setHeader("Država izdavanja isprave");
         grid.addColumn(observer -> observer.getStatus() != null ? observer.getStatus().getName() : "")
                 .setHeader("Status");
         grid.addColumn(observer -> observer.getStack() != null && observer.getStack().getPoliticalOrganization() != null
@@ -124,6 +125,9 @@ public class ObserverManagementView extends VerticalLayout {
         TextField cardId = new TextField("Broj lične isprave");
         cardId.setValue(observer.getCardId() != null ? observer.getCardId() : "");
 
+        TextField documentIssuingCountry = new TextField("Naziv države koja je izdala ličnu ispravu");
+        documentIssuingCountry.setValue(observer.getDocumentIssuingCountry() != null ? observer.getDocumentIssuingCountry() : "");
+
         IntegerField documentNumber = new IntegerField("Broj dokumenta (akreditacije)");
         if (observer.getDocumentNumber() != null)
             documentNumber.setValue(observer.getDocumentNumber());
@@ -136,7 +140,7 @@ public class ObserverManagementView extends VerticalLayout {
         Checkbox force = new Checkbox("Prisilno prihvaćen");
         force.setValue(Boolean.TRUE.equals(observer.getForce()));
 
-        VerticalLayout formLayout = new VerticalLayout(firstname, lastname, jmbg, cardId, documentNumber, status, force);
+        VerticalLayout formLayout = new VerticalLayout(firstname, lastname, jmbg, cardId, documentIssuingCountry, documentNumber, status, force);
         formLayout.setPadding(false);
         formLayout.setWidth("400px");
         dialog.add(formLayout);
@@ -146,6 +150,7 @@ public class ObserverManagementView extends VerticalLayout {
             observer.setLastname(lastname.getValue());
             observer.setJmbg(jmbg.getValue());
             observer.setCardId(cardId.getValue());
+            observer.setDocumentIssuingCountry(documentIssuingCountry.getValue());
             observer.setDocumentNumber(documentNumber.getValue());
             observer.setStatus(status.getValue());
             observer.setForce(force.getValue());

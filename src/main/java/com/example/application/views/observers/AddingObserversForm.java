@@ -170,28 +170,32 @@ public class AddingObserversForm extends FormLayout {
                 int number = cell != null ? (int)cell.getNumericCellValue() : -1;
 
                 cell = row.getCell(1);
-                String jmbg = cell != null ? getCellValue(cell) : "";
-
-                cell = row.getCell(2);
-                String cardid = cell != null ? getCellValue(cell) : "";
-
-                cell = row.getCell(3);
                 String lastname = cell != null ? cell.getStringCellValue() : "";
 
+                cell = row.getCell(2);
+                String firstname = cell != null ? cell.getStringCellValue() : "";
+
+                cell = row.getCell(3);
+                String cardid = cell != null ? getCellValue(cell) : "";
+
                 cell = row.getCell(4);
-                String firstname =cell != null ? cell.getStringCellValue() : "";
+                String documentIssuingCountry = cell != null ? getCellValue(cell) : "";
+
+                cell = row.getCell(5);
+                String jmbg = cell != null ? getCellValue(cell) : "";
 
                 // The upload template is an Excel Table spanning ~1200 rows, so every row in range
-                // has real (but often empty) cells in columns B-E - row.getLastCellNum() is always
-                // 5 regardless of whether the row was actually filled in. Column A (the row-number
+                // has real (but often empty) cells in columns B-F - row.getLastCellNum() is always
+                // 6 regardless of whether the row was actually filled in. Column A (the row-number
                 // placeholder) doesn't count as "filled in" either, so a genuinely empty row must be
                 // detected by content, not by cell count.
-                if(jmbg.isBlank() && cardid.isBlank() && lastname.isBlank() && firstname.isBlank())
+                if(jmbg.isBlank() && cardid.isBlank() && lastname.isBlank() && firstname.isBlank() && documentIssuingCountry.isBlank())
                     continue;
 
                 ObserverEntity observer = new ObserverEntity();
                 observer.setJmbg(jmbg);
                 observer.setCardId(cardid);
+                observer.setDocumentIssuingCountry(documentIssuingCountry);
                 observer.setFirstname(cyrillicToLatinConverter.convert(firstname));
                 observer.setLastname(cyrillicToLatinConverter.convert(lastname));
                 observer.setForce(false);

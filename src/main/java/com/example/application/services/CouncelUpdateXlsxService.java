@@ -47,10 +47,17 @@ public class CouncelUpdateXlsxService {
             if(row == null)
                 continue;
             Cell cell = row.getCell(0);
-            if(cell == null)
+            if(cell == null) {
+                System.out.println("Loggg: red " + (i + 1) + " - kolona A (šifra) fizički ne postoji u ćeliji, red se preskače bez uticaja na Član/Zamjenik prekidač"
+                        + " (posljednje poznato mjesto: " + (activeVotingCouncel != null ? activeVotingCouncel.getCode() : "nepoznato") + ")");
                 continue;
+            }
             String value = getCellValue(cell);
             if(latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE) || latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE_FOR_MOBILE_TEAMS)) {
+                if(readingMembers) {
+                    System.out.println("Loggg: UPOZORENJE - red " + (i + 1) + " (mjesto '" + value + "') - neparan broj 'Чланови БО'/'Замјеници чланова БО' zaglavlja u prethodnom bloku"
+                            + " (prethodno mjesto: " + (activeVotingCouncel != null ? activeVotingCouncel.getCode() : "nepoznato") + "). Moguć pomjeraj Član/Zamjenik uloga od ovog mjesta nadalje.");
+                }
                 activeVotingCouncel = tryReadingVotingCouncel(cell);
                 // Clear tracking when moving to a new voting council
                 usedDefaultOrgConstraintsInCurrentCouncel.clear();

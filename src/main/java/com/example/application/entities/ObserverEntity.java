@@ -26,6 +26,9 @@ public class ObserverEntity {
     @Column(name = "card_id")
     private String cardId;
     @Basic
+    @Column(name = "document_issuing_country")
+    private String documentIssuingCountry;
+    @Basic
     @Column(name = "is_force")
     private Boolean force;
     @Basic
@@ -51,6 +54,7 @@ public class ObserverEntity {
                 ", firstname='" + firstname + '\'' +
                 ", jmbg='" + jmbg + '\'' +
                 ", cardId='" + cardId + '\'' +
+                ", documentIssuingCountry='" + documentIssuingCountry + '\'' +
                 ", force=" + force +
                 ", documentNumber=" + documentNumber +
                 '}';
