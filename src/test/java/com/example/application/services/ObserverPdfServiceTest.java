@@ -1,10 +1,20 @@
 package com.example.application.services;
 
+import com.example.application.entities.ConstraintEntity;
+import com.example.application.entities.MemberEntity;
 import com.example.application.entities.ObserverEntity;
 import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.StatusEntity;
+import com.example.application.entities.TitleEntity;
+import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.repositories.ObserverRepository;
+import com.example.application.repositories.VotingCouncelRepository;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFTable;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -30,6 +40,7 @@ import java.util.zip.ZipInputStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ObserverPdfServiceTest {
@@ -37,11 +48,14 @@ class ObserverPdfServiceTest {
     @Mock
     private ObserverRepository observerRepository;
 
+    @Mock
+    private VotingCouncelRepository votingCouncelRepository;
+
     private ObserverPdfService service;
 
     @BeforeEach
     void setUp() {
-        service = new ObserverPdfService(new LatinToCyrillicConverter(), new CyrillicToLatinConverter(), observerRepository);
+        service = new ObserverPdfService(new LatinToCyrillicConverter(), new CyrillicToLatinConverter(), observerRepository, votingCouncelRepository);
     }
 
     @ParameterizedTest
@@ -238,5 +252,147 @@ class ObserverPdfServiceTest {
         observer.setStatus(status);
         observer.setForce(force);
         return observer;
+    }
+
+    @Test
+    void generateVotingCouncelsAppointmentDecisionOrdersByDrawnPositionAndDerivesGenderFromJmbgWhenMissing() throws Exception {
+        TitleEntity memberTitle = new TitleEntity();
+        memberTitle.setId(1L);
+        TitleEntity substituteTitle = new TitleEntity();
+        substituteTitle.setId(2L);
+
+        PoliticalOrganizationEntity organization = new PoliticalOrganizationEntity();
+        organization.setCode("18");
+
+        VotingCouncelEntity councel = new VotingCouncelEntity();
+        councel.setCode("034Б001");
+        councel.setName("АГИНО СЕЛО");
+        councel.setLocation("ПШ \"ВОЈИСЛАВ ИЛИЋ\", Агино Село бб, уч. 1");
+
+        // Drawn to position 2, but has no gender set and no jmbg - gender must come out blank.
+        MemberEntity secondDrawnMember = memberWith("Петар", "Ковач", null, null, false);
+        // Drawn to position 1 (so must come out first despite being added second), gender not set but
+        // derivable from jmbg (positions 10-12 = "001", <= 499 => male).
+        MemberEntity firstDrawnMember = memberWith("Ана", "Бабић", null, "0101990500017", false);
+        // A substitute for the same organization, still awaiting a drawn name - the position must
+        // still get its own row (with the code shown), not be skipped entirely.
+        ConstraintEntity unfilledSubstitute = constraintWith(councel, substituteTitle, organization, 1, null);
+
+        councel.setConstraints(List.of(
+                constraintWith(councel, memberTitle, organization, 2, secondDrawnMember),
+                constraintWith(councel, memberTitle, organization, 1, firstDrawnMember),
+                unfilledSubstitute));
+
+        when(votingCouncelRepository.findAll()).thenReturn(List.of(councel));
+
+        generatedFilePath = service.generateVotingCouncelsAppointmentDecision(ScriptEnum.CYRILLIC, "test_odluka_biracki_odbori.docx");
+
+        try (XWPFDocument document = new XWPFDocument(new FileInputStream(generatedFilePath))) {
+            // Table 0 is the reused header (logo + entity name); the members table is the next one.
+            XWPFTable membersTable = document.getTables().get(1);
+
+            // Column widths and the header row's taller height are copied from the reference document.
+            assertEquals(1300, membersTable.getRow(0).getCell(0).getWidth());
+            assertEquals(7283, membersTable.getRow(0).getCell(1).getWidth());
+            assertEquals(874, membersTable.getRow(0).getCell(2).getWidth());
+            assertEquals(900, membersTable.getRow(0).getHeight());
+
+            assertEquals("034Б001", membersTable.getRow(1).getCell(0).getText());
+            assertEquals("АГИНО СЕЛО, ПШ \"ВОЈИСЛАВ ИЛИЋ\", Агино Село бб, уч. 1", membersTable.getRow(1).getCell(1).getText());
+            // The councel code/location row is shaded and kept to the reference's fixed row height.
+            assertEquals("CCCCFF", membersTable.getRow(1).getCell(0).getColor());
+            assertEquals("CCCCFF", membersTable.getRow(1).getCell(1).getColor());
+            assertEquals(315, membersTable.getRow(1).getHeight());
+
+            // "Чланови БО" is centered (horizontally and vertically) in every cell of its row, not
+            // just the middle one.
+            assertEquals("Чланови БО", membersTable.getRow(2).getCell(1).getText());
+            assertEquals(ParagraphAlignment.CENTER, membersTable.getRow(2).getCell(1).getParagraphs().get(0).getAlignment());
+            assertEquals(XWPFTableCell.XWPFVertAlign.CENTER, membersTable.getRow(2).getCell(1).getVerticalAlignment());
+            assertEquals(ParagraphAlignment.CENTER, membersTable.getRow(2).getCell(0).getParagraphs().get(0).getAlignment());
+            assertEquals(XWPFTableCell.XWPFVertAlign.CENTER, membersTable.getRow(2).getCell(0).getVerticalAlignment());
+
+            // Ана (position 1) comes before Петар (position 2), even though Петар's constraint was
+            // added to the list first. Every run inside the table is set to the reference's Calibri.
+            assertEquals("00018", membersTable.getRow(3).getCell(0).getText());
+            assertEquals("АНА БАБИЋ", membersTable.getRow(3).getCell(1).getText());
+            assertEquals("М", membersTable.getRow(3).getCell(2).getText());
+            assertEquals("Calibri", membersTable.getRow(3).getCell(0).getParagraphs().get(0).getRuns().get(0).getFontFamily());
+
+            assertEquals("00018", membersTable.getRow(4).getCell(0).getText());
+            assertEquals("ПЕТАР КОВАЧ", membersTable.getRow(4).getCell(1).getText());
+            assertEquals("", membersTable.getRow(4).getCell(2).getText());
+
+            // The substitute position has no assigned member yet - its row still appears (with the
+            // organization's code) instead of being skipped, leaving only name/gender blank.
+            assertEquals("Замјеници чланова БО", membersTable.getRow(5).getCell(1).getText());
+            assertEquals("00018", membersTable.getRow(6).getCell(0).getText());
+            assertEquals("", membersTable.getRow(6).getCell(1).getText());
+            assertEquals("", membersTable.getRow(6).getCell(2).getText());
+        }
+    }
+
+    @Test
+    void generateVotingCouncelsAppointmentDecisionUsesTimesNewRomanForBodyTextOutsideTheTable() throws Exception {
+        when(votingCouncelRepository.findAll()).thenReturn(List.of());
+
+        generatedFilePath = service.generateVotingCouncelsAppointmentDecision(ScriptEnum.CYRILLIC, "test_odluka_biracki_odbori_font.docx");
+
+        try (XWPFDocument document = new XWPFDocument(new FileInputStream(generatedFilePath))) {
+            XWPFParagraph titleParagraph = document.getParagraphs().stream()
+                    .filter(p -> p.getText().contains("О Д Л У К У"))
+                    .findFirst().orElseThrow();
+            assertEquals("Times New Roman", titleParagraph.getRuns().get(0).getFontFamily());
+            assertEquals(12, titleParagraph.getRuns().get(0).getFontSize());
+        }
+    }
+
+    @Test
+    void generateVotingCouncelsAppointmentDecisionMarksReserveListMembersWithAnAsterisk() throws Exception {
+        TitleEntity memberTitle = new TitleEntity();
+        memberTitle.setId(1L);
+
+        PoliticalOrganizationEntity organization = new PoliticalOrganizationEntity();
+        organization.setCode("46");
+
+        VotingCouncelEntity councel = new VotingCouncelEntity();
+        councel.setCode("034Б002");
+        councel.setName("АДА - 1");
+        councel.setLocation("ПШ \"ВУК С. КАРАЏИЋ\"");
+
+        MemberEntity reserveListMember = memberWith("Срђан", "Ристић", true, null, true);
+
+        councel.setConstraints(List.of(constraintWith(councel, memberTitle, organization, 1, reserveListMember)));
+
+        when(votingCouncelRepository.findAll()).thenReturn(List.of(councel));
+
+        generatedFilePath = service.generateVotingCouncelsAppointmentDecision(ScriptEnum.CYRILLIC, "test_odluka_biracki_odbori_rezerva.docx");
+
+        try (XWPFDocument document = new XWPFDocument(new FileInputStream(generatedFilePath))) {
+            XWPFTable membersTable = document.getTables().get(1);
+            assertEquals("*СРЂАН РИСТИЋ", membersTable.getRow(3).getCell(1).getText());
+        }
+    }
+
+    private static MemberEntity memberWith(String firstname, String lastname, Boolean isMale, String jmbg, boolean isGik) {
+        MemberEntity member = new MemberEntity();
+        member.setFirstname(firstname);
+        member.setLastname(lastname);
+        member.setIsMale(isMale);
+        member.setJmbg(jmbg);
+        member.setIsGik(isGik);
+        return member;
+    }
+
+    private static ConstraintEntity constraintWith(VotingCouncelEntity councel, TitleEntity title, PoliticalOrganizationEntity organization, int position, MemberEntity member) {
+        ConstraintEntity constraint = new ConstraintEntity();
+        constraint.setVotingCouncel(councel);
+        constraint.setTitle(title);
+        constraint.setPoliticalOrganization(organization);
+        constraint.setPosition(position);
+        constraint.setMember(member);
+        if (member != null)
+            member.setConstraint(constraint);
+        return constraint;
     }
 }

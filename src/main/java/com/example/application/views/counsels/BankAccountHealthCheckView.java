@@ -93,8 +93,18 @@ public class BankAccountHealthCheckView extends VerticalLayout {
         mainAccordion.setWidth("800px");
         mainAccordion.getStyle().set("margin", "0 auto");
 
-        Map<MentorEntity, List<VotingCouncelEntity>> groupedByMentor = votingCouncelRepository.findAll().stream()
+        // All three lists are fetched once, each in a single SQL query with JOIN FETCH for the associations the
+        // loop below needs (mentor / constraint->votingCouncel / votingCouncel), instead of the previous per-mentor
+        // traversal of the lazy `constraints`/`presidents` collections on VotingCouncelEntity - which, done 4x per
+        // mentor with no batch-fetch-size configured, issued a separate SQL query per voting council per pass.
+        Map<MentorEntity, List<VotingCouncelEntity>> groupedByMentor = votingCouncelRepository.findAllWithMentor().stream()
                 .collect(Collectors.groupingBy(VotingCouncelEntity::getMentor));
+
+        Map<Long, List<MemberEntity>> membersByVotingCouncelId = memberRepository.findAllWithConstraintDetails().stream()
+                .collect(Collectors.groupingBy(m -> m.getConstraint().getVotingCouncel().getId()));
+
+        Map<Long, List<PresidentEntity>> presidentsByVotingCouncelId = presidentRepository.findAllWithVotingCouncelDetails().stream()
+                .collect(Collectors.groupingBy(p -> p.getVotingCouncel().getId()));
 
         for (MentorEntity mentor : groupedByMentor.keySet()) {
             // Create an Accordion for this mentor
@@ -103,9 +113,8 @@ public class BankAccountHealthCheckView extends VerticalLayout {
             {
                 // Members with unknown status
                 List<MemberEntity> membersWithUnknownStatus = groupedByMentor.get(mentor).stream()
-                        .map(VotingCouncelEntity::getConstraints)
-                        .flatMap(List::stream)
-                        .map(c -> c.getMember())
+                        .map(VotingCouncelEntity::getId)
+                        .flatMap(id -> membersByVotingCouncelId.getOrDefault(id, List.of()).stream())
                         .filter(m -> m != null && m.isEmpty() == false)
                         .filter(m -> m.getIsAcknowledged() == null)
                         .collect(Collectors.toList());
@@ -147,9 +156,8 @@ public class BankAccountHealthCheckView extends VerticalLayout {
             {
                 // Members with invalid bank numbers
                 List<MemberEntity> membersWithInvalidBankNumbers = groupedByMentor.get(mentor).stream()
-                        .map(VotingCouncelEntity::getConstraints)
-                        .flatMap(List::stream)
-                        .map(c -> c.getMember())
+                        .map(VotingCouncelEntity::getId)
+                        .flatMap(id -> membersByVotingCouncelId.getOrDefault(id, List.of()).stream())
                         .filter(m -> m != null && m.isEmpty() == false)
                         .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged() && !bankAccountValidator.isValidAccountNumber(m.getBankNumber()))
                         .collect(Collectors.toList());
@@ -194,8 +202,8 @@ public class BankAccountHealthCheckView extends VerticalLayout {
             {
                 // Presidents with unknown status
                 List<PresidentEntity> presidentsWithUnknownStatus = groupedByMentor.get(mentor).stream()
-                        .map(VotingCouncelEntity::getPresidents)
-                        .flatMap(List::stream)
+                        .map(VotingCouncelEntity::getId)
+                        .flatMap(id -> presidentsByVotingCouncelId.getOrDefault(id, List.of()).stream())
                         .filter(p -> p != null && p.isEmpty() == false)
                         .filter(p -> p.getIsAcknowledged() == null)
                         .collect(Collectors.toList());
@@ -241,8 +249,8 @@ public class BankAccountHealthCheckView extends VerticalLayout {
             {
                 // Presidents with invalid bank numbers
                 List<PresidentEntity> presidentsWithInvalidBankNumbers = groupedByMentor.get(mentor).stream()
-                        .map(VotingCouncelEntity::getPresidents)
-                        .flatMap(List::stream)
+                        .map(VotingCouncelEntity::getId)
+                        .flatMap(id -> presidentsByVotingCouncelId.getOrDefault(id, List.of()).stream())
                         .filter(p -> p != null && p.isEmpty() == false)
                         .filter(p -> p.getIsAcknowledged() != null && p.getIsAcknowledged() && !bankAccountValidator.isValidAccountNumber(p.getBankNumber()))
                         .collect(Collectors.toList());

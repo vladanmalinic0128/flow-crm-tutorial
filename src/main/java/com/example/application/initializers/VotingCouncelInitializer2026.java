@@ -2255,7 +2255,7 @@ public class VotingCouncelInitializer2026 /*implements ApplicationRunner*/ {
         votingCouncel034B236.setCode("034Б236");
         votingCouncel034B236.setName("ЧОКОРСКА ПОЉА");
         votingCouncel034B236.setLocation("Коњички клуб, објекат \"Салаш\", сала 1");
-        votingCouncel034B236.setNumberOfMembers(2);
+        votingCouncel034B236.setNumberOfMembers(4);
         votingCouncel034B236.setNumberOfVoters(312);
         votingCouncel034B236.setMentor(nada);
         votingCouncelRepository.save(votingCouncel034B236);

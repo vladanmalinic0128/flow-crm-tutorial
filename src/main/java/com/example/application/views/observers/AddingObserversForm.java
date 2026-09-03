@@ -393,6 +393,7 @@ public class AddingObserversForm extends FormLayout {
         this.organizations.clear();
         this.stackEntity = new StackEntity();
         this.upload.clearFileList();
+        this.isFileEmpty = true;
     }
 
     private String getCellValue(Cell cell) {

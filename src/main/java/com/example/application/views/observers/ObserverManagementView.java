@@ -5,7 +5,7 @@ import com.example.application.entities.StatusEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.StatusRepository;
-import com.example.application.services.ObserverPdfService;
+import com.example.application.services.AccreditationPdfServiceV2;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -42,15 +42,15 @@ import java.util.Locale;
 public class ObserverManagementView extends VerticalLayout {
     private final ObserverRepository observerRepository;
     private final StatusRepository statusRepository;
-    private final ObserverPdfService observerPdfService;
+    private final AccreditationPdfServiceV2 accreditationPdfServiceV2;
 
     private final Grid<ObserverEntity> grid = new Grid<>(ObserverEntity.class, false);
     private final ListDataProvider<ObserverEntity> dataProvider;
 
-    public ObserverManagementView(ObserverRepository observerRepository, StatusRepository statusRepository, ObserverPdfService observerPdfService) {
+    public ObserverManagementView(ObserverRepository observerRepository, StatusRepository statusRepository, AccreditationPdfServiceV2 accreditationPdfServiceV2) {
         this.observerRepository = observerRepository;
         this.statusRepository = statusRepository;
-        this.observerPdfService = observerPdfService;
+        this.accreditationPdfServiceV2 = accreditationPdfServiceV2;
 
         setSizeFull();
 
@@ -195,7 +195,7 @@ public class ObserverManagementView extends VerticalLayout {
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 return null;
             }
-            String path = observerPdfService.downloadSingleAccreditationPdf(observer, datePicker.getValue(), scripts.getValue(), fileTitle);
+            String path = accreditationPdfServiceV2.downloadSingleAccreditationPdf(observer, datePicker.getValue(), scripts.getValue(), fileTitle);
             dialog.close();
             return getStream(path);
         }), "");

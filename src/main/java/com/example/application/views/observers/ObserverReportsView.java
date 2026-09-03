@@ -4,6 +4,7 @@ import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.StackEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.enums.SideEnum;
+import com.example.application.services.AccreditationPdfServiceV2;
 import com.example.application.services.ObserverPdfService;
 import com.example.application.services.PoliticalOrganizationService;
 import com.example.application.services.StackService;
@@ -38,15 +39,17 @@ public class ObserverReportsView extends VerticalLayout {
     private final PoliticalOrganizationService politicalOrganizationService;
     private final StackService stackService;
     private final ObserverPdfService observerPdfService;
+    private final AccreditationPdfServiceV2 accreditationPdfServiceV2;
 
     ComboBox<ScriptEnum> scripts = new ComboBox<>("Odaberite pismo");
     ComboBox<SideEnum> printType = new ComboBox<>("Odaberite tip generisanja");
     DatePicker datePicker = new DatePicker("Odaberite datum: ");
 
-    public ObserverReportsView(PoliticalOrganizationService politicalOrganizationService, StackService stackService, ObserverPdfService observerPdfService) {
+    public ObserverReportsView(PoliticalOrganizationService politicalOrganizationService, StackService stackService, ObserverPdfService observerPdfService, AccreditationPdfServiceV2 accreditationPdfServiceV2) {
         this.politicalOrganizationService = politicalOrganizationService;
         this.stackService = stackService;
         this.observerPdfService = observerPdfService;
+        this.accreditationPdfServiceV2 = accreditationPdfServiceV2;
 
         // Main layout
         this.setWidth("100%");
@@ -419,7 +422,7 @@ public class ObserverReportsView extends VerticalLayout {
             return null;
         }
         try {
-            return observerPdfService.downloadAccreditatationsPdf(entity, datePicker.getValue(), scripts.getValue(), printType.getValue(), fileTitle);
+            return accreditationPdfServiceV2.downloadAccreditationsPdf(entity, datePicker.getValue(), scripts.getValue(), printType.getValue(), fileTitle);
         } catch (Exception ex) {
             ex.printStackTrace();
             return null;

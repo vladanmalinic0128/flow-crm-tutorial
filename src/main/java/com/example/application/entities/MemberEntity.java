@@ -115,4 +115,24 @@ public class MemberEntity {
         return this.firstname + " " + this.lastname;
         else return "";
     }
+
+    /**
+     * Falls back to deriving gender from {@link #jmbg} (same scheme as {@link PresidentEntity
+     * #getIsMale()}) when it wasn't explicitly set - a JMBG's 10th-12th digits are 000-499 for male,
+     * 500-999 for female.
+     */
+    public Boolean getIsMale() {
+        if (isMale != null) {
+            return isMale;
+        }
+        if (jmbg == null || jmbg.length() != 13) {
+            return null;
+        }
+        try {
+            int genderIndicator = Integer.parseInt(jmbg.substring(9, 12));
+            return genderIndicator <= 499;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 }

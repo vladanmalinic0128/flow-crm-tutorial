@@ -203,8 +203,9 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab tab8 = createTab("Skraćena rješenja", ShortReportsView.class);
         Tab tab9 = createTab("Prikaz po bankama", MembersByBankReportView.class);
         Tab  tab10 = createTab("Rezervni spisak", SubstituteView.class);
+        Tab tab11 = createTab("Odluka o imenovanju BO", VotingCouncelsAppointmentDecisionView.class);
 
-        tabs.add(tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10);
+        tabs.add(tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
         tabs.setSelectedTab(tab2);
 

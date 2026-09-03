@@ -244,11 +244,16 @@ public class DrawingView extends VerticalLayout {
             }
         }
 
-        int i = 1; //Pozicija ide od prve!!!
-        for(PoliticalOrganizationEntity politicalOrganization: politicalOrganizationEntitiesList) {
-            politicalOrganization.setDrawNumber(i);
-            politicalOrganizationRepository.save(politicalOrganization);
-            i++;
+        // drawNumber is the official order established at the regular drawing - MT reuses (a subset
+        // of) the same subjects, so it must not renumber them from 1, which would overwrite that
+        // record with MT-local numbers and lose the original sequence.
+        if(isMT == false) {
+            int i = 1; //Pozicija ide od prve!!!
+            for(PoliticalOrganizationEntity politicalOrganization: politicalOrganizationEntitiesList) {
+                politicalOrganization.setDrawNumber(i);
+                politicalOrganizationRepository.save(politicalOrganization);
+                i++;
+            }
         }
 
         PoliticalOrganizationEntity gikEntity = politicalOrganizationRepository.findByCode("00000");
@@ -261,10 +266,6 @@ public class DrawingView extends VerticalLayout {
         else
             votingCouncels = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("МТ") && vc.getPrimaryVotingCouncel() == null).collect(Collectors.toList());
 
-        if(isMT == false)
-            i = 0; //Sluzi da vodi racuna o zrijebanju
-        else
-            i = 0;//findLastConstraint() + 1;
         int participated = politicalOrganizationEntitiesList.size();
 
         Optional<TitleEntity> optionalMemberTitle = titleRepository.findById(1L);
@@ -278,7 +279,22 @@ public class DrawingView extends VerticalLayout {
         // subject #1 - otherwise subjects beyond position numberOfMembers (e.g. the 5th+ of 5)
         // would never be assigned anywhere. Councils with fewer real subjects than positions
         // still get the leftover positions filled with GIK, same as before.
+        //
+        // For MT, the rotation continues from the subject right after whoever got the regular
+        // draw's very last position, instead of restarting at subject #1 - MT positions are a
+        // continuation of the same draw, not a separate one.
         int rotationOffset = 0;
+        if(isMT) {
+            Long nextOrganizationId = findNextOrganizationIdAfterRegularDraw();
+            if(nextOrganizationId != null) {
+                for(int idx = 0; idx < politicalOrganizationEntitiesList.size(); idx++) {
+                    if(nextOrganizationId.equals(politicalOrganizationEntitiesList.get(idx).getId())) {
+                        rotationOffset = idx;
+                        break;
+                    }
+                }
+            }
+        }
         for(VotingCouncelEntity votingCouncel: votingCouncels) {
             int realSlots = Math.min(votingCouncel.getNumberOfMembers(), participated);
             for(int j = 0; j < votingCouncel.getNumberOfMembers(); j++) {
@@ -301,21 +317,39 @@ public class DrawingView extends VerticalLayout {
                 deputyConstraint.setPosition(j + 1);
                 deputyConstraint.setTitle(memberDeputyTitle);
                 constraintRepository.save(deputyConstraint);
-
-                i++;
             }
             rotationOffset = (rotationOffset + realSlots) % participated;
         }
     }
 
-    private int findLastConstraint() {
-        Optional<VotingCouncelEntity> lastVotingCouncel  = votingCouncelRepository.findAll().stream().filter(vc -> vc.getCode().contains("Б")).sorted(Comparator.comparing(VotingCouncelEntity::getId).reversed()).findFirst();
-        if(lastVotingCouncel.isEmpty())
-            return -1;
-        Optional<ConstraintEntity> constraint = lastVotingCouncel.get().getConstraints().stream().filter(c -> c.getTitle().getId().equals(1L)).sorted(Comparator.comparing(ConstraintEntity::getPosition).reversed()).findFirst();
-        if(constraint.isEmpty())
-            return -1;
-        return constraint.get().getPoliticalOrganization().getDrawNumber() - 1;
+    // Id of the political organization that should receive the very next position after the
+    // regular draw's last filled slot (drawNumber i+1, if the regular draw's last slot went to
+    // drawNumber i) - the MT rotation's starting point.
+    //
+    // This is computed from the total count of (non-GIK) positions filled across the whole
+    // regular draw, mod the number of regular participants - not by looking up "the last
+    // council" via voting_councel's row order, which findAll() doesn't guarantee matches the
+    // councils' numeric code order (a council can have a lower code but a higher database id).
+    // The total-count sum is order-independent, so it's unaffected by that.
+    private Long findNextOrganizationIdAfterRegularDraw() {
+        List<PoliticalOrganizationEntity> regularParticipants = politicalOrganizationRepository.findAll().stream()
+                .filter(po -> po.getDrawNumber() != null && po.getDrawNumber() > 0)
+                .sorted(Comparator.comparing(PoliticalOrganizationEntity::getDrawNumber))
+                .collect(Collectors.toList());
+        if(regularParticipants.isEmpty())
+            return null;
+
+        List<VotingCouncelEntity> regularVotingCouncels = votingCouncelRepository.findAll().stream()
+                .filter(vc -> vc.getCode().contains("МТ") == false && vc.getPrimaryVotingCouncel() == null)
+                .collect(Collectors.toList());
+
+        int regularParticipated = regularParticipants.size();
+        int totalRealSlots = regularVotingCouncels.stream()
+                .mapToInt(vc -> Math.min(vc.getNumberOfMembers(), regularParticipated))
+                .sum();
+
+        int nextIndex = totalRealSlots % regularParticipated;
+        return regularParticipants.get(nextIndex).getId();
     }
 
     private ConfirmDialog showAlert(String title, String body) {

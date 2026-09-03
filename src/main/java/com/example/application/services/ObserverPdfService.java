@@ -1,11 +1,15 @@
 package com.example.application.services;
 
+import com.example.application.entities.ConstraintEntity;
+import com.example.application.entities.MemberEntity;
 import com.example.application.entities.ObserverEntity;
 import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.StackEntity;
+import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.enums.SideEnum;
 import com.example.application.repositories.ObserverRepository;
+import com.example.application.repositories.VotingCouncelRepository;
 import com.itextpdf.io.image.ImageData;
 import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.font.PdfFont;
@@ -106,17 +110,46 @@ public class ObserverPdfService {
     // the workbook's own theme accent1 color (xl/theme/theme1.xml) - not a color we picked ourselves.
     private static final String TEMPLATE_ACCENT_COLOR = "#156082";
 
+    // ---- Voting councels' appointment decision ("Odluka - biracki odbori") ----
+    // Adjust these ahead of generating each new appointment decision - they aren't derivable from
+    // the data (the council/member counts below the text are computed live from the database).
+    private static final String VOTING_COUNCELS_DECISION_NUMBER = "01-03-1/25-87";
+    private static final String VOTING_COUNCELS_DECISION_DATE = "07.11.2025";
+    private static final String VOTING_COUNCELS_ELECTION_LABEL = "Пријевремених избора за предсједника Републике Српске 23. новембра 2025. године";
+    // Matches the reference document's own styles.xml: body text is Normal style (Times New Roman
+    // 12pt, no overrides), while every run inside the table explicitly overrides to Calibri.
+    private static final String VOTING_COUNCELS_TEXT_FONT_FAMILY = "Times New Roman";
+    private static final int VOTING_COUNCELS_TEXT_FONT_SIZE = 12;
+    private static final String VOTING_COUNCELS_TABLE_FONT_FAMILY = "Calibri";
+    // Fill color of the councel code/location row only, lifted from that row's w:shd in the
+    // reference document - the column-header, section-label, and member rows have no fill.
+    private static final String VOTING_COUNCELS_TABLE_HEADER_ROW_FILL = "CCCCFF";
+    // Column widths (twentieths of a point/dxa) and table width/indent, copied verbatim from the
+    // reference document's w:tblGrid/w:tblW/w:tblInd.
+    private static final int VOTING_COUNCELS_TABLE_CODE_COLUMN_WIDTH_DXA = 1300;
+    private static final int VOTING_COUNCELS_TABLE_NAME_COLUMN_WIDTH_DXA = 7283;
+    private static final int VOTING_COUNCELS_TABLE_GENDER_COLUMN_WIDTH_DXA = 874;
+    private static final int VOTING_COUNCELS_TABLE_TOTAL_WIDTH_DXA = 9457;
+    private static final int VOTING_COUNCELS_TABLE_INDENT_DXA = 113;
+    // Row heights (dxa): the column-header row is tall enough to wrap its long labels onto a couple
+    // of lines; every other row is a fixed, single-line height - cells that must never wrap (so
+    // Word can't stretch the row past this) get noWrap explicitly (see setCellNoWrap).
+    private static final int VOTING_COUNCELS_TABLE_HEADER_ROW_HEIGHT_DXA = 900;
+    private static final int VOTING_COUNCELS_TABLE_DATA_ROW_HEIGHT_DXA = 315;
+
     private final LatinToCyrillicConverter latinToCyrillicConverter;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final ObserverRepository observerRepository;
+    private final VotingCouncelRepository votingCouncelRepository;
 
     Image electionLogo = null;
     Image countryLogo = null;
 
-    public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter, ObserverRepository observerRepository) {
+    public ObserverPdfService(LatinToCyrillicConverter latinToCyrillicConverter, CyrillicToLatinConverter cyrillicToLatinConverter, ObserverRepository observerRepository, VotingCouncelRepository votingCouncelRepository) {
         this.latinToCyrillicConverter = latinToCyrillicConverter;
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
         this.observerRepository = observerRepository;
+        this.votingCouncelRepository = votingCouncelRepository;
     }
 
     public String downloadOverallPdf(PoliticalOrganizationEntity entity) {
@@ -1531,6 +1564,478 @@ public class ObserverPdfService {
                     ", broj odluke " +
                     accreditatedObserver.getStack().getDecisionNumber() +
                     ") ";
+    }
+
+    /**
+     * Generates the "Одлука о именовању чланова и замјеника чланова бирачких одбора" - the same
+     * kind of document as {@code resources/documents/2026/Одлука - бирачки одбори 07.11..docx},
+     * reusing this class's header/footer building blocks (see {@link #generateAcceptedObserversForDecision})
+     * for the top-of-page GIK letterhead, but otherwise matching the reference document's own
+     * typography and table formatting directly (Times New Roman body text, Calibri table, the same
+     * column widths/row heights/shading) rather than the other decisions' styling. Members and their
+     * substitutes are pulled live from the database, one section per voting councel, in their
+     * drawing ("žrijebanje") order - {@link ConstraintEntity#getPosition()}. A position without an
+     * assigned member still gets its own row (with blank name/gender) rather than being skipped.
+     */
+    public String generateVotingCouncelsAppointmentDecision(ScriptEnum scriptEnum, String fileTitle) throws IOException, InvalidFormatException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        XWPFDocument document = new XWPFDocument();
+        createHeader(document, scriptEnum);
+
+        setVotingCouncelsDecisionNumber(document, scriptEnum);
+        setVotingCouncelsDate(document, scriptEnum);
+        addVotingCouncelsEmptyLine(document);
+
+        List<VotingCouncelEntity> councels = getRegularVotingCouncelsForAppointmentDecision();
+
+        setVotingCouncelsIntroductionParagraph(document, scriptEnum);
+        setVotingCouncelsTitle(document, scriptEnum);
+        setVotingCouncelsDecisionSubtitle(document, scriptEnum);
+        addVotingCouncelsEmptyLine(document);
+
+        setVotingCouncelsItemI(document, councels, scriptEnum);
+        setVotingCouncelsItemII(document, scriptEnum);
+        setVotingCouncelsItemIII(document, scriptEnum);
+        setVotingCouncelsItemIV(document, scriptEnum);
+        setVotingCouncelsItemV(document, scriptEnum);
+        setVotingCouncelsItemVI(document, scriptEnum);
+        setVotingCouncelsItemVII(document, scriptEnum);
+
+        addVotingCouncelsMembersTable(document, councels, scriptEnum);
+
+        setVotingCouncelsExplanationTitle(document, scriptEnum);
+        setVotingCouncelsExplanationFirstParagraph(document, scriptEnum);
+        setVotingCouncelsExplanationSecondParagraph(document, scriptEnum);
+        setVotingCouncelsExplanationThirdParagraph(document, scriptEnum);
+        setVotingCouncelsExplanationFourthParagraph(document, scriptEnum);
+        setVotingCouncelsExplanationFifthParagraph(document, scriptEnum);
+        setVotingCouncelsLegalRemedyParagraph(document, scriptEnum);
+
+        setVotingCouncelsSignature(document, scriptEnum);
+        createFooter(document, scriptEnum);
+
+        String filePath = ROOT_PATH + File.separator + fileTitle;
+
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            document.write(out);
+            out.writeTo(fos);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        try {
+            document.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return filePath;
+    }
+
+    /** Regular ("034Б..."), standalone (not merged into another councel, e.g. "ЛИЧНО") voting councels - excludes mobile teams ("МТ"). */
+    private List<VotingCouncelEntity> getRegularVotingCouncelsForAppointmentDecision() {
+        return votingCouncelRepository.findAll().stream()
+                .filter(vc -> vc.getCode() != null && !vc.getCode().contains("МТ"))
+                .filter(vc -> vc.getPrimaryVotingCouncel() == null)
+                .sorted(Comparator.comparing(VotingCouncelEntity::getCode))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * The reference document has no paragraph-spacing overrides anywhere (before/after are both 0,
+     * line spacing is single) - but a blank {@link XWPFDocument} has no styles part at all, so Word
+     * falls back to its own bundled default (visibly bigger: ~10pt after, 1.08 line spacing) instead
+     * of the OOXML single/0 default a real style would resolve to. Every paragraph and table-cell
+     * paragraph in this decision calls this (instead of the plainer {@link #removeSpacing}, used by
+     * the other decisions) to pin both explicitly rather than rely on that absent styles part.
+     */
+    private void removeVotingCouncelsSpacing(XWPFParagraph paragraph) {
+        paragraph.setSpacingBefore(0);
+        paragraph.setSpacingAfter(0);
+        paragraph.setSpacingBetween(1.0, LineSpacingRule.AUTO);
+    }
+
+    /**
+     * A blank separator line in this decision's own voice (Times New Roman 12pt, no spacing) -
+     * used instead of the plain {@link #addEmptyLine}, whose unstyled paragraph would otherwise
+     * fall back to Word's bigger built-in default line height/spacing (see
+     * {@link #removeVotingCouncelsSpacing}).
+     */
+    private void addVotingCouncelsEmptyLine(XWPFDocument document) {
+        XWPFParagraph paragraph = document.createParagraph();
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+    }
+
+    private void setVotingCouncelsDecisionNumber(XWPFDocument document, ScriptEnum scriptEnum) {
+        String text = convertFromCyrillic("Број: ", scriptEnum) + VOTING_COUNCELS_DECISION_NUMBER + ".";
+        addVotingCouncelsPlainLine(document, text, ParagraphAlignment.LEFT);
+    }
+
+    private void setVotingCouncelsDate(XWPFDocument document, ScriptEnum scriptEnum) {
+        String text = convertFromCyrillic("Дана, ", scriptEnum) + VOTING_COUNCELS_DECISION_DATE + convertFromCyrillic(" године", scriptEnum);
+        addVotingCouncelsPlainLine(document, text, ParagraphAlignment.LEFT);
+    }
+
+    private void setVotingCouncelsTitle(XWPFDocument document, ScriptEnum scriptEnum) {
+        setVotingCouncelsCenteredBoldLine(document, "О Д Л У К У", scriptEnum);
+    }
+
+    private void setVotingCouncelsExplanationTitle(XWPFDocument document, ScriptEnum scriptEnum) {
+        setVotingCouncelsCenteredBoldLine(document, "О б р а з л о ж е њ е", scriptEnum);
+    }
+
+    private void setVotingCouncelsCenteredBoldLine(XWPFDocument document, String label, ScriptEnum scriptEnum) {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        run.setBold(true);
+        run.setText(convertFromCyrillic(label, scriptEnum));
+    }
+
+    private void addVotingCouncelsPlainLine(XWPFDocument document, String text, ParagraphAlignment alignment) {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(alignment);
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        run.setText(text);
+    }
+
+    private void setVotingCouncelsSignature(XWPFDocument document, ScriptEnum scriptEnum) {
+        setVotingCouncelsSignatureLine(document, PRESIDENT_TITLE, scriptEnum, 920);
+        setVotingCouncelsSignatureLine(document, PRESIDENT_FULL_NAME, scriptEnum, 700);
+    }
+
+    private void setVotingCouncelsSignatureLine(XWPFDocument document, String label, ScriptEnum scriptEnum, int indentationRight) {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.RIGHT);
+        paragraph.setIndentationRight(indentationRight);
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        run.setBold(true);
+        run.setText(convertFromCyrillic(label, scriptEnum));
+    }
+
+    private void setVotingCouncelsIntroductionParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "На основу чл. 2.4 став (2), чл. 2.13 тачка 3. и чл. 2.19 став (5) Изборног закона Босне и Херцеговине („Службени гласник БиХ“, бр. 23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 7/14, 31/16, 41/20, 38/22, 51/22 и 24/24), а у складу са Правилником Централне изборне комисије БиХ о поступку именовања и разрјешења бирачких одбора за Локалне изборе у БиХ 2024. године („Службени гласник БиХ“, број 31/24), Упутством о процедурама за провођење " + VOTING_COUNCELS_ELECTION_LABEL + " („Службени гласник БиХ“, број 52/25), броја позиција у бирачким одборима за основну изборну јединицу 034 Б – Бања Лука, узимајући у обзир достављене приједлоге политичких субјеката за састав бирачких одбора и прописан начин за попуну непопуњених позиција у бирачким одборима, Градска изборна комисија Бања Лука је, на сједници одржаној " + VOTING_COUNCELS_DECISION_DATE + " године, д о н и ј е л а";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    private void setVotingCouncelsDecisionSubtitle(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "о именовању чланова и замјеника чланова бирачких одбора за провођење " + VOTING_COUNCELS_ELECTION_LABEL + " у основној изборној јединици 034 Б – Бања Лука";
+
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.CENTER);
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        run.setBold(true);
+        run.setText(convertFromCyrillic(label, scriptEnum));
+    }
+
+    /** One "I – ...", "II – ..." item: the numeral is bold, the rest of the sentence isn't - matching the reference decision. */
+    private void addVotingCouncelsItem(XWPFDocument document, String numeralLabel, String bodyLabel, ScriptEnum scriptEnum) {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        removeVotingCouncelsSpacing(paragraph);
+
+        XWPFRun numeralRun = paragraph.createRun();
+        numeralRun.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        numeralRun.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        numeralRun.setBold(true);
+        numeralRun.setText(convertFromCyrillic(numeralLabel, scriptEnum));
+
+        XWPFRun bodyRun = paragraph.createRun();
+        bodyRun.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        bodyRun.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        bodyRun.setText(convertFromCyrillic(bodyLabel, scriptEnum));
+
+        addVotingCouncelsEmptyLine(document);
+    }
+
+    /** Number of "ЧЛАН" positions on a councel - also the number of "ЗАМЈЕНИК ЧЛАНА" positions, since every member position is mirrored by a substitute one. */
+    private long countMemberPositions(VotingCouncelEntity councel) {
+        return councel.getConstraints().stream()
+                .filter(c -> c.getTitle() != null && c.getTitle().getId() == 1L)
+                .count();
+    }
+
+    private void setVotingCouncelsItemI(XWPFDocument document, List<VotingCouncelEntity> councels, ScriptEnum scriptEnum) {
+        Map<Long, Long> councelsByStructure = councels.stream()
+                .collect(Collectors.groupingBy(this::countMemberPositions, Collectors.counting()));
+
+        StringBuilder structureLabel = new StringBuilder();
+        councelsByStructure.entrySet().stream()
+                .sorted(Map.Entry.<Long, Long>comparingByKey().reversed())
+                .forEach(entry -> {
+                    if (structureLabel.length() > 0)
+                        structureLabel.append(", а по структури ");
+                    else
+                        structureLabel.append("По структури ");
+                    structureLabel.append(entry.getKey()).append(" члана + ").append(entry.getKey()).append(" замјеника је ").append(entry.getValue()).append(" бирачких одбора");
+                });
+
+        long totalMemberPositions = councels.stream().mapToLong(this::countMemberPositions).sum();
+        long totalIndividuals = totalMemberPositions * 2;
+
+        String body = " За провођење " + VOTING_COUNCELS_ELECTION_LABEL + ", на подручју основне изборне јединице 034 Б – Бања Лука, Градска изборна комисија Бања Лука, у складу са изборним прописима, доноси одлуку о именовању " + councels.size() + " бирачких одбора за редовна бирачка мјеста. " + structureLabel + ". Свеукупно, у " + councels.size() + " именованих бирачких одбора, је " + totalMemberPositions + " позиција за чланове бирачких одбора и исто толико позиција за замјенике чланова бирачких одбора, што је укупно " + totalIndividuals + " појединца.";
+
+        addVotingCouncelsItem(document, "I – ", body, scriptEnum);
+    }
+
+    private void setVotingCouncelsItemII(XWPFDocument document, ScriptEnum scriptEnum) {
+        String body = " Дужности чланова и замјеника чланова бирачких одбора су: да учествују у обуци чланова и замјеника чланова бирачких одбора, у заказаним терминима и локацијама, о чему ће бити посебно обавијештени, а све у складу са Наставним планом и програмом обуке бирачких одбора Централне изборне комисије БиХ и Планом обуке Градске изборне комисије Бања Лука; у потпуности испоштовати обавезу присуства обуци, као и да по завршеној обуци положе тест, јер у противном неће моћи радити у бирачким одборима; да се у потпуности придржавају одредби Изборног закона и подзаконских аката Централне изборне комисије БиХ; да се у комплетном процесу провођења гласања и пребројавања гласова понашају и поступају непристрасно, професионално и стручно.";
+        addVotingCouncelsItem(document, "II – ", body, scriptEnum);
+    }
+
+    private void setVotingCouncelsItemIII(XWPFDocument document, ScriptEnum scriptEnum) {
+        String body = " За рад у бирачком одбору на провођењу " + VOTING_COUNCELS_ELECTION_LABEL + ", чланови и замјеници чланова бирачких одбора и мобилних тимова имају право на накнаду према посебној одлуци Централне изборне комисије.";
+        addVotingCouncelsItem(document, "III – ", body, scriptEnum);
+    }
+
+    private void setVotingCouncelsItemIV(XWPFDocument document, ScriptEnum scriptEnum) {
+        String body = " По завршеној обуци, провјери знања и цертификовању, Градска изборна комисија Бања Лука донијеће рјешења за сваки појединачни бирачки одбор и уручити га предсједнику бирачког одбора.";
+        addVotingCouncelsItem(document, "IV – ", body, scriptEnum);
+    }
+
+    private void setVotingCouncelsItemV(XWPFDocument document, ScriptEnum scriptEnum) {
+        String body = " Одређивање броја мобилних тимова, процедуру именовања чланова и замјеника чланова мобилних тимова, предсједника и замјеника предсједника мобилних тимова и њихове обуке, Градска изборна комисија ће извршити у складу са изборним прописима и процедурама када се за то стекну неопходне претпоставке, о чему ће политички субјекти бити обавијештени.";
+        addVotingCouncelsItem(document, "V – ", body, scriptEnum);
+    }
+
+    private void setVotingCouncelsItemVI(XWPFDocument document, ScriptEnum scriptEnum) {
+        String body = " Ову одлуку доставити Централној изборној комисији БиХ, овјереним политичким субјектима за учешће на " + VOTING_COUNCELS_ELECTION_LABEL + " у основној изборној јединици 034 Б – Бања Лука, члановима Градске изборне комисије, у попис аката и евиденцију Градске изборне комисије.";
+        addVotingCouncelsItem(document, "VI – ", body, scriptEnum);
+    }
+
+    private void setVotingCouncelsItemVII(XWPFDocument document, ScriptEnum scriptEnum) {
+        String body = " Именују се чланови и замјеници чланова бирачких одбора, како слиједи:";
+        addVotingCouncelsItem(document, "VII - ", body, scriptEnum);
+        addEmptyLine(document);
+    }
+
+    private void setVotingCouncelsExplanationFirstParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "У складу са Изборним законом и подзаконским актима побројаним у преамбули одлуке, чланови бирачких одбора и њихови замјеници, именовани су по достављеним приједлозима политичких субјеката на додијељене позиције, према номенклатури бирачких мјеста за основну изборну јединицу 034 Б – Бања Лука, као и попуна позиција за које није било приједлога од стране овјерених политичких субјеката или ако приједлог није био разматран.";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    private void setVotingCouncelsExplanationSecondParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "Све позиције у бирачким одборима означене су шифрама овјерених политичких субјеката. У сваком бирачком одбору, Градска изборна комисија именовала је чланове бирачког одбора и њихове замјенике који су, у правилу, на истој позицији - шифри политичког субјекта. Градска изборна комисија максимално је уважила приједлоге политичких субјеката, полазећи од наведене стручности, изборног искуства, као и заступљености политичких субјеката, националне и полне заступљености.";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    private void setVotingCouncelsExplanationThirdParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "Могућност достављања приједлога за састав бирачких одбора имала су 2 овјерена политичка субјекта и исте су доставила оба политичка субјекта. Градска изборна комисија је, у складу са изборним прописима, на непопуњене позиције од стране политичких субјеката, именовала појединце са резервне листе. Лица са резервне листе, у акту су означена звјездицом – „*“, што адекватно одговара посебном списку.";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    private void setVotingCouncelsExplanationFourthParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "Приједлози овјерених политичких субјеката садржавали су извјестан број приједлога који, у складу са изборним прописима нису могли бити разматрани нити уважени, као што су: дуплирани приједлози од више политичких субјеката у којем случају је предложени појединац задржан на позицији члана односно задржан је приједлог овјереног политичког субјекта који је приједлог раније доставио, ако је дупло предложени појединац у оба случаја члан или замјеник; незадовољавајућа стручна спрема (основна школа). С обзиром на то да, у моменту доношења ове одлуке, Централна изборна комисија БиХ није активирала Апликацију за бирачке одборе, за очекивати је да ће, у складу са прописима, приликом уноса података у Апликацију када буде активирана, иста препознати и друге појединце који су, евентуално, још увијек под активном санкцијом изреченом за повреду изборних правила, друга општина пребивалишта или су у потенцијалном сукобу интереса што су, такође, разлози да такви појединци не могу бити у саставу бирачких одбора. У наведеним ситуацијама, када приједлог политичког субјекта за члана бирачког одбора није разматран, Градска изборна комисија је приликом именовања позиционирала предложеног замјеника на позицију члана бирачког одбора.";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    private void setVotingCouncelsExplanationFifthParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "Цјелокупна документација о именовању бирачких одбора налази се у сједишту Градске изборне комисије и приликом преузимања акта о именовању, овлашћеном лицу сваког политичког субјекта биће омогућен увид у исту и предочени разлози евентуалног неразматрања конкретног приједлога.";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    private void setVotingCouncelsLegalRemedyParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
+        String label = "ПОУКА О ПРАВНОМ ЛИЈЕКУ: на основу чл. 2.19 став (5) и чл. 6.3 Изборног закона БиХ, и Упутства о процедурама за рјешавање по приговорима и жалбама поднесеним изборним комисијама (Пречишћени текст), на ову одлуку је допуштен приговор Градској изборној комисији у року од 24 сата од преузимања/достављања одлуке. Приговор се предаје у писаној форми Градској изборној комисији Бања Лука.";
+        addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
+    }
+
+    /** A justified, first-line-indented body paragraph in the decision's own Times New Roman/12pt voice. */
+    private void addVotingCouncelsJustifiedParagraph(XWPFDocument document, String label, ScriptEnum scriptEnum) {
+        XWPFParagraph paragraph = document.createParagraph();
+        paragraph.setAlignment(ParagraphAlignment.BOTH);
+        paragraph.setFirstLineIndent(720);
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TEXT_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        run.setText(convertFromCyrillic(label, scriptEnum));
+
+        addVotingCouncelsEmptyLine(document);
+    }
+
+    /**
+     * Builds the "VII" table: fixed column widths/row heights/shading copied from the reference
+     * document (see the {@code VOTING_COUNCELS_TABLE_*} constants), Calibri throughout. Every
+     * constraint (drawn position) gets its own row in drawing order, whether or not a member has
+     * actually been assigned to it yet - an unfilled position still shows its political
+     * organization's code, just with blank name/gender cells, instead of being skipped.
+     */
+    private void addVotingCouncelsMembersTable(XWPFDocument document, List<VotingCouncelEntity> councels, ScriptEnum scriptEnum) {
+        XWPFTable table = document.createTable(1, 3);
+        setVotingCouncelsTableFixedLayout(table);
+
+        XWPFTableRow headerRow = table.getRow(0);
+        headerRow.setHeight(VOTING_COUNCELS_TABLE_HEADER_ROW_HEIGHT_DXA);
+        setCellWidth(headerRow.getCell(0), VOTING_COUNCELS_TABLE_CODE_COLUMN_WIDTH_DXA);
+        setCellWidth(headerRow.getCell(1), VOTING_COUNCELS_TABLE_NAME_COLUMN_WIDTH_DXA);
+        setCellWidth(headerRow.getCell(2), VOTING_COUNCELS_TABLE_GENDER_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(headerRow.getCell(0), "Шифра БМ/ шифра ПС", scriptEnum, ParagraphAlignment.CENTER, true);
+        setVotingCouncelsTableCellText(headerRow.getCell(1), "Назив бирачког мјеста / име и презиме чланова и замјеника БО", scriptEnum, ParagraphAlignment.CENTER, true);
+        setVotingCouncelsTableCellText(headerRow.getCell(2), "Пол", scriptEnum, ParagraphAlignment.CENTER, true);
+
+        for (VotingCouncelEntity councel : councels) {
+            String locationLabel = councel.getDisplayName() + (councel.getLocation() != null ? ", " + councel.getLocation() : "");
+            addVotingCouncelHeaderRow(table, councel.getCode(), locationLabel, scriptEnum);
+
+            addVotingCouncelSectionLabelRow(table, "Чланови БО", scriptEnum);
+            for (ConstraintEntity constraint : getConstraintsByTitle(councel, 1L))
+                addVotingCouncelConstraintRow(table, constraint, scriptEnum);
+
+            addVotingCouncelSectionLabelRow(table, "Замјеници чланова БО", scriptEnum);
+            for (ConstraintEntity constraint : getConstraintsByTitle(councel, 2L))
+                addVotingCouncelConstraintRow(table, constraint, scriptEnum);
+        }
+
+        addVotingCouncelsEmptyLine(document);
+    }
+
+    private List<ConstraintEntity> getConstraintsByTitle(VotingCouncelEntity councel, long titleId) {
+        return councel.getConstraints().stream()
+                .filter(c -> c.getTitle() != null && c.getTitle().getId() == titleId)
+                .sorted(Comparator.comparing(ConstraintEntity::getPosition))
+                .collect(Collectors.toList());
+    }
+
+    /** The councel's own code/location row - shaded, with the location cell merged across the name+gender columns. */
+    private void addVotingCouncelHeaderRow(XWPFTable table, String code, String locationLabel, ScriptEnum scriptEnum) {
+        XWPFTableRow row = table.createRow();
+        row.setHeight(VOTING_COUNCELS_TABLE_DATA_ROW_HEIGHT_DXA);
+
+        XWPFTableCell codeCell = row.getCell(0);
+        setCellWidth(codeCell, VOTING_COUNCELS_TABLE_CODE_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(codeCell, code, scriptEnum, ParagraphAlignment.CENTER, false);
+        codeCell.setColor(VOTING_COUNCELS_TABLE_HEADER_ROW_FILL);
+        setCellNoWrap(codeCell);
+
+        XWPFTableCell locationCell = row.getCell(1);
+        setCellWidth(locationCell, VOTING_COUNCELS_TABLE_NAME_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(locationCell, locationLabel, scriptEnum, ParagraphAlignment.LEFT, false);
+        locationCell.setColor(VOTING_COUNCELS_TABLE_HEADER_ROW_FILL);
+        setCellNoWrap(locationCell);
+
+        XWPFTableCell trailingCell = row.getCell(2);
+        setCellWidth(trailingCell, VOTING_COUNCELS_TABLE_GENDER_COLUMN_WIDTH_DXA);
+        trailingCell.setColor(VOTING_COUNCELS_TABLE_HEADER_ROW_FILL);
+
+        mergeCellsHorizontally(row, 1, 2);
+    }
+
+    /** A "Чланови БО" / "Замјеници чланова БО" separator row - bold and centered (both ways) in every cell, none merged. */
+    private void addVotingCouncelSectionLabelRow(XWPFTable table, String label, ScriptEnum scriptEnum) {
+        XWPFTableRow row = table.createRow();
+        row.setHeight(VOTING_COUNCELS_TABLE_DATA_ROW_HEIGHT_DXA);
+
+        setCellWidth(row.getCell(0), VOTING_COUNCELS_TABLE_CODE_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(row.getCell(0), "", scriptEnum, ParagraphAlignment.CENTER, true);
+
+        setCellWidth(row.getCell(1), VOTING_COUNCELS_TABLE_NAME_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(row.getCell(1), label, scriptEnum, ParagraphAlignment.CENTER, true);
+
+        setCellWidth(row.getCell(2), VOTING_COUNCELS_TABLE_GENDER_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(row.getCell(2), "", scriptEnum, ParagraphAlignment.CENTER, true);
+    }
+
+    /** One drawn position: its political organization's code always shows, name/gender stay blank until a member is actually assigned. */
+    private void addVotingCouncelConstraintRow(XWPFTable table, ConstraintEntity constraint, ScriptEnum scriptEnum) {
+        XWPFTableRow row = table.createRow();
+        row.setHeight(VOTING_COUNCELS_TABLE_DATA_ROW_HEIGHT_DXA);
+
+        MemberEntity member = constraint.getMember();
+
+        XWPFTableCell codeCell = row.getCell(0);
+        setCellWidth(codeCell, VOTING_COUNCELS_TABLE_CODE_COLUMN_WIDTH_DXA);
+        setVotingCouncelsTableCellText(codeCell, padToFiveDigits(constraint.getPoliticalOrganization().getCode()), scriptEnum, ParagraphAlignment.CENTER, false);
+        setCellNoWrap(codeCell);
+
+        XWPFTableCell nameCell = row.getCell(1);
+        setCellWidth(nameCell, VOTING_COUNCELS_TABLE_NAME_COLUMN_WIDTH_DXA);
+        String nameLabel = member == null ? "" : (Boolean.TRUE.equals(member.getIsGik()) ? "*" : "") + member.getFullname().toUpperCase();
+        setVotingCouncelsTableCellText(nameCell, nameLabel, scriptEnum, ParagraphAlignment.LEFT, false);
+
+        XWPFTableCell genderCell = row.getCell(2);
+        setCellWidth(genderCell, VOTING_COUNCELS_TABLE_GENDER_COLUMN_WIDTH_DXA);
+        String genderLabel = member == null || member.getIsMale() == null ? "" : (member.getIsMale() ? "М" : "Ж");
+        setVotingCouncelsTableCellText(genderCell, genderLabel, scriptEnum, ParagraphAlignment.CENTER, false);
+    }
+
+    /** Fixed (dxa) table width/indent/column grid, copied verbatim from the reference document - not the usual percentage-based table. */
+    private void setVotingCouncelsTableFixedLayout(XWPFTable table) {
+        table.getCTTbl().addNewTblGrid().addNewGridCol().setW(BigInteger.valueOf(VOTING_COUNCELS_TABLE_CODE_COLUMN_WIDTH_DXA));
+        table.getCTTbl().getTblGrid().addNewGridCol().setW(BigInteger.valueOf(VOTING_COUNCELS_TABLE_NAME_COLUMN_WIDTH_DXA));
+        table.getCTTbl().getTblGrid().addNewGridCol().setW(BigInteger.valueOf(VOTING_COUNCELS_TABLE_GENDER_COLUMN_WIDTH_DXA));
+
+        CTTblWidth tableWidth = table.getCTTbl().getTblPr().addNewTblW();
+        tableWidth.setType(STTblWidth.DXA);
+        tableWidth.setW(BigInteger.valueOf(VOTING_COUNCELS_TABLE_TOTAL_WIDTH_DXA));
+
+        CTTblWidth tableIndent = table.getCTTbl().getTblPr().addNewTblInd();
+        tableIndent.setType(STTblWidth.DXA);
+        tableIndent.setW(BigInteger.valueOf(VOTING_COUNCELS_TABLE_INDENT_DXA));
+    }
+
+    private void setCellWidth(XWPFTableCell cell, int widthDxa) {
+        CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
+        CTTblWidth tcW = tcPr.isSetTcW() ? tcPr.getTcW() : tcPr.addNewTcW();
+        tcW.setType(STTblWidth.DXA);
+        tcW.setW(BigInteger.valueOf(widthDxa));
+    }
+
+    /** Stops Word from wrapping a cell's single line onto two - used wherever wrapping would otherwise grow the row past its fixed height. */
+    private void setCellNoWrap(XWPFTableCell cell) {
+        CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
+        if (!tcPr.isSetNoWrap())
+            tcPr.addNewNoWrap();
+    }
+
+    /** Sets a table cell's (already-existing default) paragraph text/alignment/weight in the table's own Calibri font, vertically centered. */
+    private void setVotingCouncelsTableCellText(XWPFTableCell cell, String cyrillicLabel, ScriptEnum scriptEnum, ParagraphAlignment alignment, boolean bold) {
+        XWPFParagraph paragraph = cell.getParagraphs().get(0);
+        paragraph.setAlignment(alignment);
+        // Zeroed out for the same reason as removeVotingCouncelsSpacing (a blank XWPFDocument has no
+        // styles part to inherit 0-spacing/single-line/12pt from) - without this, Word's bigger
+        // built-in defaults push every row taller than the reference's fixed row height.
+        removeVotingCouncelsSpacing(paragraph);
+        XWPFRun run = paragraph.createRun();
+        run.setFontFamily(VOTING_COUNCELS_TABLE_FONT_FAMILY);
+        run.setFontSize(VOTING_COUNCELS_TEXT_FONT_SIZE);
+        run.setBold(bold);
+        run.setText(convertFromCyrillic(cyrillicLabel, scriptEnum));
+        cell.setVerticalAlignment(XWPFTableCell.XWPFVertAlign.CENTER);
+    }
+
+    private void mergeCellsHorizontally(XWPFTableRow row, int fromCell, int toCell) {
+        for (int i = fromCell; i <= toCell; i++) {
+            XWPFTableCell cell = row.getCell(i);
+            CTTcPr tcPr = cell.getCTTc().isSetTcPr() ? cell.getCTTc().getTcPr() : cell.getCTTc().addNewTcPr();
+            CTHMerge hMerge = tcPr.isSetHMerge() ? tcPr.getHMerge() : tcPr.addNewHMerge();
+            hMerge.setVal(i == fromCell ? STMerge.RESTART : STMerge.CONTINUE);
+        }
+    }
+
+    /** Left-pads a political organization's code with zeros to 5 digits (e.g. "34" -&gt; "00034"). */
+    private String padToFiveDigits(String code) {
+        if (code == null)
+            return "";
+        return code.length() >= 5 ? code : "0".repeat(5 - code.length()) + code;
+    }
+
+    /** {@code label} is authored in Cyrillic - only the Latin target needs an actual conversion. */
+    private String convertFromCyrillic(String label, ScriptEnum scriptEnum) {
+        return scriptEnum == ScriptEnum.CYRILLIC ? label : cyrillicToLatinConverter.convert(label);
     }
 }
 

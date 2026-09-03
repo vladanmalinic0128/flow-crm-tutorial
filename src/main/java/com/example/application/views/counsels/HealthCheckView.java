@@ -21,7 +21,6 @@ import jakarta.annotation.security.PermitAll;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -55,6 +54,12 @@ public class HealthCheckView extends VerticalLayout {
         accordion.setWidth("800px");
         accordion.getStyle().set("margin", "0 auto");
 
+        // Fetched once and reused by every check below - constraint/votingCouncel/mentor/politicalOrganization/title
+        // are pulled in the same query (JOIN FETCH) instead of Hibernate issuing a separate SELECT per hop per
+        // member, and instead of re-running findAll() (with its own N+1) for every single check.
+        List<MemberEntity> allMembers = memberRepository.findAllWithConstraintDetails();
+        List<PresidentEntity> allPresidents = presidentRepository.findAllWithVotingCouncelDetails();
+
         {
             //Invalid jmbg
             VerticalLayout verticalLayout = new VerticalLayout();
@@ -62,7 +67,7 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setAlignItems(Alignment.START);
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
+            List<MemberEntity> memberEntityList = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
                     .filter(m -> jmbgValidator.isValidJMBG(m.getJmbg()) == false)
                     .collect(Collectors.toList());
@@ -92,7 +97,7 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setAlignItems(Alignment.START);
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
+            List<MemberEntity> memberEntityList = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
                     .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged())
                     .filter(m -> bankAccountValidator.isValidAccountNumber(m.getBankNumber()) == false)
@@ -125,23 +130,20 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setAlignItems(Alignment.START);
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
+            // One bulk query for every "successful" observer, then an in-memory jmbg lookup below -
+            // instead of 2-3 repository round trips per member (existsByJmbg + findFirstByJmbgAndStatus_Id, twice).
+            Map<String, ObserverEntity> observerByJmbg = observerRepository.findAllWithDetailsByStatusId(1).stream()
+                    .filter(o -> o.getJmbg() != null)
+                    .filter(o -> o.getStatus() != null && o.getStatus().getSuccess() == true)
+                    .collect(Collectors.toMap(ObserverEntity::getJmbg, o -> o, (first, second) -> first));
+
+            List<MemberEntity> memberEntityList = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
-                    .filter(m -> {
-                        if (observerRepository.existsByJmbg(m.getJmbg()) == false)
-                            return false;
-                        Optional<ObserverEntity> optional = observerRepository.findFirstByJmbgAndStatus_Id(m.getJmbg(), 1);
-                        if (optional.isEmpty())
-                            return false;
-                        return optional.get().getStatus().getSuccess() == true;
-                    })
+                    .filter(m -> m.getJmbg() != null && observerByJmbg.containsKey(m.getJmbg()))
                     .collect(Collectors.toList());
 
             for (MemberEntity memberEntity : memberEntityList) {
-                Optional<ObserverEntity> optional = observerRepository.findFirstByJmbgAndStatus_Id(memberEntity.getJmbg(), 1);
-                if (optional.isEmpty())
-                    continue;
-                ObserverEntity observer = optional.get();
+                ObserverEntity observer = observerByJmbg.get(memberEntity.getJmbg());
 
                 Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
                 Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
@@ -171,18 +173,19 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setAlignItems(Alignment.START);
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            List<MemberEntity> memberEntityList = memberRepository.findAll().stream()
+            // One bulk query for every president, then an in-memory jmbg lookup below - instead of
+            // existsByJmbg + findByJmbg per member. Also reused by the bank-number-duplicates check further down.
+            Map<String, PresidentEntity> presidentByJmbg = allPresidents.stream()
+                    .filter(p -> p.getJmbg() != null)
+                    .collect(Collectors.toMap(PresidentEntity::getJmbg, p -> p, (first, second) -> first));
+
+            List<MemberEntity> memberEntityList = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
-                    .filter(m -> this.presidentRepository.existsByJmbg(m.getJmbg()))
+                    .filter(m -> m.getJmbg() != null && presidentByJmbg.containsKey(m.getJmbg()))
                     .collect(Collectors.toList());
 
             for (MemberEntity memberEntity : memberEntityList) {
-                if (memberEntity.getJmbg() == null)
-                    continue;
-                Optional<PresidentEntity> optional = presidentRepository.findByJmbg(memberEntity.getJmbg());
-                if (optional.isEmpty())
-                    continue;
-                PresidentEntity president = optional.get();
+                PresidentEntity president = presidentByJmbg.get(memberEntity.getJmbg());
 
                 Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
                 Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
@@ -214,7 +217,7 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
             // Group members by jmbg
-            Map<String, List<MemberEntity>> groupedByJmbg = memberRepository.findAll().stream()
+            Map<String, List<MemberEntity>> groupedByJmbg = allMembers.stream()
                     .filter(m -> m.getJmbg() != null && m.getJmbg().isBlank() == false)
                     .filter(m -> m.isEmpty() == false)
                     .collect(Collectors.groupingBy(MemberEntity::getJmbg));
@@ -256,8 +259,6 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
             Long jmbgCount = 0L;
-
-            List<MemberEntity> allMembers = memberRepository.findAll();
 
             List<MemberEntity> missingNamesMembers = allMembers.stream()
                     .filter(m -> m.isEmpty() == false)
@@ -327,9 +328,7 @@ public class HealthCheckView extends VerticalLayout {
             verticalLayout.setAlignItems(Alignment.START);
             verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-            // Retrieve all members and presidents
-            List<MemberEntity> allMembers = memberRepository.findAll().stream().collect(Collectors.toList());
-            List<PresidentEntity> allPresidents = presidentRepository.findAll().stream().collect(Collectors.toList());
+            // allMembers/allPresidents already fetched once at the top of the constructor and reused here.
 
             // Combine both lists into one stream and group by bank number
             Map<String, List<Object>> groupedByBankNumber = Stream.concat(
