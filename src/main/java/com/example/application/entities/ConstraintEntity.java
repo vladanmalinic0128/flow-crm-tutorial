@@ -43,5 +43,23 @@ public class ConstraintEntity {
                 '}';
     }
 
+    /**
+     * See {@link MemberEntity#equals} - Lombok's default {@code @Data} hashCode would recurse
+     * through {@link #member}, which hashes back to this constraint, causing a StackOverflowError.
+     * Restricting to id breaks that cycle.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ConstraintEntity that = (ConstraintEntity) o;
+        return Objects.equals(getId(), that.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId());
+    }
+
 }
 

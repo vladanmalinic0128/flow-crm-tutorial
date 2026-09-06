@@ -11,16 +11,26 @@ import com.example.application.services.BankAccountValidator;
 import com.example.application.services.CyrillicToLatinConverter;
 import com.example.application.services.JMBGValidator;
 import com.example.application.views.MainLayout;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.accordion.Accordion;
-import com.vaadin.flow.component.details.Details;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -45,13 +55,13 @@ public class HealthCheckView extends VerticalLayout {
         this.presidentRepository = presidentRepository;
         this.votingCouncelRepository = votingCouncelRepository;
 
-
         // Main layout
         this.setWidth("100%");
         this.getStyle().set("margin", "0 auto");
 
         Accordion accordion = new Accordion();
-        accordion.setWidth("800px");
+        accordion.setWidthFull();
+        accordion.getStyle().set("max-width", "1400px");
         accordion.getStyle().set("margin", "0 auto");
 
         // Fetched once and reused by every check below - constraint/votingCouncel/mentor/politicalOrganization/title
@@ -60,369 +70,316 @@ public class HealthCheckView extends VerticalLayout {
         List<MemberEntity> allMembers = memberRepository.findAllWithConstraintDetails();
         List<PresidentEntity> allPresidents = presidentRepository.findAllWithVotingCouncelDetails();
 
-        {
-            //Invalid jmbg
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
+        addInvalidJmbgSection(accordion, allMembers);
+        addInvalidBankNumberSection(accordion, allMembers);
+        addAlreadyObserverSection(accordion, allMembers);
+        addAlreadyPresidentSection(accordion, allMembers, allPresidents);
+        addDuplicatesSection(accordion, allMembers);
+        addMissingDataSection(accordion, allMembers);
+        addDuplicateBankNumbersSection(accordion, allMembers, allPresidents);
 
-            List<MemberEntity> memberEntityList = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> jmbgValidator.isValidJMBG(m.getJmbg()) == false)
-                    .collect(Collectors.toList());
-
-            for (MemberEntity memberEntity : memberEntityList) {
-                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
-                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
-                Span jmbg = new Span("JMBG: " + memberEntity.getJmbg());
-
-                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
-                details.setOpened(false);
-                styleDetails(details);
-
-                verticalLayout.add(details);
-            }
-            Long jmbgCount = memberEntityList.stream().count();
-            accordion.add("Nevalidan JMBG (" + jmbgCount + ")", verticalLayout);
-        }
-        {
-            // Invalid bank number
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            List<MemberEntity> memberEntityList = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged())
-                    .filter(m -> bankAccountValidator.isValidAccountNumber(m.getBankNumber()) == false)
-                    .collect(Collectors.toList());
-
-            for (MemberEntity memberEntity : memberEntityList) {
-                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
-                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
-                Span bankNumber = new Span("Žiro račun: " + memberEntity.getBankNumber());
-                Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
-
-                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, bankNumber);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
-                details.setOpened(false);
-                details.getStyle().set("background-color", "#3190f6");
-                styleDetails(details);
-
-                verticalLayout.add(details);
-            }
-            Long jmbgCount = memberEntityList.stream().count();
-            accordion.add("Nevalidan žiro račun (" + jmbgCount + ")", verticalLayout);
-        }
-        {
-            // Already a observer
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            // One bulk query for every "successful" observer, then an in-memory jmbg lookup below -
-            // instead of 2-3 repository round trips per member (existsByJmbg + findFirstByJmbgAndStatus_Id, twice).
-            Map<String, ObserverEntity> observerByJmbg = observerRepository.findAllWithDetailsByStatusId(1).stream()
-                    .filter(o -> o.getJmbg() != null)
-                    .filter(o -> o.getStatus() != null && o.getStatus().getSuccess() == true)
-                    .collect(Collectors.toMap(ObserverEntity::getJmbg, o -> o, (first, second) -> first));
-
-            List<MemberEntity> memberEntityList = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getJmbg() != null && observerByJmbg.containsKey(m.getJmbg()))
-                    .collect(Collectors.toList());
-
-            for (MemberEntity memberEntity : memberEntityList) {
-                ObserverEntity observer = observerByJmbg.get(memberEntity.getJmbg());
-
-                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
-                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
-                Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
-                Span fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
-                Span decisionNumber = new Span("Broj odluke: " + observer.getStack().getDecisionNumber());
-                Span politicalOrganization = new Span("Politički subjekat: " + cyrillicToLatinConverter.convert(observer.getStack().getPoliticalOrganization().getName()).toUpperCase());
-                Span documentNumber = new Span("Redni broj: " + observer.getDocumentNumber());
-
-
-                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, fullName, decisionNumber, politicalOrganization, documentNumber);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
-                details.setOpened(false);
-
-                verticalLayout.add(details);
-            }
-            Long jmbgCount = memberEntityList.stream().count();
-            accordion.add("Posmatrači (" + jmbgCount + ")", verticalLayout);
-        }
-        {
-            // Already a president
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            // One bulk query for every president, then an in-memory jmbg lookup below - instead of
-            // existsByJmbg + findByJmbg per member. Also reused by the bank-number-duplicates check further down.
-            Map<String, PresidentEntity> presidentByJmbg = allPresidents.stream()
-                    .filter(p -> p.getJmbg() != null)
-                    .collect(Collectors.toMap(PresidentEntity::getJmbg, p -> p, (first, second) -> first));
-
-            List<MemberEntity> memberEntityList = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getJmbg() != null && presidentByJmbg.containsKey(m.getJmbg()))
-                    .collect(Collectors.toList());
-
-            for (MemberEntity memberEntity : memberEntityList) {
-                PresidentEntity president = presidentByJmbg.get(memberEntity.getJmbg());
-
-                Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode() + ", " + memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
-                Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
-                Span jmbg = new Span("Jmbg: " + memberEntity.getJmbg());
-                Span fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
-                Span presidentCodeNumber;
-                if (president.getIsPresident())
-                    presidentCodeNumber = new Span("Predsjednik na: " + president.getVotingCouncel().getCode());
-                else
-                    presidentCodeNumber = new Span("Zamjenik predsjednika na: " + president.getVotingCouncel().getCode());
-
-                VerticalLayout content = new VerticalLayout(jmbg, votingCouncelName, mentor, fullName, presidentCodeNumber);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                Details details = new Details(cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase(), content);
-                details.setOpened(false);
-
-                verticalLayout.add(details);
-            }
-            Long jmbgCount = memberEntityList.stream().count();
-            accordion.add("Predsjednici (" + jmbgCount + ")", verticalLayout);
-        }
-        {
-            // Identify duplicates
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            // Group members by jmbg
-            Map<String, List<MemberEntity>> groupedByJmbg = allMembers.stream()
-                    .filter(m -> m.getJmbg() != null && m.getJmbg().isBlank() == false)
-                    .filter(m -> m.isEmpty() == false)
-                    .collect(Collectors.groupingBy(MemberEntity::getJmbg));
-
-            // Filter groups to find where the list size is greater than one
-            Map<String, List<MemberEntity>> duplicates = groupedByJmbg.entrySet().stream()
-                    .filter(entry -> entry.getValue().size() > 1)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            for (Map.Entry<String, List<MemberEntity>> duplicate : duplicates.entrySet()) {
-                String jmbg = duplicate.getKey();
-                Span jmbgSpan = new Span("Jmbg: " + jmbg);
-                VerticalLayout content = new VerticalLayout(jmbgSpan);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                for (MemberEntity member : duplicate.getValue()) {
-                    String message = String.format("BM: %s, pozicija (%s, %s)", cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(), member.getConstraint().getPoliticalOrganization().getCode(), cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
-                    Span votingCouncelsSpan = new Span(message);
-                    content.add(votingCouncelsSpan);
-                }
-
-                Details details = new Details(jmbg, content);
-                details.setOpened(false);
-                styleDetails(details);
-
-                verticalLayout.add(details);
-
-            }
-
-            Long jmbgCount = duplicates.entrySet().stream().count();
-            accordion.add("Duplikati (" + jmbgCount + ")", verticalLayout);
-        }
-        {
-            //Invalid data
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            Long jmbgCount = 0L;
-
-            List<MemberEntity> missingNamesMembers = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getFirstname() == null || m.getLastname() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingNamesMembers, "Nedostaju ime ili prezime: ", verticalLayout, false, true);
-            jmbgCount += missingNamesMembers.stream().count();
-
-            List<MemberEntity> missingGender = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getIsMale() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingGender, "Nedostaje pol: ", verticalLayout, true, true);
-            jmbgCount += missingGender.stream().count();
-
-            List<MemberEntity> missingQualifications = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getQualifications() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingQualifications, "Nedostaje stručna sprema: ", verticalLayout, true, true);
-            jmbgCount += missingQualifications.stream().count();
-
-            List<MemberEntity> missingJmbg = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getJmbg() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingJmbg, "Nedostaje JMBG: ", verticalLayout, true, false);
-            jmbgCount += missingJmbg.stream().count();
-
-            List<MemberEntity> missingPhone = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getPhoneNumber() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingPhone, "Nedostaje broj telefona: ", verticalLayout, true, true);
-            jmbgCount += missingPhone.stream().count();
-
-            List<MemberEntity> missingBankNumber = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged())
-                    .filter(m -> m.getBankNumber() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingBankNumber, "Nedostaje broj žiro računa: ", verticalLayout, true, true);
-            jmbgCount += missingBankNumber.stream().count();
-
-            List<MemberEntity> missingBankName = allMembers.stream()
-                    .filter(m -> m.isEmpty() == false)
-                    .filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged())
-                    .filter(m -> m.getBankName() == null)
-                    .collect(Collectors.toList());
-
-            addDetailsForMissingData(missingBankName, "Nedostaje naziv banke: ", verticalLayout, true, true);
-            jmbgCount += missingBankName.stream().count();
-
-            accordion.add("Nedostaju podaci (" + jmbgCount + ")", verticalLayout);
-        }
-        {
-            // Identify bank number duplicates
-            // Initialize the layout
-            VerticalLayout verticalLayout = new VerticalLayout();
-            verticalLayout.setWidthFull();
-            verticalLayout.setAlignItems(Alignment.START);
-            verticalLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-
-            // allMembers/allPresidents already fetched once at the top of the constructor and reused here.
-
-            // Combine both lists into one stream and group by bank number
-            Map<String, List<Object>> groupedByBankNumber = Stream.concat(
-                    allMembers.stream().filter(m -> m.getBankNumber() != null && !m.getBankNumber().isBlank()),
-                    allPresidents.stream().filter(p -> p.getBankNumber() != null && !p.getBankNumber().isBlank())
-            ).collect(Collectors.groupingBy(
-                    entity -> {
-                        if (entity instanceof MemberEntity) {
-                            return ((MemberEntity) entity).getBankNumber();
-                        } else {
-                            return ((PresidentEntity) entity).getBankNumber();
-                        }
-                    }
-            ));
-
-            // Filter groups to find where the list size is greater than one (i.e., duplicates)
-            Map<String, List<Object>> duplicates = groupedByBankNumber.entrySet().stream()
-                    .filter(entry -> entry.getValue().size() > 1)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-
-            for (Map.Entry<String, List<Object>> duplicate : duplicates.entrySet()) {
-                String bankNumber = duplicate.getKey();
-                Span bankNumberSpan = new Span("Bankovni račun: " + bankNumber);
-                VerticalLayout content = new VerticalLayout(bankNumberSpan);
-                content.setSpacing(false);
-                content.setPadding(false);
-
-                for (Object entity : duplicate.getValue()) {
-                    String message;
-                    if (entity instanceof MemberEntity) {
-                        MemberEntity member = (MemberEntity) entity;
-                        message = String.format("BM: %s, pozicija (%s, %s)",
-                                cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()).toUpperCase(),
-                                member.getConstraint().getPoliticalOrganization().getCode(),
-                                cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase());
-                    } else {
-                        PresidentEntity president = (PresidentEntity) entity;
-                        message = String.format("BM: %s, pozicija (%s, %s)",
-                                cyrillicToLatinConverter.convert(president.getVotingCouncel().getCode()).toUpperCase(),
-                                "GIK",
-                                president.getIsPresident() ? "Predsjednik" : "Zamjenik predsjednika");
-                    }
-                    Span votingCouncelsSpan = new Span(message);
-                    content.add(votingCouncelsSpan);
-                }
-
-                Details details = new Details(bankNumber, content);
-                details.setOpened(false);
-                styleDetails(details);
-
-                verticalLayout.add(details);
-            }
-
-            Long duplicateCount = (long) duplicates.size();
-            accordion.add("Dupli bankovni računi (" + duplicateCount + ")", verticalLayout);
-        }
         add(accordion);
     }
 
-    private void addDetailsForMissingData(List<MemberEntity> missingDataList, String message, VerticalLayout verticalLayout, boolean showFullName, boolean showJmbg) {
-        for (MemberEntity memberEntity : missingDataList) {
-            Span jmbg = null, fullName = null;
-            Span votingCouncelName = new Span("BM: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getCode()).toUpperCase() + ", " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getName()).toUpperCase());
-            Span mentor = new Span("Mentor: " + cyrillicToLatinConverter.convert(memberEntity.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase());
-            if (showJmbg)
-                jmbg = new Span("JMBG: " + memberEntity.getJmbg());
-            if (showFullName)
-                fullName = new Span("Ime i prezime: " + cyrillicToLatinConverter.convert(memberEntity.getFullname()).toUpperCase());
+    private void addInvalidJmbgSection(Accordion accordion, List<MemberEntity> allMembers) {
+        List<MemberEntity> rows = allMembers.stream()
+                .filter(m -> m.isEmpty() == false)
+                // A position with no ime, prezime, or JMBG isn't a wrong JMBG - it's just an unfilled
+                // slot, so it's excluded here even though isEmpty() alone wouldn't catch it (that only
+                // looks at fields unrelated to identity, like isForced/bankNumber/qualifications).
+                .filter(m -> isBlank(m.getFirstname()) == false || isBlank(m.getLastname()) == false || isBlank(m.getJmbg()) == false)
+                .filter(m -> jmbgValidator.isValidJMBG(m.getJmbg()) == false)
+                .collect(Collectors.toList());
 
-            VerticalLayout content = new VerticalLayout();
-            if (showJmbg)
-                content.add(jmbg);
-            if (showFullName)
-                content.add(fullName);
-            content.add(votingCouncelName);
-            content.add(mentor);
-
-            content.setSpacing(false);
-            content.setPadding(false);
-
-            Details details = new Details(message + (showJmbg ? memberEntity.getJmbg() : memberEntity.getFullname()), content);
-            details.setOpened(false);
-            styleDetails(details);
-
-            verticalLayout.add(details);
-        }
+        addSection(accordion, "Nevalidan JMBG", rows, grid -> {
+            grid.addColumn(this::fullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
+        });
     }
 
-    private void styleDetails(Details details) {
-        details.getStyle()
-                .set("background-color", "#f0f0f0")
-                .set("border", "1px solid #ccc")
-                .set("border-radius", "5px")
-                .set("padding", "10px")
-                .set("box-shadow", "0 2px 4px rgba(0,0,0,0.1)");
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private void addInvalidBankNumberSection(Accordion accordion, List<MemberEntity> allMembers) {
+        List<MemberEntity> rows = allMembers.stream()
+                .filter(m -> m.isEmpty() == false)
+                .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged())
+                .filter(m -> bankAccountValidator.isValidAccountNumber(m.getBankNumber()) == false)
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Nevalidan žiro račun", rows, grid -> {
+            grid.addColumn(this::fullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getBankNumber).setHeader("Žiro račun").setAutoWidth(true);
+            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
+        });
+    }
+
+    private void addAlreadyObserverSection(Accordion accordion, List<MemberEntity> allMembers) {
+        // One bulk query for every "successful" observer, then an in-memory jmbg lookup below -
+        // instead of 2-3 repository round trips per member (existsByJmbg + findFirstByJmbgAndStatus_Id, twice).
+        Map<String, ObserverEntity> observerByJmbg = observerRepository.findAllWithDetailsByStatusId(1).stream()
+                .filter(o -> o.getJmbg() != null)
+                .filter(o -> o.getStatus() != null && o.getStatus().getSuccess() == true)
+                .collect(Collectors.toMap(ObserverEntity::getJmbg, o -> o, (first, second) -> first));
+
+        List<MemberEntity> rows = allMembers.stream()
+                .filter(m -> m.isEmpty() == false)
+                .filter(m -> m.getJmbg() != null && observerByJmbg.containsKey(m.getJmbg()))
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Posmatrači", rows, grid -> {
+            grid.addColumn(this::fullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
+            grid.addColumn(m -> observerByJmbg.get(m.getJmbg()).getStack().getDecisionNumber())
+                    .setHeader("Broj odluke").setAutoWidth(true);
+            grid.addColumn(m -> cyrillicToLatinConverter.convert(observerByJmbg.get(m.getJmbg()).getStack().getPoliticalOrganization().getName()).toUpperCase())
+                    .setHeader("Politički subjekat").setAutoWidth(true);
+            grid.addColumn(m -> observerByJmbg.get(m.getJmbg()).getDocumentNumber())
+                    .setHeader("Redni broj").setAutoWidth(true);
+        });
+    }
+
+    private void addAlreadyPresidentSection(Accordion accordion, List<MemberEntity> allMembers, List<PresidentEntity> allPresidents) {
+        // One bulk query for every president, then an in-memory jmbg lookup below - instead of
+        // existsByJmbg + findByJmbg per member.
+        Map<String, PresidentEntity> presidentByJmbg = allPresidents.stream()
+                .filter(p -> p.getJmbg() != null)
+                .collect(Collectors.toMap(PresidentEntity::getJmbg, p -> p, (first, second) -> first));
+
+        List<MemberEntity> rows = allMembers.stream()
+                .filter(m -> m.isEmpty() == false)
+                .filter(m -> m.getJmbg() != null && presidentByJmbg.containsKey(m.getJmbg()))
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Predsjednici", rows, grid -> {
+            grid.addColumn(this::fullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
+            grid.addColumn(m -> {
+                PresidentEntity president = presidentByJmbg.get(m.getJmbg());
+                return president.getIsPresident()
+                        ? "Predsjednik na: " + president.getVotingCouncel().getCode()
+                        : "Zamjenik predsjednika na: " + president.getVotingCouncel().getCode();
+            }).setHeader("Uloga").setAutoWidth(true);
+        });
+    }
+
+    private void addDuplicatesSection(Accordion accordion, List<MemberEntity> allMembers) {
+        Map<String, List<MemberEntity>> groupedByJmbg = allMembers.stream()
+                .filter(m -> m.getJmbg() != null && m.getJmbg().isBlank() == false)
+                .filter(m -> m.isEmpty() == false)
+                .collect(Collectors.groupingBy(MemberEntity::getJmbg));
+
+        List<List<MemberEntity>> duplicateGroups = groupedByJmbg.values().stream()
+                .filter(group -> group.size() > 1)
+                .collect(Collectors.toList());
+
+        // One row per duplicate (i.e. per JMBG) instead of one row per occurrence, each occurrence's
+        // name/voting council/position/mentor stacked on its own line within that row's cells - so a
+        // person duplicated across two committees is one row showing both, lined up with each other,
+        // instead of two separate rows that look unrelated or one unreadably long line of text. Name
+        // is per-occurrence too, not shared like the JMBG: a duplicate JMBG can just as easily mean
+        // the wrong JMBG was entered for two different people, so they shouldn't be assumed identical.
+        List<DuplicateRow> rows = duplicateGroups.stream()
+                .map(group -> new DuplicateRow(group.get(0).getJmbg(), group))
+                .sorted(Comparator.comparing(DuplicateRow::jmbg))
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Duplikati", rows, grid -> {
+            grid.addColumn(DuplicateRow::jmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), this::safeFullName)))
+                    .setHeader("Ime i prezime").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), this::votingCouncelLabel)))
+                    .setHeader("Biračka mjesta").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), this::politicalOrganizationLabel)))
+                    .setHeader("Politički subjekti").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(),
+                    m -> cyrillicToLatinConverter.convert(m.getConstraint().getTitle().getName()).toUpperCase())))
+                    .setHeader("Pozicije").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), this::mentorLabel)))
+                    .setHeader("Mentori").setAutoWidth(true);
+        });
+    }
+
+    private record DuplicateRow(String jmbg, List<MemberEntity> occurrences) {
+    }
+
+    /** One line per occurrence, in the same order across every column of a duplicate-group row so they line up. */
+    private <T> Component multilineCell(List<T> occurrences, Function<T, String> label) {
+        Div cell = new Div();
+        cell.getStyle().set("display", "flex").set("flex-direction", "column").set("gap", "var(--lumo-space-xs)");
+        occurrences.stream().map(label).map(Div::new).forEach(cell::add);
+        return cell;
+    }
+
+    private void addMissingDataSection(Accordion accordion, List<MemberEntity> allMembers) {
+        List<MissingDataRow> rows = new ArrayList<>();
+        rows.addAll(missingDataRows(allMembers, "Ime ili prezime", m -> m.getFirstname() == null || m.getLastname() == null));
+        rows.addAll(missingDataRows(allMembers, "Pol", m -> m.getIsMale() == null));
+        rows.addAll(missingDataRows(allMembers, "Stručna sprema", m -> m.getQualifications() == null));
+        rows.addAll(missingDataRows(allMembers, "JMBG", m -> m.getJmbg() == null));
+        rows.addAll(missingDataRows(allMembers, "Broj telefona", m -> m.getPhoneNumber() == null));
+        rows.addAll(missingDataRows(allMembers, "Broj žiro računa",
+                m -> (m.getIsAcknowledged() == null || m.getIsAcknowledged()) && m.getBankNumber() == null));
+        rows.addAll(missingDataRows(allMembers, "Naziv banke",
+                m -> (m.getIsAcknowledged() == null || m.getIsAcknowledged()) && m.getBankName() == null));
+
+        rows.sort(Comparator.comparing(MissingDataRow::missingField)
+                .thenComparing(row -> row.member().getJmbg() != null ? row.member().getJmbg() : ""));
+
+        addSection(accordion, "Nedostaju podaci", rows, grid -> {
+            grid.addColumn(MissingDataRow::missingField).setHeader("Nedostaje").setSortable(true).setAutoWidth(true);
+            grid.addColumn(row -> safeFullName(row.member())).setHeader("Ime i prezime").setAutoWidth(true);
+            grid.addColumn(row -> row.member().getJmbg()).setHeader("JMBG").setAutoWidth(true);
+            grid.addColumn(row -> votingCouncelLabel(row.member())).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(row -> mentorLabel(row.member())).setHeader("Mentor").setAutoWidth(true);
+        });
+    }
+
+    private List<MissingDataRow> missingDataRows(List<MemberEntity> allMembers, String missingFieldLabel, Predicate<MemberEntity> isMissing) {
+        return allMembers.stream()
+                .filter(m -> m.isEmpty() == false)
+                // A position with no ime, prezime, or JMBG isn't missing data - it's just an unfilled
+                // slot, so it's excluded here even though isEmpty() alone wouldn't catch it (see the
+                // same filter in addInvalidJmbgSection).
+                .filter(m -> isBlank(m.getFirstname()) == false || isBlank(m.getLastname()) == false || isBlank(m.getJmbg()) == false)
+                .filter(isMissing)
+                .map(m -> new MissingDataRow(missingFieldLabel, m))
+                .collect(Collectors.toList());
+    }
+
+    private void addDuplicateBankNumbersSection(Accordion accordion, List<MemberEntity> allMembers, List<PresidentEntity> allPresidents) {
+        // Combine both lists into one stream and group by bank number
+        Map<String, List<Object>> groupedByBankNumber = Stream.concat(
+                allMembers.stream().filter(m -> m.getBankNumber() != null && !m.getBankNumber().isBlank()),
+                allPresidents.stream().filter(p -> p.getBankNumber() != null && !p.getBankNumber().isBlank())
+        ).collect(Collectors.groupingBy(this::bankNumberOf));
+
+        List<List<Object>> duplicateGroups = groupedByBankNumber.values().stream()
+                .filter(group -> group.size() > 1)
+                .collect(Collectors.toList());
+
+        // One row per duplicate (i.e. per bank number) instead of one row per occurrence, each
+        // occurrence's name/JMBG/voting council/position/mentor stacked on its own line within that
+        // row's cells - same layout as the JMBG "Duplikati" section above, and for the same reason:
+        // a shared bank number can just as easily mean two different people, not one person twice.
+        List<BankDuplicateRow> rows = duplicateGroups.stream()
+                .map(group -> new BankDuplicateRow(bankNumberOf(group.get(0)),
+                        group.stream().map(this::toBankOccurrence).collect(Collectors.toList())))
+                .sorted(Comparator.comparing(BankDuplicateRow::bankNumber))
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Dupli bankovni računi", duplicateGroups.size(), rows, grid -> {
+            grid.addColumn(BankDuplicateRow::bankNumber).setHeader("Žiro račun").setSortable(true).setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), BankOccurrence::fullName)))
+                    .setHeader("Ime i prezime").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), BankOccurrence::jmbg)))
+                    .setHeader("JMBG").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), BankOccurrence::votingCouncel)))
+                    .setHeader("Biračka mjesta").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), BankOccurrence::organization)))
+                    .setHeader("Politički subjekti").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), BankOccurrence::position)))
+                    .setHeader("Pozicije").setAutoWidth(true);
+            grid.addColumn(new ComponentRenderer<>(row -> multilineCell(row.occurrences(), BankOccurrence::mentor)))
+                    .setHeader("Mentori").setAutoWidth(true);
+        });
+    }
+
+    private String bankNumberOf(Object entity) {
+        return entity instanceof MemberEntity member ? member.getBankNumber() : ((PresidentEntity) entity).getBankNumber();
+    }
+
+    private BankOccurrence toBankOccurrence(Object entity) {
+        if (entity instanceof MemberEntity member) {
+            return new BankOccurrence(
+                    safeFullName(member),
+                    member.getJmbg(),
+                    votingCouncelLabel(member),
+                    politicalOrganizationLabel(member),
+                    cyrillicToLatinConverter.convert(member.getConstraint().getTitle().getName()).toUpperCase(),
+                    mentorLabel(member));
+        }
+        PresidentEntity president = (PresidentEntity) entity;
+        String name = Stream.of(president.getFirstname(), president.getLastname())
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(" "));
+        return new BankOccurrence(
+                cyrillicToLatinConverter.convert(name).toUpperCase(),
+                president.getJmbg(),
+                cyrillicToLatinConverter.convert(president.getVotingCouncel().getCode()).toUpperCase(),
+                "GIK",
+                president.getIsPresident() ? "Predsjednik" : "Zamjenik predsjednika",
+                cyrillicToLatinConverter.convert(president.getVotingCouncel().getMentor().getFullname()).toUpperCase());
+    }
+
+    private record MissingDataRow(String missingField, MemberEntity member) {
+    }
+
+    private record BankDuplicateRow(String bankNumber, List<BankOccurrence> occurrences) {
+    }
+
+    private record BankOccurrence(String fullName, String jmbg, String votingCouncel, String organization,
+                                   String position, String mentor) {
+    }
+
+    private String fullName(MemberEntity member) {
+        return cyrillicToLatinConverter.convert(member.getFullname()).toUpperCase();
+    }
+
+    /**
+     * Same as {@link #fullName}, but safe to use when firstname/lastname may be null (e.g. the
+     * "missing data" grid, which includes members missing exactly those fields) -
+     * {@link MemberEntity#getFullname()} concatenates unconditionally and would render literally
+     * as "null X" in that case.
+     */
+    private String safeFullName(MemberEntity member) {
+        String combined = Stream.of(member.getFirstname(), member.getLastname())
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(" "));
+        return cyrillicToLatinConverter.convert(combined).toUpperCase();
+    }
+
+    private String votingCouncelLabel(MemberEntity member) {
+        return cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getCode()
+                + ", " + member.getConstraint().getVotingCouncel().getName()).toUpperCase();
+    }
+
+    private String mentorLabel(MemberEntity member) {
+        return cyrillicToLatinConverter.convert(member.getConstraint().getVotingCouncel().getMentor().getFullname()).toUpperCase();
+    }
+
+    private String politicalOrganizationLabel(MemberEntity member) {
+        String code = member.getConstraint().getPoliticalOrganization().getCode();
+        return Boolean.TRUE.equals(member.getIsGik()) ? "GIK (" + code + ")" : code;
+    }
+
+    /** Builds a grid (or a "no errors" message when {@code rows} is empty) and adds it under an accordion panel titled "{@code label} (rows.size())". */
+    private <T> void addSection(Accordion accordion, String label, List<T> rows, Consumer<Grid<T>> columnConfigurer) {
+        addSection(accordion, label, rows.size(), rows, columnConfigurer);
+    }
+
+    /** Same as the other overload, but with an explicit count for the accordion panel title - used where it must differ from the row count (e.g. number of duplicate groups rather than total rows). */
+    private <T> void addSection(Accordion accordion, String label, int count, List<T> rows, Consumer<Grid<T>> columnConfigurer) {
+        Component content;
+        if (rows.isEmpty()) {
+            content = new Span("Nema grešaka.");
+        } else {
+            Grid<T> grid = new Grid<>();
+            columnConfigurer.accept(grid);
+            grid.setItems(rows);
+            grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT);
+            grid.setAllRowsVisible(true);
+            content = grid;
+        }
+        accordion.add(label + " (" + count + ")", content);
     }
 }

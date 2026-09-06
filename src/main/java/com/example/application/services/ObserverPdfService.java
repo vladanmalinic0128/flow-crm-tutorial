@@ -113,9 +113,11 @@ public class ObserverPdfService {
     // ---- Voting councels' appointment decision ("Odluka - biracki odbori") ----
     // Adjust these ahead of generating each new appointment decision - they aren't derivable from
     // the data (the council/member counts below the text are computed live from the database).
-    private static final String VOTING_COUNCELS_DECISION_NUMBER = "01-03-1/25-87";
-    private static final String VOTING_COUNCELS_DECISION_DATE = "07.11.2025";
-    private static final String VOTING_COUNCELS_ELECTION_LABEL = "Пријевремених избора за предсједника Републике Српске 23. новембра 2025. године";
+    private static final String VOTING_COUNCELS_DECISION_NUMBER = "01-03-1/26-113";
+    private static final String VOTING_COUNCELS_DECISION_DATE = "05.09.2026";
+    private static final String VOTING_COUNCELS_ELECTION_LABEL = "Општих избора 04. октобра 2026. године";
+    /** The same election in the locative case ("на ..."), as item VI of the decision phrases it. */
+    private static final String VOTING_COUNCELS_ELECTION_LABEL_LOCATIVE = "Општим изборима 04. октобра 2026. године";
     // Matches the reference document's own styles.xml: body text is Normal style (Times New Roman
     // 12pt, no overrides), while every run inside the table explicitly overrides to Calibri.
     private static final String VOTING_COUNCELS_TEXT_FONT_FAMILY = "Times New Roman";
@@ -1568,7 +1570,7 @@ public class ObserverPdfService {
 
     /**
      * Generates the "Одлука о именовању чланова и замјеника чланова бирачких одбора" - the same
-     * kind of document as {@code resources/documents/2026/Одлука - бирачки одбори 07.11..docx},
+     * kind of document as {@code resources/documents/2026/odluka_biracki_odbori_1788597108702.docx},
      * reusing this class's header/footer building blocks (see {@link #generateAcceptedObserversForDecision})
      * for the top-of-page GIK letterhead, but otherwise matching the reference document's own
      * typography and table formatting directly (Times New Roman body text, Calibri table, the same
@@ -1669,7 +1671,7 @@ public class ObserverPdfService {
     }
 
     private void setVotingCouncelsDecisionNumber(XWPFDocument document, ScriptEnum scriptEnum) {
-        String text = convertFromCyrillic("Број: ", scriptEnum) + VOTING_COUNCELS_DECISION_NUMBER + ".";
+        String text = convertFromCyrillic("Број: ", scriptEnum) + VOTING_COUNCELS_DECISION_NUMBER;
         addVotingCouncelsPlainLine(document, text, ParagraphAlignment.LEFT);
     }
 
@@ -1725,7 +1727,7 @@ public class ObserverPdfService {
     }
 
     private void setVotingCouncelsIntroductionParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
-        String label = "На основу чл. 2.4 став (2), чл. 2.13 тачка 3. и чл. 2.19 став (5) Изборног закона Босне и Херцеговине („Службени гласник БиХ“, бр. 23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 7/14, 31/16, 41/20, 38/22, 51/22 и 24/24), а у складу са Правилником Централне изборне комисије БиХ о поступку именовања и разрјешења бирачких одбора за Локалне изборе у БиХ 2024. године („Службени гласник БиХ“, број 31/24), Упутством о процедурама за провођење " + VOTING_COUNCELS_ELECTION_LABEL + " („Службени гласник БиХ“, број 52/25), броја позиција у бирачким одборима за основну изборну јединицу 034 Б – Бања Лука, узимајући у обзир достављене приједлоге политичких субјеката за састав бирачких одбора и прописан начин за попуну непопуњених позиција у бирачким одборима, Градска изборна комисија Бања Лука је, на сједници одржаној " + VOTING_COUNCELS_DECISION_DATE + " године, д о н и ј е л а";
+        String label = "На основу чл. 2.4 став (2), чл. 2.13 тачка 3. и чл. 2.19 став (5) Изборног закона Босне и Херцеговине („Службени гласник БиХ“, бр. 23/01, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13, 7/14, 31/16, 41/20, 38/22, 51/22 и 24/24), а у складу са Правилником Централне изборне комисије БиХ о поступку именовања и разрјешења предсједника и чланова бирачких одбора у Босни и Херцеговини, пречишћени текст и Правилником о провођењу Општих избора („Службени гласник БиХ“, број 32/26), који ће бити проведени 04. октобра 2026. године, броја позиција у бирачким одборима за основну изборну јединицу 034 Б – Бања Лука, узимајући у обзир достављене приједлоге политичких субјеката за састав бирачких одбора и прописан начин за попуну непопуњених позиција у бирачким одборима, Градска изборна комисија Бања Лука је, на сједници одржаној " + VOTING_COUNCELS_DECISION_DATE + " године, д о н и ј е л а";
         addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
     }
 
@@ -1769,6 +1771,21 @@ public class ObserverPdfService {
                 .count();
     }
 
+    /**
+     * The "{n} бирачких одбора" tail of item I, in the grammatical number Serbian requires for the
+     * count at hand - "је 1 бирачки одбор", "су 4 бирачка одбора", "је 256 бирачких одбора" - the
+     * way the reference decision writes it.
+     */
+    private String votingCouncelsCountLabel(long count) {
+        long lastTwoDigits = count % 100;
+        long lastDigit = count % 10;
+        if (lastDigit == 1 && lastTwoDigits != 11)
+            return "је " + count + " бирачки одбор";
+        if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14))
+            return "су " + count + " бирачка одбора";
+        return "је " + count + " бирачких одбора";
+    }
+
     private void setVotingCouncelsItemI(XWPFDocument document, List<VotingCouncelEntity> councels, ScriptEnum scriptEnum) {
         Map<Long, Long> councelsByStructure = councels.stream()
                 .collect(Collectors.groupingBy(this::countMemberPositions, Collectors.counting()));
@@ -1781,7 +1798,7 @@ public class ObserverPdfService {
                         structureLabel.append(", а по структури ");
                     else
                         structureLabel.append("По структури ");
-                    structureLabel.append(entry.getKey()).append(" члана + ").append(entry.getKey()).append(" замјеника је ").append(entry.getValue()).append(" бирачких одбора");
+                    structureLabel.append(entry.getKey()).append(" члана + ").append(entry.getKey()).append(" замјеника ").append(votingCouncelsCountLabel(entry.getValue()));
                 });
 
         long totalMemberPositions = councels.stream().mapToLong(this::countMemberPositions).sum();
@@ -1813,7 +1830,7 @@ public class ObserverPdfService {
     }
 
     private void setVotingCouncelsItemVI(XWPFDocument document, ScriptEnum scriptEnum) {
-        String body = " Ову одлуку доставити Централној изборној комисији БиХ, овјереним политичким субјектима за учешће на " + VOTING_COUNCELS_ELECTION_LABEL + " у основној изборној јединици 034 Б – Бања Лука, члановима Градске изборне комисије, у попис аката и евиденцију Градске изборне комисије.";
+        String body = " Ову одлуку доставити Централној изборној комисији БиХ, овјереним политичким субјектима за учешће на " + VOTING_COUNCELS_ELECTION_LABEL_LOCATIVE + " у основној изборној јединици 034 Б – Бања Лука, члановима Градске изборне комисије, у попис аката и евиденцију Градске изборне комисије.";
         addVotingCouncelsItem(document, "VI – ", body, scriptEnum);
     }
 
@@ -1834,7 +1851,7 @@ public class ObserverPdfService {
     }
 
     private void setVotingCouncelsExplanationThirdParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
-        String label = "Могућност достављања приједлога за састав бирачких одбора имала су 2 овјерена политичка субјекта и исте су доставила оба политичка субјекта. Градска изборна комисија је, у складу са изборним прописима, на непопуњене позиције од стране политичких субјеката, именовала појединце са резервне листе. Лица са резервне листе, у акту су означена звјездицом – „*“, што адекватно одговара посебном списку.";
+        String label = "Обавезу достављања приједлога за састав бирачких одбора имало је 16 овјерених политичких субјеката и исте је доставило 8 политичких субјеката, од којих су само два субјекта доставила попуњене све додијељене позиције. Градска изборна комисија је, у складу са изборним прописима, на непопуњене позиције од стране политичких субјеката, именовала појединце са резервне листе. С обзиром на то да је резервна листа исцрпљена, Комисија ће у наредном периоду наставити проналазити начине за попуњавање упражњених позиција у одборима. Лица са резервне листе, у акту су означена звјездицом – „*“, што адекватно одговара посебном списку.";
         addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
     }
 
@@ -1849,7 +1866,7 @@ public class ObserverPdfService {
     }
 
     private void setVotingCouncelsLegalRemedyParagraph(XWPFDocument document, ScriptEnum scriptEnum) {
-        String label = "ПОУКА О ПРАВНОМ ЛИЈЕКУ: на основу чл. 2.19 став (5) и чл. 6.3 Изборног закона БиХ, и Упутства о процедурама за рјешавање по приговорима и жалбама поднесеним изборним комисијама (Пречишћени текст), на ову одлуку је допуштен приговор Градској изборној комисији у року од 24 сата од преузимања/достављања одлуке. Приговор се предаје у писаној форми Градској изборној комисији Бања Лука.";
+        String label = "ПОУКА О ПРАВНОМ ЛИЈЕКУ: на основу чл. 2.19 став (5) и чл. 6.3 Изборног закона БиХ, и Упутства о процедурама за рјешавање по приговорима и жалбама поднесеним Централној изборној комисији БиХ и изборним комисијама основних изборних јединица, на ову одлуку је допуштен приговор Градској изборној комисији у року од 24 сата од преузимања/достављања одлуке. Приговор се предаје у писаној форми Градској изборној комисији Бања Лука.";
         addVotingCouncelsJustifiedParagraph(document, label, scriptEnum);
     }
 

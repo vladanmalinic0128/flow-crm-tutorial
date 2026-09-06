@@ -97,6 +97,26 @@ public class MemberEntity {
                 '}';
     }
 
+    /**
+     * Lombok's default {@code @Data} equals/hashCode would hash every field, including
+     * {@link #constraint} - which itself hashes back to this member (see {@link
+     * ConstraintEntity#equals}) - causing infinite recursion (StackOverflowError) the moment a
+     * MemberEntity is used as a HashMap/HashSet key or Grid item. Restricting to id+jmbg (same
+     * pattern as {@link PresidentEntity#equals}) avoids that cycle.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MemberEntity that = (MemberEntity) o;
+        return Objects.equals(getId(), that.getId()) && Objects.equals(getJmbg(), that.getJmbg());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getJmbg());
+    }
+
     public boolean isEmpty() {
         return isForced == null
                 && isGik == null

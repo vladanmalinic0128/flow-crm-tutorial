@@ -63,8 +63,8 @@ public class LoginView extends VerticalLayout implements BeforeEnterListener {
         appLogo.setWidth("180px");
         appLogo.getStyle().set("margin", "0 var(--lumo-space-m)");
 
-        Image votingLogo = new Image("images/election24.png", "MyApp Logo");
-        votingLogo.setWidth("80px");
+        Image votingLogo = new Image("images/election26.png", "MyApp Logo");
+        votingLogo.setWidth("112px");
         votingLogo.getStyle().set("margin", "0 var(--lumo-space-m)");
 
         HorizontalLayout logoLayout = new HorizontalLayout(appLogo, votingLogo);

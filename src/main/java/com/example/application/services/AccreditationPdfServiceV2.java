@@ -11,6 +11,7 @@ import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
@@ -24,6 +25,8 @@ import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Div;
 import com.itextpdf.layout.element.IBlockElement;
 import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.renderer.DrawContext;
+import com.itextpdf.layout.renderer.ImageRenderer;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.element.Text;
@@ -71,11 +74,27 @@ public class AccreditationPdfServiceV2 {
     private static final String CYRILLIC_FONT_PATH = "src/main/resources/font/cyrillic-font.ttf";
     private static final String WATERMARK_LOGO_PATH = "src/main/resources/logo/election26.png";
     private static final String COUNTRY_LOGO_PATH = "src/main/resources/logo/logo_bih.png";
+    private static final String SIGNATURE_PATH = "src/main/resources/logo/signature.png";
+    // Visual size the signature is painted at, above the "_______________" line right above "MP"
+    // (see buildSignatureCell). Native signature.png is 71x65px; this keeps that aspect ratio.
+    private static final float SIGNATURE_HEIGHT = 40f;
+    private static final float SIGNATURE_WIDTH = SIGNATURE_HEIGHT * 71f / 65f;
+    // The signature/MP row's total height is fixed by the physical card size (see CARD_HEIGHT above)
+    // and has no room to reserve a SIGNATURE_HEIGHT-tall layout box on top of the line and "MP" - so
+    // the image element only reserves this tiny anchor box (keeping the card layout untouched), and
+    // buildSignatureCell's custom renderer paints the full-size image centered on it directly onto
+    // the page instead, overlapping onto the line and the blank space above it.
+    private static final float SIGNATURE_ANCHOR_HEIGHT = 1f;
+    private static final float SIGNATURE_ANCHOR_WIDTH = SIGNATURE_ANCHOR_HEIGHT * 71f / 65f;
 
     private static final String QR_CODE_CONTENT = "https://izbori.ba";
     private static final String PRESIDENT_SHORT_NAME = "D. Malinić";
 
     private static final float WATERMARK_OPACITY = 0.12f;
+    // Radius (px, in the source 300x277 image) of the box blur applied to the watermark's alpha
+    // map before it's baked in - softens its edges/lines so they read as a faint haze rather than
+    // crisp shapes competing with the card text once printed.
+    private static final int WATERMARK_BLUR_RADIUS = 5;
     // Measured height (at 100% width, auto-scaled to the image's own aspect ratio) the watermark
     // rendered at before this was made explicit, times 1.2 for the ~20% vertical increase.
     private static final float WATERMARK_HEIGHT = 136.88f;
@@ -143,6 +162,7 @@ public class AccreditationPdfServiceV2 {
         PdfFormXObject qrXObject = buildQrCodeXObject(pdfDoc);
         PdfImageXObject watermarkXObject = new PdfImageXObject(loadFadedWatermarkImageData());
         ImageData countryLogoImageData = loadCountryLogoImageData();
+        ImageData signatureImageData = loadSignatureImageData();
 
         Collator collator = getCollatorForScript(script);
         // Sort on the name already converted to the target script (as the decision-document
@@ -160,10 +180,10 @@ public class AccreditationPdfServiceV2 {
 
         if (sideNumber == SideEnum.ONE_SIDED) {
             Table grid = buildGridTable();
-            addOneSidedPages(grid, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData);
+            addOneSidedPages(grid, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
             document.add(grid);
         } else {
-            addTwoSidedPages(document, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData);
+            addTwoSidedPages(document, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
         }
 
         document.close();
@@ -179,11 +199,11 @@ public class AccreditationPdfServiceV2 {
      */
     private void addOneSidedPages(Table grid, List<ObserverEntity> observers, LocalDate localDate, ScriptEnum script,
                                    PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                                   ImageData countryLogoImageData) {
+                                   ImageData countryLogoImageData, ImageData signatureImageData) {
         int numberOfChunks = (observers.size() + CARDS_PER_ROW - 1) / CARDS_PER_ROW;
         for (int i = 0; i < numberOfChunks; i++) {
             List<ObserverEntity> chunk = observers.subList(i * CARDS_PER_ROW, Math.min((i + 1) * CARDS_PER_ROW, observers.size()));
-            addFrontRow(grid, chunk, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData);
+            addFrontRow(grid, chunk, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
             addBackRow(grid, chunk, arialFont, script, true);
         }
     }
@@ -200,7 +220,7 @@ public class AccreditationPdfServiceV2 {
      */
     private void addTwoSidedPages(Document document, List<ObserverEntity> observers, LocalDate localDate, ScriptEnum script,
                                    PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                                   ImageData countryLogoImageData) {
+                                   ImageData countryLogoImageData, ImageData signatureImageData) {
         int chunkSize = CARDS_PER_ROW * 2;
         int numberOfChunks = (observers.size() + chunkSize - 1) / chunkSize;
         for (int i = 0; i < numberOfChunks; i++) {
@@ -213,8 +233,8 @@ public class AccreditationPdfServiceV2 {
             }
 
             Table frontsPage = buildGridTable();
-            addFrontRow(frontsPage, firstRow, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData);
-            addFrontRow(frontsPage, secondRow, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData);
+            addFrontRow(frontsPage, firstRow, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
+            addFrontRow(frontsPage, secondRow, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
             document.add(frontsPage);
             document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
 
@@ -237,9 +257,10 @@ public class AccreditationPdfServiceV2 {
         PdfFormXObject qrXObject = buildQrCodeXObject(pdfDoc);
         PdfImageXObject watermarkXObject = new PdfImageXObject(loadFadedWatermarkImageData());
         ImageData countryLogoImageData = loadCountryLogoImageData();
+        ImageData signatureImageData = loadSignatureImageData();
 
         Table grid = buildGridTable();
-        addFrontRow(grid, List.of(observer), localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData);
+        addFrontRow(grid, List.of(observer), localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
         addBackRow(grid, List.of(observer), arialFont, script, false);
 
         document.add(grid);
@@ -268,9 +289,9 @@ public class AccreditationPdfServiceV2 {
     /** Adds one row of up to {@link #CARDS_PER_ROW} fronts, padding out unused columns with blanks. */
     private void addFrontRow(Table grid, List<ObserverEntity> row, LocalDate localDate, ScriptEnum script,
                               PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                              ImageData countryLogoImageData) {
+                              ImageData countryLogoImageData, ImageData signatureImageData) {
         for (ObserverEntity observer : row) {
-            grid.addCell(buildFrontCell(observer, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData));
+            grid.addCell(buildFrontCell(observer, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData));
         }
         for (int pad = row.size(); pad < CARDS_PER_ROW; pad++) {
             grid.addCell(blankCell(CARD_HEIGHT));
@@ -317,7 +338,7 @@ public class AccreditationPdfServiceV2 {
 
     private Cell buildFrontCell(ObserverEntity observer, LocalDate localDate, ScriptEnum script,
                                  PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                                 ImageData countryLogoImageData) {
+                                 ImageData countryLogoImageData, ImageData signatureImageData) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy.");
         String formattedDate = localDate.format(formatter);
         String decisionNumberText = observer.getStack().getDecisionNumber() != null ? observer.getStack().getDecisionNumber() : "";
@@ -354,7 +375,7 @@ public class AccreditationPdfServiceV2 {
         Table card = new Table(UnitValue.createPercentArray(new float[]{100f}));
         card.setWidth(UnitValue.createPercentValue(100));
         card.addCell(topContentCell);
-        card.addCell(buildSignatureCell(arialFont, script));
+        card.addCell(buildSignatureCell(arialFont, script, signatureImageData));
 
         return wrapAsCardCell(card, watermarkXObject, CARD_HEIGHT);
     }
@@ -535,7 +556,21 @@ public class AccreditationPdfServiceV2 {
         return cell;
     }
 
-    private Cell buildSignatureCell(PdfFont arialFont, ScriptEnum script) {
+    private Cell buildSignatureCell(PdfFont arialFont, ScriptEnum script, ImageData signatureImageData) {
+        Image signature = new Image(signatureImageData);
+        signature.setWidth(SIGNATURE_ANCHOR_WIDTH);
+        signature.setHeight(SIGNATURE_ANCHOR_HEIGHT);
+        signature.setHorizontalAlignment(HorizontalAlignment.CENTER);
+        signature.setNextRenderer(new ImageRenderer(signature) {
+            @Override
+            public void draw(DrawContext drawContext) {
+                Rectangle box = getOccupiedAreaBBox();
+                float x = box.getLeft() + (box.getWidth() - SIGNATURE_WIDTH) / 2f;
+                float y = box.getBottom() + (box.getHeight() - SIGNATURE_HEIGHT) / 2f;
+                drawContext.getCanvas().addImageFittedIntoRectangle(signatureImageData, new Rectangle(x, y, SIGNATURE_WIDTH, SIGNATURE_HEIGHT), false);
+            }
+        });
+
         Paragraph line = new Paragraph("_______________")
                 .setFont(arialFont).setFontSize(6.39f).setTextAlignment(TextAlignment.CENTER).setMargin(0f);
         Paragraph mp = new Paragraph(doConvert("MP", script))
@@ -543,6 +578,7 @@ public class AccreditationPdfServiceV2 {
                 .setTextAlignment(TextAlignment.CENTER).setMarginTop(0.91f);
 
         Cell cell = new Cell();
+        cell.add(signature);
         cell.add(line);
         cell.add(mp);
         cell.setBorder(Border.NO_BORDER);
@@ -640,27 +676,94 @@ public class AccreditationPdfServiceV2 {
     }
 
     /**
-     * Reads the BiH-map election watermark and returns a copy with its alpha channel scaled down
-     * to {@link #WATERMARK_OPACITY}, so it can sit faintly behind the card body text.
+     * Reads the BiH-map election watermark and returns a faded, softened, fully-opaque copy that
+     * sits faintly behind the card body text.
+     * <p>
+     * This used to just scale the source PNG's alpha channel down to {@link #WATERMARK_OPACITY}
+     * and leave it semi-transparent. That looked right on screen, but printed black-and-white it
+     * came out far too dark and swallowed the text under it - some print pipelines don't honor a
+     * PNG's alpha/soft-mask correctly and rasterize it closer to full strength. To make the result
+     * print-safe regardless of the pipeline, the fade is baked directly into fully-opaque, near-white
+     * RGB values here (composited against white at {@link #WATERMARK_OPACITY} strength) instead of
+     * left as transparency, and the alpha map is box-blurred first so edges/lines soften into a haze
+     * rather than staying crisp.
      */
     private ImageData loadFadedWatermarkImageData() {
         try {
             BufferedImage original = ImageIO.read(new File(WATERMARK_LOGO_PATH));
-            BufferedImage faded = new BufferedImage(original.getWidth(), original.getHeight(), BufferedImage.TYPE_INT_ARGB);
-            for (int y = 0; y < original.getHeight(); y++) {
-                for (int x = 0; x < original.getWidth(); x++) {
-                    int argb = original.getRGB(x, y);
-                    int alpha = (argb >>> 24) & 0xFF;
-                    int fadedAlpha = Math.round(alpha * WATERMARK_OPACITY);
-                    faded.setRGB(x, y, (fadedAlpha << 24) | (argb & 0x00FFFFFF));
+            int width = original.getWidth();
+            int height = original.getHeight();
+
+            float[] alpha = new float[width * height];
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    alpha[y * width + x] = (original.getRGB(x, y) >>> 24) & 0xFF;
                 }
             }
+            float[] blurredAlpha = boxBlur(alpha, width, height, WATERMARK_BLUR_RADIUS);
+
+            BufferedImage faded = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int argb = original.getRGB(x, y);
+                    int r = (argb >> 16) & 0xFF;
+                    int g = (argb >> 8) & 0xFF;
+                    int b = argb & 0xFF;
+                    float opacityFrac = (blurredAlpha[y * width + x] / 255f) * WATERMARK_OPACITY;
+                    int newR = Math.round(255 - opacityFrac * (255 - r));
+                    int newG = Math.round(255 - opacityFrac * (255 - g));
+                    int newB = Math.round(255 - opacityFrac * (255 - b));
+                    faded.setRGB(x, y, 0xFF000000 | (newR << 16) | (newG << 8) | newB);
+                }
+            }
+
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(faded, "png", baos);
             return ImageDataFactory.create(baos.toByteArray());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Separable box blur (horizontal pass then vertical pass) over a single-channel float map,
+     * clamping the averaging window at the image edges instead of wrapping or padding.
+     */
+    private float[] boxBlur(float[] src, int width, int height, int radius) {
+        if (radius <= 0) {
+            return src;
+        }
+        float[] horizontal = new float[src.length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float sum = 0f;
+                int count = 0;
+                for (int dx = -radius; dx <= radius; dx++) {
+                    int sx = x + dx;
+                    if (sx >= 0 && sx < width) {
+                        sum += src[y * width + sx];
+                        count++;
+                    }
+                }
+                horizontal[y * width + x] = sum / count;
+            }
+        }
+        float[] result = new float[src.length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                float sum = 0f;
+                int count = 0;
+                for (int dy = -radius; dy <= radius; dy++) {
+                    int sy = y + dy;
+                    if (sy >= 0 && sy < height) {
+                        sum += horizontal[sy * width + x];
+                        count++;
+                    }
+                }
+                result[y * width + x] = sum / count;
+            }
+        }
+        return result;
     }
 
     /**
@@ -680,7 +783,7 @@ public class AccreditationPdfServiceV2 {
     }
 
     /**
-     * Largest value font size (within the labeled-line min/max bounds) at which {@code label} at
+     * Largest value font size (wihin the labeled-line min/max bounds) at which {@code label} at
      * {@code labelSize} plus {@code value} together still fit on one line within
      * {@link #LABELED_LINE_MAX_WIDTH}.
      */
@@ -696,6 +799,14 @@ public class AccreditationPdfServiceV2 {
     private ImageData loadCountryLogoImageData() {
         try {
             return ImageDataFactory.create(COUNTRY_LOGO_PATH);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private ImageData loadSignatureImageData() {
+        try {
+            return ImageDataFactory.create(SIGNATURE_PATH);
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
