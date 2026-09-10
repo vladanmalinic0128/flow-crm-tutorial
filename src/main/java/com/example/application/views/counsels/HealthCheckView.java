@@ -23,7 +23,6 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.PermitAll;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -71,12 +70,13 @@ public class HealthCheckView extends VerticalLayout {
         List<PresidentEntity> allPresidents = presidentRepository.findAllWithVotingCouncelDetails();
 
         addInvalidJmbgSection(accordion, allMembers);
-        addInvalidBankNumberSection(accordion, allMembers);
         addAlreadyObserverSection(accordion, allMembers);
         addAlreadyPresidentSection(accordion, allMembers, allPresidents);
         addDuplicatesSection(accordion, allMembers);
         addMissingDataSection(accordion, allMembers);
         addDuplicateBankNumbersSection(accordion, allMembers, allPresidents);
+        addInvalidBankNumberMemberSection(accordion, allMembers);
+        addInvalidBankNumberPresidentSection(accordion, allPresidents);
 
         add(accordion);
     }
@@ -101,22 +101,6 @@ public class HealthCheckView extends VerticalLayout {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
-    }
-
-    private void addInvalidBankNumberSection(Accordion accordion, List<MemberEntity> allMembers) {
-        List<MemberEntity> rows = allMembers.stream()
-                .filter(m -> m.isEmpty() == false)
-                .filter(m -> m.getIsAcknowledged() != null && m.getIsAcknowledged())
-                .filter(m -> bankAccountValidator.isValidAccountNumber(m.getBankNumber()) == false)
-                .collect(Collectors.toList());
-
-        addSection(accordion, "Nevalidan žiro račun", rows, grid -> {
-            grid.addColumn(this::fullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
-            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
-            grid.addColumn(MemberEntity::getBankNumber).setHeader("Žiro račun").setAutoWidth(true);
-            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
-            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
-        });
     }
 
     private void addAlreadyObserverSection(Accordion accordion, List<MemberEntity> allMembers) {
@@ -220,40 +204,86 @@ public class HealthCheckView extends VerticalLayout {
         return cell;
     }
 
+    // Nested under one "Nedostaju podaci" panel instead of sitting flat alongside the other
+    // top-level sections - each check gets its own sub-panel inside, so opening e.g.
+    // "Nedostaje naziv banke" doesn't also surface every other row mixed into the same list,
+    // without cluttering the outer accordion with extra top-level entries.
     private void addMissingDataSection(Accordion accordion, List<MemberEntity> allMembers) {
-        List<MissingDataRow> rows = new ArrayList<>();
-        rows.addAll(missingDataRows(allMembers, "Ime ili prezime", m -> m.getFirstname() == null || m.getLastname() == null));
-        rows.addAll(missingDataRows(allMembers, "Pol", m -> m.getIsMale() == null));
-        rows.addAll(missingDataRows(allMembers, "Stručna sprema", m -> m.getQualifications() == null));
-        rows.addAll(missingDataRows(allMembers, "JMBG", m -> m.getJmbg() == null));
-        rows.addAll(missingDataRows(allMembers, "Broj telefona", m -> m.getPhoneNumber() == null));
-        rows.addAll(missingDataRows(allMembers, "Broj žiro računa",
-                m -> (m.getIsAcknowledged() == null || m.getIsAcknowledged()) && m.getBankNumber() == null));
-        rows.addAll(missingDataRows(allMembers, "Naziv banke",
-                m -> (m.getIsAcknowledged() == null || m.getIsAcknowledged()) && m.getBankName() == null));
+        Accordion missingDataAccordion = new Accordion();
+        missingDataAccordion.setWidthFull();
 
-        rows.sort(Comparator.comparing(MissingDataRow::missingField)
-                .thenComparing(row -> row.member().getJmbg() != null ? row.member().getJmbg() : ""));
+        int total = 0;
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje ime ili prezime", m -> m.getFirstname() == null || m.getLastname() == null);
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje pol", m -> m.getIsMale() == null);
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje stručna sprema", m -> m.getQualifications() == null);
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje JMBG", m -> m.getJmbg() == null);
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje broj telefona", m -> m.getPhoneNumber() == null);
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje broj žiro računa",
+                m -> (m.getIsAcknowledged() == null || m.getIsAcknowledged()) && m.getBankNumber() == null);
+        // Only flagged once there's a bank number to attach a name to - a missing bank number is
+        // already caught by the "Nedostaje broj žiro računa" check above, and shouldn't also show
+        // up here as a missing bank name.
+        total += addMissingDataSubsection(missingDataAccordion, allMembers, "Nedostaje naziv banke",
+                m -> (m.getIsAcknowledged() == null || m.getIsAcknowledged()) && isBlank(m.getBankNumber()) == false && m.getBankName() == null);
 
-        addSection(accordion, "Nedostaju podaci", rows, grid -> {
-            grid.addColumn(MissingDataRow::missingField).setHeader("Nedostaje").setSortable(true).setAutoWidth(true);
-            grid.addColumn(row -> safeFullName(row.member())).setHeader("Ime i prezime").setAutoWidth(true);
-            grid.addColumn(row -> row.member().getJmbg()).setHeader("JMBG").setAutoWidth(true);
-            grid.addColumn(row -> votingCouncelLabel(row.member())).setHeader("Biračko mjesto").setAutoWidth(true);
-            grid.addColumn(row -> mentorLabel(row.member())).setHeader("Mentor").setAutoWidth(true);
-        });
+        accordion.add("Nedostaju podaci (" + total + ")", missingDataAccordion);
     }
 
-    private List<MissingDataRow> missingDataRows(List<MemberEntity> allMembers, String missingFieldLabel, Predicate<MemberEntity> isMissing) {
-        return allMembers.stream()
+    /** Adds one sub-panel to {@code missingDataAccordion} and returns how many rows it holds, so the caller can total them for the outer panel's title. */
+    private int addMissingDataSubsection(Accordion missingDataAccordion, List<MemberEntity> allMembers, String label, Predicate<MemberEntity> isMissing) {
+        List<MemberEntity> rows = allMembers.stream()
                 .filter(m -> m.isEmpty() == false)
                 // A position with no ime, prezime, or JMBG isn't missing data - it's just an unfilled
                 // slot, so it's excluded here even though isEmpty() alone wouldn't catch it (see the
                 // same filter in addInvalidJmbgSection).
                 .filter(m -> isBlank(m.getFirstname()) == false || isBlank(m.getLastname()) == false || isBlank(m.getJmbg()) == false)
                 .filter(isMissing)
-                .map(m -> new MissingDataRow(missingFieldLabel, m))
+                .sorted(Comparator.comparing(m -> m.getJmbg() != null ? m.getJmbg() : ""))
                 .collect(Collectors.toList());
+
+        addSection(missingDataAccordion, label, rows, grid -> {
+            grid.addColumn(this::safeFullName).setHeader("Ime i prezime").setAutoWidth(true);
+            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setAutoWidth(true);
+            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
+        });
+
+        return rows.size();
+    }
+
+    private void addInvalidBankNumberMemberSection(Accordion accordion, List<MemberEntity> allMembers) {
+        List<MemberEntity> rows = allMembers.stream()
+                .filter(m -> m.isEmpty() == false)
+                // Same "not explicitly declined" reading of isAcknowledged as the missing-data checks
+                // above - most rows have it unset (null) rather than explicitly true, and requiring
+                // true here was excluding almost every member, hiding real invalid account numbers.
+                .filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged())
+                .filter(m -> isBlank(m.getBankNumber()) == false && bankAccountValidator.isValidAccountNumber(m.getBankNumber()) == false)
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Nevalidan žiro račun - Članovi", rows, grid -> {
+            grid.addColumn(this::safeFullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(MemberEntity::getBankNumber).setHeader("Žiro račun").setAutoWidth(true);
+            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
+        });
+    }
+
+    private void addInvalidBankNumberPresidentSection(Accordion accordion, List<PresidentEntity> allPresidents) {
+        List<PresidentEntity> rows = allPresidents.stream()
+                .filter(p -> p.isEmpty() == false)
+                .filter(p -> p.getIsAcknowledged() == null || p.getIsAcknowledged())
+                .filter(p -> isBlank(p.getBankNumber()) == false && bankAccountValidator.isValidAccountNumber(p.getBankNumber()) == false)
+                .collect(Collectors.toList());
+
+        addSection(accordion, "Nevalidan žiro račun - Predsjednici", rows, grid -> {
+            grid.addColumn(this::presidentSafeFullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
+            grid.addColumn(PresidentEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
+            grid.addColumn(PresidentEntity::getBankNumber).setHeader("Žiro račun").setAutoWidth(true);
+            grid.addColumn(this::presidentVotingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
+            grid.addColumn(this::presidentMentorLabel).setHeader("Mentor").setAutoWidth(true);
+        });
     }
 
     private void addDuplicateBankNumbersSection(Accordion accordion, List<MemberEntity> allMembers, List<PresidentEntity> allPresidents) {
@@ -321,9 +351,6 @@ public class HealthCheckView extends VerticalLayout {
                 cyrillicToLatinConverter.convert(president.getVotingCouncel().getMentor().getFullname()).toUpperCase());
     }
 
-    private record MissingDataRow(String missingField, MemberEntity member) {
-    }
-
     private record BankDuplicateRow(String bankNumber, List<BankOccurrence> occurrences) {
     }
 
@@ -360,6 +387,23 @@ public class HealthCheckView extends VerticalLayout {
     private String politicalOrganizationLabel(MemberEntity member) {
         String code = member.getConstraint().getPoliticalOrganization().getCode();
         return Boolean.TRUE.equals(member.getIsGik()) ? "GIK (" + code + ")" : code;
+    }
+
+    /** Same as {@link #safeFullName}, but for {@link PresidentEntity}. */
+    private String presidentSafeFullName(PresidentEntity president) {
+        String combined = Stream.of(president.getFirstname(), president.getLastname())
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(" "));
+        return cyrillicToLatinConverter.convert(combined).toUpperCase();
+    }
+
+    private String presidentVotingCouncelLabel(PresidentEntity president) {
+        return cyrillicToLatinConverter.convert(president.getVotingCouncel().getCode()
+                + ", " + president.getVotingCouncel().getName()).toUpperCase();
+    }
+
+    private String presidentMentorLabel(PresidentEntity president) {
+        return cyrillicToLatinConverter.convert(president.getVotingCouncel().getMentor().getFullname()).toUpperCase();
     }
 
     /** Builds a grid (or a "no errors" message when {@code rows} is empty) and adds it under an accordion panel titled "{@code label} (rows.size())". */

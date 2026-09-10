@@ -1,6 +1,7 @@
 package com.example.application.services;
 
 import com.example.application.entities.*;
+import com.example.application.repositories.BankRepository;
 import com.example.application.repositories.PresidentRepository;
 import com.example.application.repositories.SubstituteRepository;
 import com.example.application.repositories.VotingCouncelRepository;
@@ -25,8 +26,10 @@ public class CouncelUpdateXlsxService {
     private final String DEFAULT_POLITICAL_ORGANIZATION_CODE = "00000";
     private final VotingCouncelRepository votingCouncelRepository;
     private final LatinToCyrillicConverter latinToCyrillicConverter;
+    private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final SubstituteRepository substituteRepository;
     private final PresidentRepository presidentRepository;
+    private final BankRepository bankRepository;
     private final JMBGValidator jmbgValidator;
     
     // Track used constraints for default organization for current voting council
@@ -34,9 +37,12 @@ public class CouncelUpdateXlsxService {
     private Set<Long> usedDefaultOrgConstraintsInCurrentCouncel = new HashSet<>();
     public List<ConstraintEntity> getModifiedConstraints(Workbook workbook, boolean deleteEmptyRows) {
         List<ConstraintEntity> result = new ArrayList<>();
-        
+
         // Clear tracking for new file upload
         usedDefaultOrgConstraintsInCurrentCouncel.clear();
+
+        // Fetched once for the whole file instead of once per row
+        List<BankEntity> banks = bankRepository.findAll();
 
         VotingCouncelEntity activeVotingCouncel = null;
         boolean readingMembers = false;
@@ -77,7 +83,7 @@ public class CouncelUpdateXlsxService {
                     memberEntity.setConstraint(activeConstraint);
                     activeConstraint.setMember(memberEntity);
 
-                    convertRowStringToMember(row, memberEntity, deleteEmptyRows);
+                    convertRowStringToMember(row, memberEntity, deleteEmptyRows, banks);
 
                     activeConstraint.setMember(memberEntity);
                     result.add(activeConstraint);
@@ -91,6 +97,9 @@ public class CouncelUpdateXlsxService {
 
     public List<PresidentEntity> getModifiedPresidents(Workbook workbook, boolean deleteEmptyRows) {
         List<PresidentEntity> result = new ArrayList<>();
+
+        // Fetched once for the whole file instead of once per row
+        List<BankEntity> banks = bankRepository.findAll();
 
         VotingCouncelEntity activeVotingCouncel = null;
         boolean readingPresidents = false;
@@ -121,7 +130,7 @@ public class CouncelUpdateXlsxService {
                     if(presidentToUpdate == null) {
                         System.out.println("Loggg: " + cell.getRow() + ", " + cell.getColumnIndex());
                     }
-                    convertRowStringToPresident(row, presidentToUpdate, deleteEmptyRows);
+                    convertRowStringToPresident(row, presidentToUpdate, deleteEmptyRows, banks);
                     result.add(presidentToUpdate);
                 }
             } else {
@@ -182,7 +191,7 @@ public class CouncelUpdateXlsxService {
             return optionalVotingCouncel.get();
     }
 
-    private void convertRowStringToMember(Row row, MemberEntity memberEntity, boolean deleteEmptyRows) {
+    private void convertRowStringToMember(Row row, MemberEntity memberEntity, boolean deleteEmptyRows, List<BankEntity> banks) {
         String acknowledged = getCellValue(row.getCell(1));
         if(acknowledged != null && acknowledged.trim().length() > 0) {
             if("ДА".equalsIgnoreCase(latinToCyrillicConverter.convert(acknowledged.trim())))
@@ -257,11 +266,11 @@ public class CouncelUpdateXlsxService {
         //readBankNumberTemp(bankNumber, memberEntity, deleteEmptyRows);
 
         String bankName = getCellValue(row.getCell(9));
-        readBankName(bankName, memberEntity, deleteEmptyRows);
+        readBankName(bankName, memberEntity, deleteEmptyRows, banks);
         //readBankNameTemp(bankName, memberEntity, deleteEmptyRows);
     }
 
-    private void convertRowStringToPresident(Row row, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+    private void convertRowStringToPresident(Row row, PresidentEntity presidentEntity, boolean deleteEmptyRows, List<BankEntity> banks) {
         String acknowledged = getCellValue(row.getCell(1));
         if(acknowledged != null && acknowledged.trim().length() > 0) {
             if("ДА".equalsIgnoreCase(latinToCyrillicConverter.convert(acknowledged.trim())))
@@ -326,7 +335,7 @@ public class CouncelUpdateXlsxService {
         //readBankNumberTemp(bankNumber, memberEntity, deleteEmptyRows);
 
         String bankName = getCellValue(row.getCell(9));
-        readBankName(bankName, presidentEntity, deleteEmptyRows);
+        readBankName(bankName, presidentEntity, deleteEmptyRows, banks);
         //readBankNameTemp(bankName, memberEntity, deleteEmptyRows);
     }
 
@@ -473,12 +482,12 @@ public class CouncelUpdateXlsxService {
 //        }
 //    }
 
-    private void readBankName(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows) {
+    private void readBankName(String bankName, MemberEntity memberEntity, boolean deleteEmptyRows, List<BankEntity> banks) {
         if (memberEntity.isEmpty()) {
             memberEntity.setBankName(null);
         }
         if (bankName != null && bankName.trim().length() > 1)
-            memberEntity.setBankName(bankName);
+            memberEntity.setBankName(resolveBankName(bankName, memberEntity.getBankNumber(), banks));
     }
 
 //    private void readBankName(String bankName, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
@@ -496,11 +505,33 @@ public class CouncelUpdateXlsxService {
 //        }
 //    }
 
-    private void readBankName(String bankName, PresidentEntity presidentEntity, boolean deleteEmptyRows) {
+    private void readBankName(String bankName, PresidentEntity presidentEntity, boolean deleteEmptyRows, List<BankEntity> banks) {
         if (presidentEntity.isEmpty()) {
             presidentEntity.setBankName(null);
         } else if (bankName != null && bankName.trim().length() > 1)
-            presidentEntity.setBankName(bankName);
+            presidentEntity.setBankName(resolveBankName(bankName, presidentEntity.getBankNumber(), banks));
+    }
+
+    /**
+     * Prefers the canonical bank name from {@code banks} (as seeded by {@link
+     * com.example.application.initializers.BankInitializer}) whenever the bank number's prefix
+     * matches a known bank - this keeps every row's bank name consistent regardless of what was
+     * typed in the sheet. Falls back to the typed value (normalized to Latin) when the bank number
+     * is missing/unrecognized, so the name is still never stored in Cyrillic.
+     */
+    private String resolveBankName(String typedBankName, String bankNumber, List<BankEntity> banks) {
+        Optional<BankEntity> bank = findBankByPrefix(bankNumber, banks);
+        if (bank.isPresent())
+            return bank.get().getName();
+        return cyrillicToLatinConverter.convert(typedBankName);
+    }
+
+    private Optional<BankEntity> findBankByPrefix(String bankNumber, List<BankEntity> banks) {
+        if (bankNumber == null || bankNumber.isEmpty())
+            return Optional.empty();
+        return banks.stream()
+                .filter(bank -> bank.getPrefix() != null && bankNumber.startsWith(bank.getPrefix()))
+                .findFirst();
     }
 
     private void readBankNumberTemp(String bankNumber, MemberEntity memberEntity, boolean deleteEmptyRows) {
