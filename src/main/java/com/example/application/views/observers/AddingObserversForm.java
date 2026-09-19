@@ -201,14 +201,17 @@ public class AddingObserversForm extends FormLayout {
                 observer.setForce(false);
                 observer.setDocumentNumber(number);
 
-                if(jmbgValidator.isValidJMBG(observer.getJmbg()) == false)
+                // Missing document number is checked first - without it nothing else about the
+                // person can be verified, so it should take priority over every other rejection
+                // reason instead of only surfacing after JMBG/duplicate checks pass.
+                if(observer.getCardId().isBlank())
+                    observer.setStatus(statusRepository.findById(5));
+                else if(jmbgValidator.isValidJMBG(observer.getJmbg()) == false)
                     observer.setStatus(statusRepository.findById(2));
                 else if(observerRepository.existsByJmbg(observer.getJmbg()))
                     observer.setStatus(statusRepository.findById(3));
                 else if(memberRepository.existsByJmbgAndIsGikFalseOrIsGikIsNull(observer.getJmbg()))
                     observer.setStatus(statusRepository.findById(4));
-                else if(observer.getCardId().isBlank())
-                    observer.setStatus(statusRepository.findById(5));
                 else if(observer.getFirstname().isBlank())
                     observer.setStatus(statusRepository.findById(6));
                 else if(observer.getLastname().isBlank())

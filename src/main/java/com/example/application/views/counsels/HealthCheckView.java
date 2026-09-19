@@ -119,14 +119,15 @@ public class HealthCheckView extends VerticalLayout {
         addSection(accordion, "Posmatrači", rows, grid -> {
             grid.addColumn(this::fullName).setHeader("Ime i prezime").setSortable(true).setAutoWidth(true);
             grid.addColumn(MemberEntity::getJmbg).setHeader("JMBG").setSortable(true).setAutoWidth(true);
-            grid.addColumn(this::votingCouncelLabel).setHeader("Biračko mjesto").setAutoWidth(true);
-            grid.addColumn(this::mentorLabel).setHeader("Mentor").setAutoWidth(true);
-            grid.addColumn(m -> observerByJmbg.get(m.getJmbg()).getStack().getDecisionNumber())
-                    .setHeader("Broj odluke").setAutoWidth(true);
-            grid.addColumn(m -> cyrillicToLatinConverter.convert(observerByJmbg.get(m.getJmbg()).getStack().getPoliticalOrganization().getName()).toUpperCase())
+            grid.addColumn(m -> cyrillicToLatinConverter.convert(m.getConstraint().getVotingCouncel().getCode()).toUpperCase())
+                    .setHeader("Šifra BO").setAutoWidth(true);
+            grid.addColumn(m -> cyrillicToLatinConverter.convert(m.getConstraint().getPoliticalOrganization().getCode()).toUpperCase())
                     .setHeader("Politički subjekat").setAutoWidth(true);
+            grid.addColumn(m -> Boolean.TRUE.equals(m.getIsGik()) ? "DA" : "NE").setHeader("GIK").setAutoWidth(true);
+            grid.addColumn(m -> observerByJmbg.get(m.getJmbg()).getStack().getDecisionNumber())
+                    .setHeader("Odluka").setAutoWidth(true);
             grid.addColumn(m -> observerByJmbg.get(m.getJmbg()).getDocumentNumber())
-                    .setHeader("Redni broj").setAutoWidth(true);
+                    .setHeader("Broj na listi").setAutoWidth(true);
         });
     }
 

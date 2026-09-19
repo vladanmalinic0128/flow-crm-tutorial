@@ -1109,7 +1109,7 @@ public class ObserverPdfService {
     }
 
     public void setFirstParagraphForIntroduction(XWPFDocument document, PoliticalOrganizationEntity politicalOrganization, String decisionDate, String requestDate, ScriptEnum scriptEnum) {
-        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3., 8., 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 31/24, 41/24), Градска изборна комисија Бања Лука је, на сједници одржаној " + decisionDate + " године разматрала захтјев политичког субјекта ";
+        String firstPartLabel = "На основу чл. 17.5 Изборног закона БиХ („Службени гласник БиХ“, бр. 23/1, 7/02, 9/02, 20/02, 25/02, 4/04, 20/04, 25/05, 52/05, 65/05, 77/05, 11/06, 24/06, 32/07, 33/08, 37/08, 32/10, 18/13 7/14, 31/16, 41/20, 38/22 , 51/22, 67/22 i 24/24) и чл. 3, 8, 9. и 15. Упутства о условима и процедурама за акредитовање изборних посматрача у БиХ („Службени гласник, БиХ“, број 32/26), Градска изборна комисија Бања Лука је, на сједници одржаној " + decisionDate + " године разматрала захтјев политичког субјекта ";
         String politicalOrganizationPart = politicalOrganization.getName();
         String thirdPart = " (шифра ";
         String code = politicalOrganization.getCode();
@@ -1189,7 +1189,7 @@ public class ObserverPdfService {
         String firstPartLabel = "Политички субјект ";
         String politicalOrganizationLabel = politicalOrganization.getName();
         String secondPartLabel = " je ";
-        String thirdPartLabel = " године, поднио Градској изборној комисији Бања Лука захтјев за актедитовање посматрача за посматрање изборних активности Градске изборне комисије, Центра за бирачки списак и бирачких мјеста (одбора) на подручју основне изборне јединице 034 Б – Бања Лука.";
+        String thirdPartLabel = " године, поднио Градској изборној комисији Бања Лука захтјев за акредитовање посматрача за посматрање изборних активности Градске изборне комисије, Центра за бирачки списак и бирачких мјеста (одбора) на подручју основне изборне јединице 034 Б – Бања Лука.";
 
         String resultLabel = firstPartLabel + politicalOrganizationLabel + secondPartLabel + date + thirdPartLabel;
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
@@ -1223,7 +1223,7 @@ public class ObserverPdfService {
     }
 
     public void setThirdParagraphForExplanation(XWPFDocument document, ScriptEnum scriptEnum) {
-        String firstPartLabel = "ПРАВНА ПОУКА: Против ове одлуке, може се изјавити жалба у року од три дана од дана пријема. Жалба се подноси Централној изборној комисији путем Градске изборне комисије Бања Лука. Достављање жалбе врши се путем факс апарата или лично у сједиште Градске изборне комисије на прописаном обрасцу.";
+        String firstPartLabel = "ПРАВНА ПОУКА: Против ове одлуке, може се изјавити жалба у року од три дана од дана пријема. Жалба се подноси Централној изборној комисији путем Градске изборне комисије Бања Лука. Достављање жалбе врши се путем мејла или лично у сједиште Градске изборне комисије на прописаном обрасцу.";
 
         String resultLabel = firstPartLabel;
         String resultText = scriptEnum == ScriptEnum.CYRILLIC ? latinToCyrillicConverter.convert(resultLabel) : cyrillicToLatinConverter.convert(resultLabel);
