@@ -6,6 +6,7 @@ import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.enums.ScriptEnum;
 import com.example.application.repositories.MentorRepository;
 import com.example.application.services.CouncelXlsxService;
+import com.example.application.services.HealthCheckXlsxService;
 import com.example.application.services.PoliticalOrganizationService;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Text;
@@ -37,12 +38,14 @@ public class CouncelsByMentor extends VerticalLayout {
     public static final String ROOT_PATH = "src/main/resources/generated-documents";
     private final CouncelXlsxService councelXlsxService;
     private final MentorRepository mentorRepository;
+    private final HealthCheckXlsxService healthCheckXlsxService;
 
     ComboBox<ScriptEnum> scripts = new ComboBox<>("Odaberite pismo");
 
-    public CouncelsByMentor(CouncelXlsxService councelXlsxService, MentorRepository mentorRepository) {
+    public CouncelsByMentor(CouncelXlsxService councelXlsxService, MentorRepository mentorRepository, HealthCheckXlsxService healthCheckXlsxService) {
         this.councelXlsxService = councelXlsxService;
         this.mentorRepository = mentorRepository;
+        this.healthCheckXlsxService = healthCheckXlsxService;
 
         // Main layout
         this.setWidth("100%");
@@ -86,7 +89,7 @@ public class CouncelsByMentor extends VerticalLayout {
                 dialog.open();
             });
 
-            horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents);
+            horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents, createErrorsButton(entity));
 
             // Add the VerticalLayout to the main Accordion
             AccordionPanel panel = accordion.add(entity.getFirstname() + " " + entity.getLastname(), horizontalLayout);
@@ -127,7 +130,7 @@ public class CouncelsByMentor extends VerticalLayout {
             dialog.open();
         });
 
-        horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents);
+        horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents, createErrorsButton(mentorEntity));
 
         // Add the VerticalLayout to the main Accordion
         AccordionPanel panel = accordion.add(mentorEntity.getFirstname() + " " + mentorEntity.getLastname(), horizontalLayout);
@@ -166,11 +169,57 @@ public class CouncelsByMentor extends VerticalLayout {
             dialog.open();
         });
 
-        horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents);
+        horizontalLayout.add(description, xlsxButton, xlsxButtonWithPresidents, createErrorsButton(mentorEntity));
 
         // Add the VerticalLayout to the main Accordion
         AccordionPanel panel = accordion.add(mentorEntity.getFirstname() + " " + mentorEntity.getLastname(), horizontalLayout);
         //panel.addThemeVariants(DetailsVariant.FILLED);
+    }
+
+    /** "Greške" button - downloads the checks from "Provjera grešaka", limited to this mentor's councels. */
+    private Button createErrorsButton(MentorEntity entity) {
+        Button errorsButton = new Button("Greške", new Icon(VaadinIcon.WARNING));
+        errorsButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+        errorsButton.addClickListener(e -> createErrorsDialog(entity).open());
+        return errorsButton;
+    }
+
+    private Dialog createErrorsDialog(MentorEntity entity) {
+        Dialog dialog = new Dialog();
+        dialog.getHeader().add(createDialogHeader("Generisanje grešaka"));
+
+        VerticalLayout fieldLayout = new VerticalLayout(scripts);
+        scripts.setValue(ScriptEnum.CYRILLIC);
+        fieldLayout.setSpacing(false);
+        fieldLayout.setPadding(false);
+        fieldLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
+        fieldLayout.getStyle().set("width", "600px").set("max-width", "100%");
+
+        Button cancelButton = new Button("Zatvori", e -> dialog.close());
+        String fileTitle = "greske_" + entity.getFirstname() + "_" + entity.getLastname() + "_" + System.currentTimeMillis() + ".xlsx";
+        Button saveButton = new Button("Generiši");
+        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Anchor saveButtonAnchor = new Anchor(new StreamResource(fileTitle, () -> {
+            if(scripts.getValue() == null) {
+                Notification notification = Notification.show("Morate odabrati pismo", 3000, Notification.Position.MIDDLE);
+                notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+                dialog.close();
+                return null;
+            }
+            String stringPath = healthCheckXlsxService.generateErrors(entity, fileTitle, scripts.getValue());
+            dialog.close();
+            return stringPath != null ? councelXlsxService.getStream(stringPath) : null;
+        }), "");
+        saveButtonAnchor.getElement().setAttribute("download", true);
+        saveButtonAnchor.removeAll();
+        saveButtonAnchor.add(saveButton);
+
+        dialog.getFooter().add(cancelButton, saveButtonAnchor);
+        dialog.add(fieldLayout);
+        dialog.setModal(true);
+        dialog.setDraggable(true);
+        return dialog;
     }
 
     private Dialog createDialog(MentorEntity entity) {
@@ -202,7 +251,11 @@ public class CouncelsByMentor extends VerticalLayout {
     }
 
     private H2 createDialogHeader() {
-        H2 headline = new H2("Generisanje biračkih odbora");
+        return createDialogHeader("Generisanje biračkih odbora");
+    }
+
+    private H2 createDialogHeader(String title) {
+        H2 headline = new H2(title);
         headline.addClassName("draggable");
         headline.getStyle().set("margin", "0").set("font-size", "1.5em")
                 .set("font-weight", "bold").set("cursor", "move")
