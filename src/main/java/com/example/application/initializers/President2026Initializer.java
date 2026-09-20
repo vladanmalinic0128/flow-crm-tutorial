@@ -36,8 +36,24 @@ public class President2026Initializer /*implements ApplicationRunner*/ {
                 if (entity != null)
                     presidentRepository.save(entity);
             }
+            createMissingPlaceholders();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    // Reports (e.g. the collective list) expect one president and one deputy per voting councel and call
+    // Optional.get() without a check, so councels missing either of them (mobile teams included) get an empty record.
+    private void createMissingPlaceholders() {
+        for (VotingCouncelEntity votingCouncel : votingCouncelRepository.findAll()) {
+            for (boolean isPresident : new boolean[]{true, false}) {
+                if (presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), isPresident).isEmpty()) {
+                    PresidentEntity placeholder = new PresidentEntity();
+                    placeholder.setVotingCouncel(votingCouncel);
+                    placeholder.setIsPresident(isPresident);
+                    presidentRepository.save(placeholder);
+                }
+            }
         }
     }
 
