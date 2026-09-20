@@ -2,6 +2,7 @@ package com.example.application.services;
 
 import com.example.application.entities.MemberEntity;
 import com.example.application.entities.ObserverEntity;
+import com.example.application.entities.PoliticalOrganizationEntity;
 import com.example.application.entities.PresidentEntity;
 import com.example.application.entities.VotingCouncelEntity;
 import com.example.application.repositories.MemberRepository;
@@ -137,6 +138,7 @@ public class RejectedObserversService {
             return NO_DATA;
         return members.stream()
                 .map(m -> "Član biračkog odbora " + councelLabel(m.getConstraint().getVotingCouncel())
+                        + ", pozicija " + positionLabel(m.getConstraint().getPoliticalOrganization())
                         + (Boolean.TRUE.equals(m.getIsGik()) ? ", GIK" : ", nije GIK"))
                 .collect(Collectors.joining("; "));
     }
@@ -153,6 +155,13 @@ public class RejectedObserversService {
                         + ", odluka " + stackLabel(o)
                         + ", redni broj " + o.getDocumentNumber())
                 .collect(Collectors.joining("; "));
+    }
+
+    // The member's position belongs to the political organization of its constraint
+    private String positionLabel(PoliticalOrganizationEntity organization) {
+        if (organization == null)
+            return NO_DATA;
+        return organization.getCode() + " (" + organization.getName() + ")";
     }
 
     private String councelLabel(VotingCouncelEntity councel) {
