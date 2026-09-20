@@ -161,8 +161,9 @@ public class AccreditationPdfServiceV2 {
         PdfFont cyrillicFont = loadCyrillicFont();
         PdfFormXObject qrXObject = buildQrCodeXObject(pdfDoc);
         PdfImageXObject watermarkXObject = new PdfImageXObject(loadFadedWatermarkImageData());
-        ImageData countryLogoImageData = loadCountryLogoImageData();
-        ImageData signatureImageData = loadSignatureImageData();
+        // Wrapped once so every card references the same embedded image instead of embedding its own copy
+        PdfImageXObject countryLogoImageData = new PdfImageXObject(loadCountryLogoImageData());
+        PdfImageXObject signatureImageData = new PdfImageXObject(loadSignatureImageData());
 
         Collator collator = getCollatorForScript(script);
         // Sort on the name already converted to the target script (as the decision-document
@@ -179,9 +180,7 @@ public class AccreditationPdfServiceV2 {
                 .collect(Collectors.toList());
 
         if (sideNumber == SideEnum.ONE_SIDED) {
-            Table grid = buildGridTable();
-            addOneSidedPages(grid, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
-            document.add(grid);
+            addOneSidedPages(document, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
         } else {
             addTwoSidedPages(document, filteredObservers, datePicker, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
         }
@@ -197,14 +196,21 @@ public class AccreditationPdfServiceV2 {
      * halves back-to-back to get a two-sided badge. For that flip to leave the back reading right
      * side up once glued on, its text is pre-rotated 180 degrees here.
      */
-    private void addOneSidedPages(Table grid, List<ObserverEntity> observers, LocalDate localDate, ScriptEnum script,
+    private void addOneSidedPages(Document document, List<ObserverEntity> observers, LocalDate localDate, ScriptEnum script,
                                    PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                                   ImageData countryLogoImageData, ImageData signatureImageData) {
+                                   PdfImageXObject countryLogoImageData, PdfImageXObject signatureImageData) {
         int numberOfChunks = (observers.size() + CARDS_PER_ROW - 1) / CARDS_PER_ROW;
         for (int i = 0; i < numberOfChunks; i++) {
             List<ObserverEntity> chunk = observers.subList(i * CARDS_PER_ROW, Math.min((i + 1) * CARDS_PER_ROW, observers.size()));
+            if (i > 0) {
+                document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+            }
+            // One small table per page (front row + its back row) instead of one huge table for all
+            // cards, which ran out of heap after a few hundred cards.
+            Table grid = buildGridTable();
             addFrontRow(grid, chunk, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
             addBackRow(grid, chunk, arialFont, script, true);
+            document.add(grid);
         }
     }
 
@@ -220,7 +226,7 @@ public class AccreditationPdfServiceV2 {
      */
     private void addTwoSidedPages(Document document, List<ObserverEntity> observers, LocalDate localDate, ScriptEnum script,
                                    PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                                   ImageData countryLogoImageData, ImageData signatureImageData) {
+                                   PdfImageXObject countryLogoImageData, PdfImageXObject signatureImageData) {
         int chunkSize = CARDS_PER_ROW * 2;
         int numberOfChunks = (observers.size() + chunkSize - 1) / chunkSize;
         for (int i = 0; i < numberOfChunks; i++) {
@@ -256,8 +262,9 @@ public class AccreditationPdfServiceV2 {
         PdfFont cyrillicFont = loadCyrillicFont();
         PdfFormXObject qrXObject = buildQrCodeXObject(pdfDoc);
         PdfImageXObject watermarkXObject = new PdfImageXObject(loadFadedWatermarkImageData());
-        ImageData countryLogoImageData = loadCountryLogoImageData();
-        ImageData signatureImageData = loadSignatureImageData();
+        // Wrapped once so every card references the same embedded image instead of embedding its own copy
+        PdfImageXObject countryLogoImageData = new PdfImageXObject(loadCountryLogoImageData());
+        PdfImageXObject signatureImageData = new PdfImageXObject(loadSignatureImageData());
 
         Table grid = buildGridTable();
         addFrontRow(grid, List.of(observer), localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
@@ -289,7 +296,7 @@ public class AccreditationPdfServiceV2 {
     /** Adds one row of up to {@link #CARDS_PER_ROW} fronts, padding out unused columns with blanks. */
     private void addFrontRow(Table grid, List<ObserverEntity> row, LocalDate localDate, ScriptEnum script,
                               PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                              ImageData countryLogoImageData, ImageData signatureImageData) {
+                              PdfImageXObject countryLogoImageData, PdfImageXObject signatureImageData) {
         for (ObserverEntity observer : row) {
             grid.addCell(buildFrontCell(observer, localDate, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData));
         }
@@ -338,7 +345,7 @@ public class AccreditationPdfServiceV2 {
 
     private Cell buildFrontCell(ObserverEntity observer, LocalDate localDate, ScriptEnum script,
                                  PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
-                                 ImageData countryLogoImageData, ImageData signatureImageData) {
+                                 PdfImageXObject countryLogoImageData, PdfImageXObject signatureImageData) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy.");
         String formattedDate = localDate.format(formatter);
         String decisionNumberText = observer.getStack().getDecisionNumber() != null ? observer.getStack().getDecisionNumber() : "";
@@ -387,7 +394,7 @@ public class AccreditationPdfServiceV2 {
      * wrapped "SREDNJE IZBORNO POVJERENSTVO" onto two lines), each line's font size is solved from
      * the font's own metrics to be the largest size that still fits on one line in this column.
      */
-    private Cell buildHeaderCell(PdfFont arialFont, PdfFont cyrillicFont, ImageData countryLogoImageData) {
+    private Cell buildHeaderCell(PdfFont arialFont, PdfFont cyrillicFont, PdfImageXObject countryLogoImageData) {
         Table header = new Table(UnitValue.createPercentArray(new float[]{HEADER_SIDE_COLUMN_PERCENT, HEADER_LOGO_COLUMN_PERCENT, HEADER_SIDE_COLUMN_PERCENT}));
         header.setWidth(UnitValue.createPercentValue(100));
 
@@ -556,7 +563,7 @@ public class AccreditationPdfServiceV2 {
         return cell;
     }
 
-    private Cell buildSignatureCell(PdfFont arialFont, ScriptEnum script, ImageData signatureImageData) {
+    private Cell buildSignatureCell(PdfFont arialFont, ScriptEnum script, PdfImageXObject signatureImageData) {
         Image signature = new Image(signatureImageData);
         signature.setWidth(SIGNATURE_ANCHOR_WIDTH);
         signature.setHeight(SIGNATURE_ANCHOR_HEIGHT);
@@ -567,7 +574,7 @@ public class AccreditationPdfServiceV2 {
                 Rectangle box = getOccupiedAreaBBox();
                 float x = box.getLeft() + (box.getWidth() - SIGNATURE_WIDTH) / 2f;
                 float y = box.getBottom() + (box.getHeight() - SIGNATURE_HEIGHT) / 2f;
-                drawContext.getCanvas().addImageFittedIntoRectangle(signatureImageData, new Rectangle(x, y, SIGNATURE_WIDTH, SIGNATURE_HEIGHT), false);
+                drawContext.getCanvas().addXObjectFittedIntoRectangle(signatureImageData, new Rectangle(x, y, SIGNATURE_WIDTH, SIGNATURE_HEIGHT));
             }
         });
 
