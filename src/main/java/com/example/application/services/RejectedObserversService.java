@@ -34,16 +34,19 @@ public class RejectedObserversService {
     private final PresidentRepository presidentRepository;
     private final MemberRepository memberRepository;
 
-    public record RejectedObserverRow(Long politicalOrganizationId, String stack, Integer documentNumber,
-                                      String fullName, String jmbg, String reason, String details) {
+    public record RejectedObserverRow(Integer documentNumber, String fullName, String jmbg, String reason, String details) {
     }
 
-    /** Rejected observers grouped by political organization id, each group ordered by stack, then document number. */
+    /** A stack (decision) with its political organization and the observers rejected in it. */
+    public record StackRejections(String title, List<RejectedObserverRow> rows) {
+    }
+
+    /** Rejected observers grouped by stack, stacks ordered by political organization code, then stack id. */
     @Transactional(readOnly = true)
-    public Map<Long, List<RejectedObserverRow>> getRejectedByPoliticalOrganization() {
+    public List<StackRejections> getRejectedByStack() {
         List<ObserverEntity> rejected = observerRepository.findAllRejectedWithDetails();
         if (rejected.isEmpty())
-            return Map.of();
+            return List.of();
 
         Set<Integer> reasons = rejected.stream().map(o -> o.getStatus().getId()).collect(Collectors.toSet());
 
@@ -65,10 +68,11 @@ public class RejectedObserversService {
                 : Map.of();
 
         Comparator<ObserverEntity> ordering = Comparator
-                .comparing((ObserverEntity o) -> o.getStack().getId())
+                .comparing((ObserverEntity o) -> o.getStack().getPoliticalOrganization().getCode(), Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(o -> o.getStack().getId())
                 .thenComparing(ObserverEntity::getDocumentNumber, Comparator.nullsLast(Comparator.naturalOrder()));
 
-        Map<Long, List<RejectedObserverRow>> result = new LinkedHashMap<>();
+        Map<Integer, StackRejections> result = new LinkedHashMap<>();
         for (ObserverEntity observer : rejected.stream().sorted(ordering).toList()) {
             String details = switch (observer.getStatus().getId()) {
                 case STATUS_PRESIDENT -> describePresidents(presidentsByJmbg.get(observer.getJmbg()));
@@ -76,17 +80,20 @@ public class RejectedObserversService {
                 case STATUS_ALREADY_ACCREDITED -> describeAccredited(accreditedByJmbg.get(observer.getJmbg()), observer);
                 default -> "";
             };
-            result.computeIfAbsent(observer.getStack().getPoliticalOrganization().getId(), k -> new ArrayList<>())
-                    .add(new RejectedObserverRow(
-                            observer.getStack().getPoliticalOrganization().getId(),
-                            stackLabel(observer),
+            result.computeIfAbsent(observer.getStack().getId(), k -> new StackRejections(stackTitle(observer), new ArrayList<>()))
+                    .rows().add(new RejectedObserverRow(
                             observer.getDocumentNumber(),
                             observer.getFullName(),
                             observer.getJmbg(),
                             observer.getStatus().getName(),
                             details));
         }
-        return result;
+        return new ArrayList<>(result.values());
+    }
+
+    private String stackTitle(ObserverEntity observer) {
+        return stackLabel(observer) + " (" + observer.getStack().getPoliticalOrganization().getCode() + ": "
+                + observer.getStack().getPoliticalOrganization().getName() + ")";
     }
 
     private String stackLabel(ObserverEntity observer) {
