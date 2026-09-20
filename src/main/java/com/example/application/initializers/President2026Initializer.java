@@ -55,10 +55,6 @@ public class President2026Initializer /*implements ApplicationRunner*/ {
         String firstname = textOrNull(getCellValue(row.getCell(3)));
         String lastname = textOrNull(getCellValue(row.getCell(4)));
         String jmbg = digitsOrNull(getCellValue(row.getCell(2)));
-        // Some deputies are not filled in yet - don't create empty records for them
-        if (firstname == null && lastname == null && jmbg == null)
-            return null;
-
         PresidentEntity entity = new PresidentEntity();
         entity.setVotingCouncel(votingCouncelOptional.get());
 
