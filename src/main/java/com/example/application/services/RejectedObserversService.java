@@ -41,7 +41,7 @@ public class RejectedObserversService {
     public record StackRejections(String title, List<RejectedObserverRow> rows) {
     }
 
-    /** Rejected observers grouped by stack, stacks ordered by political organization code, then stack id. */
+    /** Rejected observers grouped by stack, stacks ordered by decision number, then stack id. */
     @Transactional(readOnly = true)
     public List<StackRejections> getRejectedByStack() {
         List<ObserverEntity> rejected = observerRepository.findAllRejectedWithDetails();
@@ -68,7 +68,7 @@ public class RejectedObserversService {
                 : Map.of();
 
         Comparator<ObserverEntity> ordering = Comparator
-                .comparing((ObserverEntity o) -> o.getStack().getPoliticalOrganization().getCode(), Comparator.nullsLast(Comparator.naturalOrder()))
+                .comparing((ObserverEntity o) -> o.getStack().getDecisionNumber(), RejectedObserversService::compareNatural)
                 .thenComparing(o -> o.getStack().getId())
                 .thenComparing(ObserverEntity::getDocumentNumber, Comparator.nullsLast(Comparator.naturalOrder()));
 
@@ -91,8 +91,30 @@ public class RejectedObserversService {
         return new ArrayList<>(result.values());
     }
 
+    /** Compares strings so that numbers inside them are ordered by value ("2/26" before "10/26"); nulls last. */
+    private static int compareNatural(String a, String b) {
+        if (a == null || b == null)
+            return a == b ? 0 : (a == null ? 1 : -1);
+        int i = 0, j = 0;
+        while (i < a.length() && j < b.length()) {
+            if (Character.isDigit(a.charAt(i)) && Character.isDigit(b.charAt(j))) {
+                int si = i, sj = j;
+                while (i < a.length() && Character.isDigit(a.charAt(i))) i++;
+                while (j < b.length() && Character.isDigit(b.charAt(j))) j++;
+                int cmp = new java.math.BigInteger(a.substring(si, i)).compareTo(new java.math.BigInteger(b.substring(sj, j)));
+                if (cmp != 0)
+                    return cmp;
+            } else {
+                int cmp = Character.compare(a.charAt(i++), b.charAt(j++));
+                if (cmp != 0)
+                    return cmp;
+            }
+        }
+        return Integer.compare(a.length() - i, b.length() - j);
+    }
+
     private String stackTitle(ObserverEntity observer) {
-        return stackLabel(observer) + " (" + observer.getStack().getPoliticalOrganization().getCode() + ": "
+        return observer.getStack().getDecisionNumber() + " (" + observer.getStack().getPoliticalOrganization().getCode() + ": "
                 + observer.getStack().getPoliticalOrganization().getName() + ")";
     }
 
