@@ -27,4 +27,13 @@ public interface ObserverRepository extends JpaRepository<ObserverEntity, Long> 
             "JOIN FETCH o.status " +
             "WHERE o.status.id = :statusId")
     List<ObserverEntity> findAllWithDetailsByStatusId(@Param("statusId") Integer statusId);
+
+    // Every observer that isn't accepted (failed status and not forced), with stack -> politicalOrganization
+    // and status, in a single SQL query - used by the rejected observers overview.
+    @Query("SELECT o FROM ObserverEntity o " +
+            "JOIN FETCH o.stack s " +
+            "JOIN FETCH s.politicalOrganization " +
+            "JOIN FETCH o.status st " +
+            "WHERE (st.success IS NULL OR st.success = false) AND (o.force IS NULL OR o.force = false)")
+    List<ObserverEntity> findAllRejectedWithDetails();
 }

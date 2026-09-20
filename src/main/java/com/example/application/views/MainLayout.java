@@ -10,6 +10,7 @@ import com.example.application.views.observers.AddingObserversForm;
 import com.example.application.views.observers.EmptyObserverReportsView;
 import com.example.application.views.observers.ObserverManagementView;
 import com.example.application.views.observers.ObserverReportsView;
+import com.example.application.views.observers.RejectedObserversView;
 import com.example.application.views.observers.OverallReportView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
@@ -167,8 +168,9 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab tab3 = createTab("Preuzmi zbirni spisak", OverallReportView.class);
         Tab tab4 = createTab("Preuzmi prazne izvještaje", EmptyObserverReportsView.class);
         Tab tab5 = createTab("Uredi posmatrače", ObserverManagementView.class);
+        Tab tab6 = createTab("Odbijeni posmatrači", RejectedObserversView.class);
 
-        tabs.add(tab1, tab2, tab3, tab4, tab5);
+        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
 
         tabs.setSelectedTab(tab1);
