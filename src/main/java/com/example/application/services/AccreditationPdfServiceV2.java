@@ -51,6 +51,7 @@ import java.net.MalformedURLException;
 import java.text.Collator;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -251,6 +252,36 @@ public class AccreditationPdfServiceV2 {
         }
     }
 
+    /**
+     * Generates {@code count} blank accreditation cards (labels, header, QR code and signature only,
+     * with every value left empty) to be filled in by hand. Blank cards are represented as
+     * {@code null} observers so the same one-sided/two-sided page layouts can be reused as-is.
+     */
+    public String downloadEmptyAccreditationsPdf(int count, ScriptEnum script, SideEnum sideNumber, String fileTitle) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PdfDocument pdfDoc = new PdfDocument(new PdfWriter(out));
+        pdfDoc.setDefaultPageSize(PageSize.A4.rotate());
+        Document document = openDocument(pdfDoc);
+
+        PdfFont arialFont = loadArialFont();
+        PdfFont cyrillicFont = loadCyrillicFont();
+        PdfFormXObject qrXObject = buildQrCodeXObject(pdfDoc);
+        PdfImageXObject watermarkXObject = new PdfImageXObject(loadFadedWatermarkImageData());
+        PdfImageXObject countryLogoImageData = new PdfImageXObject(loadCountryLogoImageData());
+        PdfImageXObject signatureImageData = new PdfImageXObject(loadSignatureImageData());
+
+        List<ObserverEntity> blanks = Collections.nCopies(count, null);
+        if (sideNumber == SideEnum.ONE_SIDED) {
+            addOneSidedPages(document, blanks, null, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
+        } else {
+            addTwoSidedPages(document, blanks, null, script, arialFont, cyrillicFont, qrXObject, watermarkXObject, countryLogoImageData, signatureImageData);
+        }
+
+        document.close();
+
+        return writeToDisk(out, fileTitle);
+    }
+
     /** Generates a single front/back accreditation card for one observer, regardless of status. */
     public String downloadSingleAccreditationPdf(ObserverEntity observer, LocalDate localDate, ScriptEnum script, String fileTitle) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -346,12 +377,13 @@ public class AccreditationPdfServiceV2 {
     private Cell buildFrontCell(ObserverEntity observer, LocalDate localDate, ScriptEnum script,
                                  PdfFont arialFont, PdfFont cyrillicFont, PdfFormXObject qrXObject, PdfImageXObject watermarkXObject,
                                  PdfImageXObject countryLogoImageData, PdfImageXObject signatureImageData) {
+        // A null observer / date is a blank card (see downloadEmptyAccreditationsPdf): values left empty
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy.");
-        String formattedDate = localDate.format(formatter);
-        String decisionNumberText = observer.getStack().getDecisionNumber() != null ? observer.getStack().getDecisionNumber() : "";
+        String formattedDate = localDate != null ? localDate.format(formatter) : "";
+        String decisionNumberText = observer != null && observer.getStack().getDecisionNumber() != null ? observer.getStack().getDecisionNumber() : "";
 
-        String firstname = observer.getFirstname().toUpperCase();
-        String lastname = observer.getLastname().toUpperCase();
+        String firstname = observer != null ? observer.getFirstname().toUpperCase() : "";
+        String lastname = observer != null ? observer.getLastname().toUpperCase() : "";
         // When Ime and/or Prezime need their own line for the value (see buildLabeledCell), that's
         // extra height on top of what the card height was tuned for - so every field tightens its
         // spacing to compensate and stay within TOP_CONTENT_HEIGHT (below).
@@ -455,7 +487,7 @@ public class AccreditationPdfServiceV2 {
         Table row = new Table(UnitValue.createPercentArray(new float[]{60f, 40f}));
         row.setWidth(UnitValue.createPercentValue(100));
 
-        String organizationCode = padToFiveDigits(observer.getStack().getPoliticalOrganization().getCode());
+        String organizationCode = observer != null ? padToFiveDigits(observer.getStack().getPoliticalOrganization().getCode()) : "";
 
         Text psLabel = new Text(doConvert("PS-", script)).setFont(arialFont).setFontSize(14.24f).simulateBold();
         Text psValue = new Text(doConvert(organizationCode, script)).setFont(arialFont).setFontSize(14.24f).simulateBold();

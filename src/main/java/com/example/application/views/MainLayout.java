@@ -7,6 +7,7 @@ import com.example.application.views.counsels.*;
 import com.example.application.views.list.AddingStackForm;
 import com.example.application.views.list.ListView;
 import com.example.application.views.observers.AddingObserversForm;
+import com.example.application.views.observers.EmptyAccreditationsView;
 import com.example.application.views.observers.EmptyObserverReportsView;
 import com.example.application.views.observers.ObserverManagementView;
 import com.example.application.views.observers.ObserverReportsView;
@@ -169,8 +170,9 @@ public class MainLayout extends AppLayout implements RouterLayout {
         Tab tab4 = createTab("Preuzmi prazne izvještaje", EmptyObserverReportsView.class);
         Tab tab5 = createTab("Uredi posmatrače", ObserverManagementView.class);
         Tab tab6 = createTab("Odbijeni posmatrači", RejectedObserversView.class);
+        Tab tab7 = createTab("Prazne akreditacije", EmptyAccreditationsView.class);
 
-        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6);
+        tabs.add(tab1, tab2, tab3, tab4, tab5, tab6, tab7);
         tabs.setOrientation(Tabs.Orientation.HORIZONTAL);
 
         tabs.setSelectedTab(tab1);
