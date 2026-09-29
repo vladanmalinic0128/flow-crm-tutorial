@@ -119,6 +119,8 @@ public class CouncelUpdateXlsxService {
                 activeVotingCouncel = tryReadingVotingCouncel(cell);
             }
             else if(latinToCyrillicConverter.convert(value.toUpperCase()).equals("ГИК")) {
+                if(activeVotingCouncel == null)
+                    continue;
                 Optional<PresidentEntity> optionalPresidentEntity = presidentRepository.findByVotingCouncel_CodeAndIsPresident(activeVotingCouncel.getCode(), readingPresidents);
                 if(optionalPresidentEntity.isEmpty())
                     continue;
@@ -364,9 +366,9 @@ public class CouncelUpdateXlsxService {
     }
 
     private void readGenderCell(String gender, MemberEntity memberEntity) {
-        if(gender.equalsIgnoreCase("М"))
+        if("М".equalsIgnoreCase(gender))
             memberEntity.setIsMale(true);
-        else if( gender.equalsIgnoreCase("Ж"))
+        else if( "Ж".equalsIgnoreCase(gender))
             memberEntity.setIsMale(false);
         else
             memberEntity.setIsMale(null);

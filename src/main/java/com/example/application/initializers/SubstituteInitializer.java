@@ -175,9 +175,9 @@ public class SubstituteInitializer /*implements ApplicationRunner*/ {
     }
 
     private void readGenderCell(String gender, SubstituteEntity entity) {
-        if(gender.equalsIgnoreCase("М"))
+        if("М".equalsIgnoreCase(gender))
             entity.setIsMale(true);
-        else if( gender.equalsIgnoreCase("Ж"))
+        else if( "Ж".equalsIgnoreCase(gender))
             entity.setIsMale(false);
         else
             entity.setIsMale(null);
