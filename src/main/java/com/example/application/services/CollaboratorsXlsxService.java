@@ -198,8 +198,8 @@ public class CollaboratorsXlsxService {
     }
 
     private void readJmbg(String jmbg, AssociateEntity associateEntity) {
-        jmbg = jmbg.replaceAll("\\D", "");
-        if(jmbg == null || jmbg.trim().length() == 0)
+        jmbg = jmbg == null ? null : jmbg.replaceAll("\\D", "");
+        if(jmbg == null || jmbg.isEmpty())
             associateEntity.setJmbg(null);
         else
             associateEntity.setJmbg(recoverLeadingZeroIfValid(jmbg));

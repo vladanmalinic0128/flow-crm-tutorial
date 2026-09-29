@@ -184,24 +184,24 @@ public class SubstituteInitializer /*implements ApplicationRunner*/ {
     }
 
     private void readJmbg(String jmbg, SubstituteEntity entity) {
-        jmbg = jmbg.replaceAll("\\D", "");
-        if(jmbg == null || jmbg.trim().length() == 0)
+        jmbg = jmbg == null ? null : jmbg.replaceAll("\\D", "");
+        if(jmbg == null || jmbg.isEmpty())
             entity.setJmbg(null);
         else
             entity.setJmbg(jmbg);
     }
 
     private void readPhoneNumber(String phoneNumber, SubstituteEntity entity) {
-        phoneNumber = phoneNumber.replaceAll("\\D", "");
-        if(phoneNumber == null || phoneNumber.trim().length() == 0)
+        phoneNumber = phoneNumber == null ? null : phoneNumber.replaceAll("\\D", "");
+        if(phoneNumber == null || phoneNumber.isEmpty())
             entity.setPhoneNumber(null);
         else
             entity.setPhoneNumber(phoneNumber);
     }
 
     private void readBankNumber(String bankNumber, SubstituteEntity entity) {
-        bankNumber = bankNumber.replaceAll("\\D", "");
-        if(bankNumber == null || bankNumber.trim().length() == 0)
+        bankNumber = bankNumber == null ? null : bankNumber.replaceAll("\\D", "");
+        if(bankNumber == null || bankNumber.isEmpty())
             entity.setBankNumber(null);
         else
             entity.setBankNumber(bankNumber);

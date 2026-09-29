@@ -126,8 +126,8 @@ public class PresidentInitializer /*implements ApplicationRunner*/ {
     }
 
     private void readJmbg(String jmbg, PresidentEntity entity) {
-        jmbg = jmbg.replaceAll("\\D", "");
-        if(jmbg == null || jmbg.trim().length() == 0)
+        jmbg = jmbg == null ? null : jmbg.replaceAll("\\D", "");
+        if(jmbg == null || jmbg.isEmpty())
             entity.setJmbg(null);
         else
             entity.setJmbg(jmbg);
@@ -138,8 +138,8 @@ public class PresidentInitializer /*implements ApplicationRunner*/ {
             entity.setPhoneNumber(null);
             return;
         }
-        phoneNumber = phoneNumber.replaceAll("\\D", "");
-        if(phoneNumber == null || phoneNumber.trim().length() == 0)
+        phoneNumber = phoneNumber == null ? null : phoneNumber.replaceAll("\\D", "");
+        if(phoneNumber == null || phoneNumber.isEmpty())
             entity.setPhoneNumber(null);
         else
             entity.setPhoneNumber(phoneNumber);
@@ -150,8 +150,8 @@ public class PresidentInitializer /*implements ApplicationRunner*/ {
             entity.setBankNumber(null);
             return;
         }
-        bankNumber = bankNumber.replaceAll("\\D", "");
-        if(bankNumber.trim().length() == 0)
+        bankNumber = bankNumber == null ? null : bankNumber.replaceAll("\\D", "");
+        if(bankNumber == null || bankNumber.isEmpty())
             entity.setBankNumber(null);
         else
             entity.setBankNumber(bankNumber);

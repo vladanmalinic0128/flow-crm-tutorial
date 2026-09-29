@@ -373,16 +373,16 @@ public class CouncelUpdateXlsxService {
     }
 
     private void readJmbg(String jmbg, MemberEntity memberEntity) {
-        jmbg = jmbg.replaceAll("\\D", "");
-        if(jmbg == null || jmbg.trim().length() == 0)
+        jmbg = jmbg == null ? null : jmbg.replaceAll("\\D", "");
+        if(jmbg == null || jmbg.isEmpty())
             memberEntity.setJmbg(null);
         else
             memberEntity.setJmbg(recoverLeadingZeroIfValid(jmbg));
     }
 
     private void readJmbg(String jmbg, PresidentEntity presidentEntity) {
-        jmbg = jmbg.replaceAll("\\D", "");
-        if(jmbg == null || jmbg.trim().length() == 0)
+        jmbg = jmbg == null ? null : jmbg.replaceAll("\\D", "");
+        if(jmbg == null || jmbg.isEmpty())
             presidentEntity.setJmbg(null);
         else
             presidentEntity.setJmbg(recoverLeadingZeroIfValid(jmbg));
@@ -400,16 +400,16 @@ public class CouncelUpdateXlsxService {
     }
 
     private void readPhoneNumber(String phoneNumber, MemberEntity memberEntity) {
-        phoneNumber = phoneNumber.replaceAll("\\D", "");
-        if(phoneNumber == null || phoneNumber.trim().length() == 0)
+        phoneNumber = phoneNumber == null ? null : phoneNumber.replaceAll("\\D", "");
+        if(phoneNumber == null || phoneNumber.isEmpty())
             memberEntity.setPhoneNumber(null);
         else
             memberEntity.setPhoneNumber(phoneNumber);
     }
 
     private void readPhoneNumber(String phoneNumber, PresidentEntity presidentEntity) {
-        phoneNumber = phoneNumber.replaceAll("\\D", "");
-        if(phoneNumber == null || phoneNumber.trim().length() == 0)
+        phoneNumber = phoneNumber == null ? null : phoneNumber.replaceAll("\\D", "");
+        if(phoneNumber == null || phoneNumber.isEmpty())
             presidentEntity.setPhoneNumber(null);
         else
             presidentEntity.setPhoneNumber(phoneNumber);
