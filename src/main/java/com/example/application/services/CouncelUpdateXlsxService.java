@@ -239,6 +239,10 @@ public class CouncelUpdateXlsxService {
             memberEntity.setPrice(0);
         }
 
+        String previousJmbg = memberEntity.getJmbg();
+        String previousFirstname = memberEntity.getFirstname();
+        String previousLastname = memberEntity.getLastname();
+
         String name = getCellValue(row.getCell(3));
         if(name == null || name.trim().length() == 0) {
             memberEntity.setFirstname(null);
@@ -262,6 +266,12 @@ public class CouncelUpdateXlsxService {
 
         String phoneNumber = getCellValue(row.getCell(7));
         readPhoneNumber(phoneNumber, memberEntity);
+
+        // A different person on this constraint must not inherit the previous person's bank account
+        if(!isSamePerson(previousJmbg, previousFirstname, previousLastname, memberEntity.getJmbg(), memberEntity.getFirstname(), memberEntity.getLastname())) {
+            memberEntity.setBankNumber(null);
+            memberEntity.setBankName(null);
+        }
 
         String bankNumber = getCellValue(row.getCell(8));
         readBankNumber(bankNumber, memberEntity, deleteEmptyRows);
@@ -318,6 +328,10 @@ public class CouncelUpdateXlsxService {
             presidentEntity.setPrice(0);
         }
 
+        String previousJmbg = presidentEntity.getJmbg();
+        String previousFirstname = presidentEntity.getFirstname();
+        String previousLastname = presidentEntity.getLastname();
+
         String name = getCellValue(row.getCell(3));
         if(name == null || name.trim().length() == 0) {
             presidentEntity.setFirstname(null);
@@ -332,6 +346,12 @@ public class CouncelUpdateXlsxService {
         String phoneNumber = getCellValue(row.getCell(7));
         readPhoneNumber(phoneNumber, presidentEntity);
 
+        // A different person on this position must not inherit the previous person's bank account
+        if(!isSamePerson(previousJmbg, previousFirstname, previousLastname, presidentEntity.getJmbg(), presidentEntity.getFirstname(), presidentEntity.getLastname())) {
+            presidentEntity.setBankNumber(null);
+            presidentEntity.setBankName(null);
+        }
+
         String bankNumber = getCellValue(row.getCell(8));
         readBankNumber(bankNumber, presidentEntity, deleteEmptyRows);
         //readBankNumberTemp(bankNumber, memberEntity, deleteEmptyRows);
@@ -339,6 +359,36 @@ public class CouncelUpdateXlsxService {
         String bankName = getCellValue(row.getCell(9));
         readBankName(bankName, presidentEntity, deleteEmptyRows, banks);
         //readBankNameTemp(bankName, memberEntity, deleteEmptyRows);
+    }
+
+    /**
+     * Decides whether the row describes the person already stored on the constraint/position.
+     * JMBG is the primary identifier; when it is missing on either side, first and last name are
+     * compared instead. If nobody was stored before, it is treated as a new person.
+     */
+    private boolean isSamePerson(String previousJmbg, String previousFirstname, String previousLastname,
+                                 String newJmbg, String newFirstname, String newLastname) {
+        boolean hadPreviousPerson = !isBlank(previousJmbg) || !isBlank(previousFirstname) || !isBlank(previousLastname);
+        if(!hadPreviousPerson)
+            return false;
+
+        if(!isBlank(previousJmbg) && !isBlank(newJmbg))
+            return previousJmbg.trim().equals(newJmbg.trim());
+
+        if(!isBlank(previousFirstname) && !isBlank(previousLastname) && !isBlank(newFirstname) && !isBlank(newLastname))
+            return normalizeName(previousFirstname).equals(normalizeName(newFirstname))
+                    && normalizeName(previousLastname).equals(normalizeName(newLastname));
+
+        // Not enough data to tell them apart - keep the stored bank account
+        return true;
+    }
+
+    private String normalizeName(String value) {
+        return latinToCyrillicConverter.convert(value.trim()).toUpperCase();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     public void readNameCell(String value, MemberEntity memberEntity) {
