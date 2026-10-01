@@ -24,6 +24,8 @@ public class President2026Initializer /*implements ApplicationRunner*/ {
     //@Override
     public void run(ApplicationArguments args) throws Exception {
         String absolutePath = "src/main/resources/documents/2026/predsjednici kontakt.xlsx";
+        // Previous runs would otherwise leave two presidents per councel and role, breaking the Optional lookups
+        presidentRepository.deleteAll();
         try (InputStream inputStream = new FileInputStream(absolutePath)) {
             Workbook workbook = WorkbookFactory.create(inputStream);
             Sheet sheet = workbook.getSheetAt(0);
