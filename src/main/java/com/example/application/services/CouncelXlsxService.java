@@ -988,17 +988,18 @@ public class CouncelXlsxService {
         councelStyles = generateCellStyleForCounselsColumn(sheet);
         councelMemberStyles = generateCellStyleForCounselMembersColumn(sheet);
 
+        XSSFSheet presidentsSheet = sheet;
         for(VotingCouncelEntity votingCouncel : mentorByCounsels.keySet().stream()
                 .sorted(Comparator.comparing(VotingCouncelEntity::getId)).toList()) {
             generateCouncelsRow(sheet, votingCouncel, scriptEnum);
 
             generatePresidentHeaderRow(sheet, scriptEnum);
-            Optional<PresidentEntity> presidentEntityOptional = presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), true);
-            generatePresidentRow(sheet, presidentEntityOptional.get(), scriptEnum);
+            presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), true)
+                    .ifPresent(president -> generatePresidentRow(presidentsSheet, president, scriptEnum));
 
             generateDeputyPresidentHeaderRow(sheet, scriptEnum);
-            presidentEntityOptional = presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), false);
-            generatePresidentRow(sheet, presidentEntityOptional.get(), scriptEnum);
+            presidentRepository.findByVotingCouncel_CodeAndIsPresident(votingCouncel.getCode(), false)
+                    .ifPresent(president -> generatePresidentRow(presidentsSheet, president, scriptEnum));
 
         }
 
