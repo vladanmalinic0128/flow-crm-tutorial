@@ -78,12 +78,15 @@ public class BankAccountHealthCheckView extends VerticalLayout {
                     .map(VotingCouncelEntity::getId)
                     .flatMap(id -> membersByVotingCouncelId.getOrDefault(id, List.of()).stream())
                     .filter(m -> m != null && m.isEmpty() == false)
+                    // A position with no ime, prezime, or JMBG belongs to nobody - not an error
+                    .filter(m -> isBlank(m.getFirstname()) == false || isBlank(m.getLastname()) == false || isBlank(m.getJmbg()) == false)
                     .collect(Collectors.toList());
 
             List<PresidentEntity> presidents = groupedByMentor.get(mentor).stream()
                     .map(VotingCouncelEntity::getId)
                     .flatMap(id -> presidentsByVotingCouncelId.getOrDefault(id, List.of()).stream())
                     .filter(p -> p != null && p.isEmpty() == false)
+                    .filter(p -> isBlank(p.getFirstname()) == false || isBlank(p.getLastname()) == false || isBlank(p.getJmbg()) == false)
                     .collect(Collectors.toList());
 
             List<MemberEntity> membersWithUnknownStatus = members.stream()
@@ -116,6 +119,10 @@ public class BankAccountHealthCheckView extends VerticalLayout {
         }
 
         add(mainAccordion);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void addMemberSection(Accordion mentorAccordion, String label, List<MemberEntity> rows) {

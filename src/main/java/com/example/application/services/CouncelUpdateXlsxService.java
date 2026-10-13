@@ -122,16 +122,13 @@ public class CouncelUpdateXlsxService {
                 if(activeVotingCouncel == null)
                     continue;
                 Optional<PresidentEntity> optionalPresidentEntity = presidentRepository.findByVotingCouncel_CodeAndIsPresident(activeVotingCouncel.getCode(), readingPresidents);
-                if(optionalPresidentEntity.isEmpty())
-                    continue;
-                PresidentEntity presidentToUpdate = optionalPresidentEntity.get();
-
                 boolean isEmpty = isPresidentEmpty(row);
-                if(isEmpty == false || (isEmpty && deleteEmptyRows && presidentToUpdate != null)) {
-                    MemberEntity memberEntity = null;
-                    if(presidentToUpdate == null) {
-                        System.out.println("Loggg: " + cell.getRow() + ", " + cell.getColumnIndex());
-                    }
+                if(isEmpty == false || (isEmpty && deleteEmptyRows && optionalPresidentEntity.isPresent())) {
+                    // A president entered in the file is written to the database even when no record exists yet
+                    PresidentEntity presidentToUpdate = optionalPresidentEntity.orElseGet(PresidentEntity::new);
+                    presidentToUpdate.setVotingCouncel(activeVotingCouncel);
+                    presidentToUpdate.setIsPresident(readingPresidents);
+
                     convertRowStringToPresident(row, presidentToUpdate, deleteEmptyRows, banks);
                     result.add(presidentToUpdate);
                 }
