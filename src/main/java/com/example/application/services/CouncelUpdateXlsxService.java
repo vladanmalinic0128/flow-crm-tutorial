@@ -112,28 +112,39 @@ public class CouncelUpdateXlsxService {
             if(row == null)
                 continue;
             Cell cell = row.getCell(0);
-            if(cell == null)
-                continue;
-            String value = getCellValue(cell);
+            // A header row may have no cell in column A at all, so a missing cell is read as blank instead of skipped
+            String value = cell == null ? "" : getCellValue(cell);
             if(latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE) || latinToCyrillicConverter.convert(value).startsWith(MUNICIPALITY_CODE_FOR_MOBILE_TEAMS)) {
                 activeVotingCouncel = tryReadingVotingCouncel(cell);
+                // Every voting council starts over, so one broken block cannot swap the roles in the ones after it
+                readingPresidents = false;
             }
             else if(latinToCyrillicConverter.convert(value.toUpperCase()).equals("ГИК")) {
                 if(activeVotingCouncel == null)
                     continue;
-                Optional<PresidentEntity> optionalPresidentEntity = presidentRepository.findByVotingCouncel_CodeAndIsPresident(activeVotingCouncel.getCode(), readingPresidents);
-                boolean isEmpty = isPresidentEmpty(row);
-                if(isEmpty == false || (isEmpty && deleteEmptyRows && optionalPresidentEntity.isPresent())) {
-                    // A president entered in the file is written to the database even when no record exists yet
-                    PresidentEntity presidentToUpdate = optionalPresidentEntity.orElseGet(PresidentEntity::new);
-                    presidentToUpdate.setVotingCouncel(activeVotingCouncel);
-                    presidentToUpdate.setIsPresident(readingPresidents);
+                // The sheet is copied as is: whoever is in the row ends up on the position, and a row
+                // without a person empties the position. A missing record is created.
+                PresidentEntity presidentToUpdate = presidentRepository.findByVotingCouncel_CodeAndIsPresident(activeVotingCouncel.getCode(), readingPresidents)
+                        .orElseGet(PresidentEntity::new);
+                presidentToUpdate.setVotingCouncel(activeVotingCouncel);
+                presidentToUpdate.setIsPresident(readingPresidents);
 
+                if(isPresidentEmpty(row))
+                    clearPresident(presidentToUpdate);
+                else
                     convertRowStringToPresident(row, presidentToUpdate, deleteEmptyRows, banks);
-                    result.add(presidentToUpdate);
-                }
+                result.add(presidentToUpdate);
             } else {
-                readingPresidents = !readingPresidents;
+                // "Предсједник БО" / "Замјеник предсједника БО" - the role is taken from the header text,
+                // and only a header without a recognizable text falls back to switching the role
+                String header = getCellValue(row.getCell(3));
+                header = header == null ? "" : latinToCyrillicConverter.convert(header).trim().toUpperCase();
+                if(header.startsWith("ЗАМ"))
+                    readingPresidents = false;
+                else if(header.startsWith("ПРЕД"))
+                    readingPresidents = true;
+                else
+                    readingPresidents = !readingPresidents;
             }
         }
         return result;
@@ -404,12 +415,11 @@ public class CouncelUpdateXlsxService {
     }
 
     public void readNameCell(String value, PresidentEntity presidentEntity) {
-        String[] splittingResult = value.split(" ", 2);
+        String[] splittingResult = value.trim().split("\\s+", 2);
 
-        if (splittingResult.length >= 2) {
-            presidentEntity.setFirstname(splittingResult[0]);
-            presidentEntity.setLastname( splittingResult[1]);
-        }
+        // A single word is still written, so the previous person's name never stays on the position
+        presidentEntity.setFirstname(splittingResult[0]);
+        presidentEntity.setLastname(splittingResult.length >= 2 ? splittingResult[1] : null);
     }
 
     private void readGenderCell(String gender, MemberEntity memberEntity) {
@@ -651,20 +661,25 @@ public class CouncelUpdateXlsxService {
         return true;
     }
 
+    // A row without a name and a JMBG belongs to nobody. The other columns are not checked - the
+    // exported sheet always has "-" in the qualifications column, so such a row would never be empty.
     private boolean isPresidentEmpty(Row row) {
         if (row == null) {
             return true;
         }
 
-        for (int i = 3; i <= 9; i++) {
-            Cell cell = row.getCell(i);
-            if (cell != null) {
-                String cellValue = getCellValue(cell);
-                if (cellValue != null && !cellValue.trim().isEmpty()) {
-                    return false;
-                }
-            }
-        }
-        return true;
+        return isBlank(getCellValue(row.getCell(3))) && isBlank(getCellValue(row.getCell(6)));
+    }
+
+    // Back to the state of a position nobody was ever entered on
+    private void clearPresident(PresidentEntity presidentEntity) {
+        presidentEntity.setFirstname(null);
+        presidentEntity.setLastname(null);
+        presidentEntity.setJmbg(null);
+        presidentEntity.setPhoneNumber(null);
+        presidentEntity.setBankNumber(null);
+        presidentEntity.setBankName(null);
+        presidentEntity.setIsAcknowledged(null);
+        presidentEntity.setPrice(null);
     }
 }
