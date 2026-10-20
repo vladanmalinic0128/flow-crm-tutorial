@@ -8,9 +8,11 @@ import com.example.application.enums.ScriptEnum;
 import com.example.application.repositories.MemberRepository;
 import com.example.application.repositories.ObserverRepository;
 import com.example.application.repositories.PresidentRepository;
+import com.example.application.repositories.VotingCouncelRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.WorkbookUtil;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
@@ -19,6 +21,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -38,6 +41,7 @@ public class HealthCheckXlsxService {
     private final MemberRepository memberRepository;
     private final PresidentRepository presidentRepository;
     private final ObserverRepository observerRepository;
+    private final VotingCouncelRepository votingCouncelRepository;
     private final JMBGValidator jmbgValidator;
     private final BankAccountValidator bankAccountValidator;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
@@ -111,6 +115,129 @@ public class HealthCheckXlsxService {
                 invalidBank.stream().map(Row::cells).toList(), script);
 
         return save(fileTitle, workbook);
+    }
+
+    /**
+     * Same selection as the "Provjera bankovnih računa" page (see BankAccountHealthCheckView): filled-in members and
+     * presidents, not explicitly marked as not acknowledged, whose bank number is missing or invalid - one sheet per
+     * mentor, with the members and the presidents as two separate tables, each titled with its error count.
+     */
+    @Transactional(readOnly = true)
+    public byte[] generateInvalidBankAccountsByMentor() {
+        ScriptEnum script = ScriptEnum.LATIN;
+        Comparator<List<String>> byCouncelAndName = Comparator.comparing((List<String> r) -> r.get(2)).thenComparing(r -> r.get(0));
+
+        Map<Long, List<List<String>>> membersByMentorId = memberRepository.findAllWithConstraintDetails().stream()
+                .filter(this::isFilled)
+                .filter(m -> m.getIsAcknowledged() == null || m.getIsAcknowledged())
+                .filter(m -> !bankAccountValidator.isValidAccountNumber(m.getBankNumber()))
+                .collect(Collectors.groupingBy(m -> m.getConstraint().getVotingCouncel().getMentor().getId(),
+                        Collectors.mapping(m -> concat(memberRow(m, script), nz(m.getBankNumber())), Collectors.toList())));
+        Map<Long, List<List<String>>> presidentsByMentorId = presidentRepository.findAllWithVotingCouncelDetails().stream()
+                .filter(p -> !p.isEmpty())
+                .filter(p -> !isBlank(p.getFirstname()) || !isBlank(p.getLastname()) || !isBlank(p.getJmbg()))
+                .filter(p -> p.getIsAcknowledged() == null || p.getIsAcknowledged())
+                .filter(p -> !bankAccountValidator.isValidAccountNumber(p.getBankNumber()))
+                .collect(Collectors.groupingBy(p -> p.getVotingCouncel().getMentor().getId(),
+                        Collectors.mapping(p -> concat(presidentRow(p, script), nz(p.getBankNumber())), Collectors.toList())));
+
+        List<MentorEntity> mentors = votingCouncelRepository.findAllWithMentor().stream()
+                .map(vc -> vc.getMentor())
+                .collect(Collectors.toMap(MentorEntity::getId, m -> m, (a, b) -> a))
+                .values().stream()
+                .sorted(Comparator.comparing(m -> text(m.getFullname(), script)))
+                .toList();
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        Styles styles = createStyles(workbook);
+        CellStyle titleStyle = tableTitleStyle(workbook);
+        List<String> header = concat(memberHeader(script), "Žiro račun");
+        for (MentorEntity mentor : mentors) {
+            List<List<String>> members = membersByMentorId.getOrDefault(mentor.getId(), List.of()).stream().sorted(byCouncelAndName).toList();
+            List<List<String>> presidents = presidentsByMentorId.getOrDefault(mentor.getId(), List.of()).stream().sorted(byCouncelAndName).toList();
+
+            XSSFSheet sheet = workbook.createSheet(mentorSheetName(workbook, mentor, script));
+            sheet.setTabColor(new XSSFColor(members.isEmpty() && presidents.isEmpty() ? TAB_OK : TAB_ERRORS, null));
+            sheet.getPrintSetup().setLandscape(true);
+            sheet.setFitToPage(true);
+            sheet.getPrintSetup().setFitHeight((short) 0);
+
+            int rowIndex = writeTitledTable(sheet, styles, titleStyle, 0, "Članovi (" + members.size() + ")", header, members);
+            writeTitledTable(sheet, styles, titleStyle, rowIndex + 1, "Predsjednici (" + presidents.size() + ")", header, presidents);
+            for (int i = 0; i < header.size(); i++) {
+                sheet.autoSizeColumn(i);
+                sheet.setColumnWidth(i, Math.min(sheet.getColumnWidth(i) + 2 * 256, MAX_COLUMN_WIDTH));
+            }
+        }
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            workbook.write(outputStream);
+            workbook.close();
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** A title row merged across the table, the header row, then the rows (or "Nema grešaka."); returns the next free row index. */
+    private int writeTitledTable(XSSFSheet sheet, Styles styles, CellStyle titleStyle, int rowIndex, String title, List<String> header, List<List<String>> rows) {
+        XSSFRow titleRow = sheet.createRow(rowIndex);
+        titleRow.setHeightInPoints(22);
+        for (int i = 0; i < header.size(); i++)
+            titleRow.createCell(i).setCellStyle(titleStyle);
+        titleRow.getCell(0).setCellValue(title);
+        sheet.addMergedRegion(new CellRangeAddress(rowIndex, rowIndex, 0, header.size() - 1));
+        rowIndex++;
+
+        XSSFRow headerRow = sheet.createRow(rowIndex++);
+        headerRow.setHeightInPoints(24);
+        for (int i = 0; i < header.size(); i++) {
+            XSSFCell cell = headerRow.createCell(i);
+            cell.setCellValue(header.get(i));
+            cell.setCellStyle(styles.header());
+        }
+
+        if (rows.isEmpty()) {
+            XSSFCell cell = sheet.createRow(rowIndex++).createCell(0);
+            cell.setCellValue("Nema grešaka.");
+            cell.setCellStyle(styles.noErrors());
+        }
+        for (int r = 0; r < rows.size(); r++) {
+            XSSFRow row = sheet.createRow(rowIndex++);
+            CellStyle style = r % 2 == 0 ? styles.plain() : styles.zebra();
+            for (int i = 0; i < rows.get(r).size(); i++) {
+                XSSFCell cell = row.createCell(i);
+                cell.setCellValue(rows.get(r).get(i));
+                cell.setCellStyle(style);
+            }
+        }
+        return rowIndex;
+    }
+
+    private CellStyle tableTitleStyle(XSSFWorkbook workbook) {
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 13);
+        CellStyle style = workbook.createCellStyle();
+        style.setFont(font);
+        style.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 0xD6, (byte) 0xE4, (byte) 0xF0}, null));
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        border(style, BorderStyle.THIN, IndexedColors.GREY_50_PERCENT);
+        return style;
+    }
+
+    /** Excel sheet names are max 31 characters, without some special characters, and unique. */
+    private String mentorSheetName(XSSFWorkbook workbook, MentorEntity mentor, ScriptEnum script) {
+        String base = WorkbookUtil.createSafeSheetName(text(mentor.getFullname(), script)).trim();
+        if (base.isEmpty())
+            base = "Mentor";
+        String name = base.substring(0, Math.min(base.length(), 31));
+        for (int i = 2; workbook.getSheet(name) != null; i++) {
+            String index = " " + i;
+            name = base.substring(0, Math.min(base.length(), 31 - index.length())) + index;
+        }
+        return name;
     }
 
     private boolean inScope(MentorEntity entity, Long mentorId, String councelCode) {

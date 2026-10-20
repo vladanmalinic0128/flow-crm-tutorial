@@ -10,18 +10,25 @@ import com.example.application.repositories.PresidentRepository;
 import com.example.application.repositories.VotingCouncelRepository;
 import com.example.application.services.BankAccountValidator;
 import com.example.application.services.CyrillicToLatinConverter;
+import com.example.application.services.HealthCheckXlsxService;
 import com.example.application.services.JMBGValidator;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.accordion.Accordion;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
+import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.StreamResource;
 import jakarta.annotation.security.PermitAll;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -38,8 +45,9 @@ public class BankAccountHealthCheckView extends VerticalLayout {
     private final PresidentRepository presidentRepository;
     private final CyrillicToLatinConverter cyrillicToLatinConverter;
     private final VotingCouncelRepository votingCouncelRepository;
+    private final HealthCheckXlsxService healthCheckXlsxService;
 
-    public BankAccountHealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, PresidentRepository presidentRepository, CyrillicToLatinConverter cyrillicToLatinConverter, VotingCouncelRepository votingCouncelRepository) {
+    public BankAccountHealthCheckView(MemberRepository memberRepository, JMBGValidator jmbgValidator, BankAccountValidator bankAccountValidator, ObserverRepository observerRepository, PresidentRepository presidentRepository, CyrillicToLatinConverter cyrillicToLatinConverter, VotingCouncelRepository votingCouncelRepository, HealthCheckXlsxService healthCheckXlsxService) {
         this.memberRepository = memberRepository;
         this.jmbgValidator = jmbgValidator;
         this.bankAccountValidator = bankAccountValidator;
@@ -47,10 +55,13 @@ public class BankAccountHealthCheckView extends VerticalLayout {
         this.cyrillicToLatinConverter = cyrillicToLatinConverter;
         this.presidentRepository = presidentRepository;
         this.votingCouncelRepository = votingCouncelRepository;
+        this.healthCheckXlsxService = healthCheckXlsxService;
 
         // Main layout
         this.setWidth("100%");
         this.getStyle().set("margin", "0 auto");
+
+        add(createDownloadAnchor());
 
         Accordion mainAccordion = new Accordion();
         mainAccordion.setWidthFull();
@@ -119,6 +130,22 @@ public class BankAccountHealthCheckView extends VerticalLayout {
         }
 
         add(mainAccordion);
+    }
+
+    /** Excel with every invalid or missing bank account, one sheet per mentor; generated on click so it reflects the current data. */
+    private Anchor createDownloadAnchor() {
+        Button downloadButton = new Button("Preuzmi Excel sa netačnim računima", VaadinIcon.DOWNLOAD.create());
+        downloadButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+
+        Anchor anchor = new Anchor(new StreamResource("netacni_bankovni_racuni_" + System.currentTimeMillis() + ".xlsx",
+                () -> new ByteArrayInputStream(healthCheckXlsxService.generateInvalidBankAccountsByMentor())), "");
+        anchor.getElement().setAttribute("download", true);
+        anchor.removeAll();
+        anchor.add(downloadButton);
+        anchor.getStyle().set("max-width", "1400px");
+        anchor.getStyle().set("width", "100%");
+        anchor.getStyle().set("margin", "0 auto");
+        return anchor;
     }
 
     private static boolean isBlank(String value) {
