@@ -568,11 +568,13 @@ public class CollaboratorsXlsxService {
         addSignatureForContract(document, arialFont, scriptEnum);
 
         addSmallEmptyRow(document);
-        if(associate.getIsExtern())
-            description = "Broj: 01-03-1/25-120-" + decisionNumber;
-        else
-            description = "Broj: 01-03-1/25-119-" + decisionNumber;
+        description = "Broj: " + contractNumber(associate, decisionNumber);
         addLawArticleDescription(document, arialFont, scriptEnum, description);
+    }
+
+    // Interni saradnici: 188-1-n, eksterni: 188-2-n
+    private String contractNumber(AssociateEntity associate, int decisionNumber) {
+        return "01-03-1/26-188-" + (associate.getIsExtern() ? 2 : 1) + "-" + decisionNumber;
     }
 
     private void addLawArticleTitle(Document document, PdfFont arialFont, ScriptEnum scriptEnum, String title) {
@@ -622,11 +624,7 @@ public class CollaboratorsXlsxService {
         addSmallEmptyRow(document);
         addSmallEmptyRow(document);
 
-        String text;
-        if(associate.getIsExtern())
-            text = "01-03-1/25-120-" + decisionNumber;
-        else
-            text = "01-03-1/25-119-" + decisionNumber;
+        String text = contractNumber(associate, decisionNumber);
 
         String firstParagraph = "Ugovorom o djelu broj " + text + "   od dana  " + dateFormatter.format(associate.getContractDate()) + " godine, koji su u Banjaluci zaključili Naručilac posla Gradska izborna komisija Banja Luka, koju zastupa predsjednik Dubravko Malinić i  " + associate.getLastname() + " " + associate.getFirstname() + ", iz opštine " + associate.getResidence() + ", na period od " + dateFormatter.format(associate.getStartDate()) + " do " + dateFormatter.format(associate.getEndDate()) + " godine, " + associate.getLastname() + " " + associate.getFirstname() + " se, kao ugovorna strana-angažovano lice, obavezao da će za potrebe naručioca posla vršiti " + associate.getStatus().getAkkName() + ".";
         addLawArticleDescription(document, arialFont, scriptEnum, firstParagraph);
