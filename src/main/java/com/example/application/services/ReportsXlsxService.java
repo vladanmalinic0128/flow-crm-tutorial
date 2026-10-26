@@ -42,7 +42,8 @@ public class ReportsXlsxService {
 
     private XSSFSheet overallSheet = null;
 
-    public String generateReportForBanks(String fileTitle, ScriptEnum scriptEnum) throws IOException {
+    public synchronized String generateReportForBanks(String fileTitle, ScriptEnum scriptEnum) throws IOException {
+        dataStyles.clear();
         XSSFWorkbook workbook = new XSSFWorkbook();
 
         List<BankEntity> banks = bankRepository.findAll();
@@ -75,7 +76,7 @@ public class ReportsXlsxService {
         }
 
         for(MemberEntity member: memberRepository.findAll()) {
-            if(!member.getIsAcknowledged()) {
+            if(!Boolean.TRUE.equals(member.getIsAcknowledged())) {
                 writeRowIntoSheet(membersWithoutPayment, member, null, scriptEnum);
                 continue;
             }
@@ -104,7 +105,7 @@ public class ReportsXlsxService {
 
 
         for(PresidentEntity president: presidentRepository.findAll()) {
-            if(!president.getIsAcknowledged()) {
+            if(!Boolean.TRUE.equals(president.getIsAcknowledged())) {
                 writeRowIntoSheet(membersWithoutPayment, president, null, scriptEnum);
                 continue;
             }
@@ -143,7 +144,8 @@ public class ReportsXlsxService {
         return saveDocument(fileTitle, workbook);
     }
 
-    public String generateReportForBanksByAssociates(String fileTitle, ScriptEnum scriptEnum, boolean isExtern) throws IOException {
+    public synchronized String generateReportForBanksByAssociates(String fileTitle, ScriptEnum scriptEnum, boolean isExtern) throws IOException {
+        dataStyles.clear();
         XSSFWorkbook workbook = new XSSFWorkbook();
 
         List<BankEntity> banks = bankRepository.findAll();
@@ -169,7 +171,7 @@ public class ReportsXlsxService {
             dataStyles.put(sheet, councelXlsxService.generateCellStyleForCounselMembersColumn(sheet));
         }
 
-        for(AssociateEntity member: associateRepository.findAll().stream().filter(a -> a.getIsExtern() == isExtern).toList()) {
+        for(AssociateEntity member: associateRepository.findAll().stream().filter(a -> Boolean.TRUE.equals(a.getIsExtern()) == isExtern).toList()) {
             if (isBankNumberEmpty(member.getBankNumber())) {
                 if(isExtern)
                     writeRowIntoSheet(membersWithoutBankNumberSheet, member, null, scriptEnum);
@@ -213,7 +215,7 @@ public class ReportsXlsxService {
 
     private Optional<BankEntity> findBankByPrefix(String bankNumber) {
         return bankRepository.findAll().stream()
-                .filter(bank -> bankNumber.startsWith(bank.getPrefix()))
+                .filter(bank -> bank.getPrefix() != null && bankNumber.startsWith(bank.getPrefix()))
                 .findAny();
     }
 
@@ -280,7 +282,8 @@ public class ReportsXlsxService {
         cell = row.createCell(7);
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
         Integer amount = member.getPrice();
-        cell.setCellValue(amount);
+        if(amount != null)
+            cell.setCellValue(amount);
 
         addBrutoCalculation(sheet, row);
     }
@@ -348,7 +351,8 @@ public class ReportsXlsxService {
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
         Integer amount;
         amount = president.getPrice();
-        cell.setCellValue(amount);
+        if(amount != null)
+            cell.setCellValue(amount);
 
         addBrutoCalculation(sheet, row);
     }
@@ -434,7 +438,8 @@ public class ReportsXlsxService {
         cell = row.createCell(7);
         cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
         Double amount = associate.getPrice();
-        cell.setCellValue(amount);
+        if(amount != null)
+            cell.setCellValue(amount);
 
         addBrutoCalculationForAssociates(sheet, row);
     }
