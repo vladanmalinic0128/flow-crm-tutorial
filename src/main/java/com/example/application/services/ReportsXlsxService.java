@@ -37,6 +37,7 @@ public class ReportsXlsxService {
 
     private final JMBGValidator jmbgValidator;
     Map<Sheet, Map<HorizontalAlignment, XSSFCellStyle>> dataStyles = new HashMap<>();
+    Map<Sheet, XSSFCellStyle> amountStyles = new HashMap<>();
 
     DataFormat dataFormat;
 
@@ -44,6 +45,7 @@ public class ReportsXlsxService {
 
     public synchronized String generateReportForBanks(String fileTitle, ScriptEnum scriptEnum) throws IOException {
         dataStyles.clear();
+        amountStyles.clear();
         XSSFWorkbook workbook = new XSSFWorkbook();
 
         List<BankEntity> banks = bankRepository.findAll();
@@ -146,6 +148,7 @@ public class ReportsXlsxService {
 
     public synchronized String generateReportForBanksByAssociates(String fileTitle, ScriptEnum scriptEnum, boolean isExtern) throws IOException {
         dataStyles.clear();
+        amountStyles.clear();
         XSSFWorkbook workbook = new XSSFWorkbook();
 
         List<BankEntity> banks = bankRepository.findAll();
@@ -280,7 +283,7 @@ public class ReportsXlsxService {
         }
 
         cell = row.createCell(7);
-        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+        cell.setCellStyle(amountStyle(sheet));
         Integer amount = member.getPrice();
         if(amount != null)
             cell.setCellValue(amount);
@@ -348,7 +351,7 @@ public class ReportsXlsxService {
         }
 
         cell = row.createCell(7);
-        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+        cell.setCellStyle(amountStyle(sheet));
         Integer amount;
         amount = president.getPrice();
         if(amount != null)
@@ -436,7 +439,7 @@ public class ReportsXlsxService {
         }
 
         cell = row.createCell(7);
-        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+        cell.setCellStyle(amountStyle(sheet));
         Double amount = associate.getPrice();
         if(amount != null)
             cell.setCellValue(amount);
@@ -480,7 +483,7 @@ public class ReportsXlsxService {
 
 
         cell = row.createCell(7);
-        cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+        cell.setCellStyle(amountStyle(sheet));
         String formula = String.format("SUM(H%d:H%d)", 2, sheet.getLastRowNum());
         cell.setCellFormula(formula);
 
@@ -611,8 +614,19 @@ public class ReportsXlsxService {
         cell.setCellValue(value);
     }
 
+    // Iznosi i formule moraju imati brojcani format; tekstualni ("@") format kvari sabiranje u Excelu
+    private XSSFCellStyle amountStyle(XSSFSheet sheet) {
+        return amountStyles.computeIfAbsent(sheet, s -> {
+            XSSFCellStyle style = sheet.getWorkbook().createCellStyle();
+            style.cloneStyleFrom(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            style.setDataFormat(sheet.getWorkbook().createDataFormat().getFormat("#,##0.00"));
+            return style;
+        });
+    }
+
     private String saveDocument(String fileTitle, XSSFWorkbook workbook) {
         String fileName = ROOT_PATH + File.separator + fileTitle;
+        workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
         FileOutputStream outputStream = null;
         try {
             outputStream = new FileOutputStream(fileName);
@@ -703,37 +717,37 @@ public class ReportsXlsxService {
         XSSFCell cell = null;
         if (this.overallSheet != null && this.overallSheet.equals(sheet)) {
             cell = row.createCell(8);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             String formula = String.format("ROUND(H%d/0.6003, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(9);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND(I%d*0.31, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(10);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND(I%d*0.185, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(11);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND(I%d*0.102, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(12);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND(I%d*0.017, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(13);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND(I%d*0.006, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(14);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND((I%d-J%d)*0.13, 2)", sheet.getLastRowNum() + 1, sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
         }
@@ -743,37 +757,37 @@ public class ReportsXlsxService {
         XSSFCell cell = null;
         if (this.overallSheet != null && this.overallSheet.equals(sheet)) {
             cell = row.createCell(8);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             String formula = String.format("ROUND(H%d/0.70905, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(9);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("0");
             cell.setCellFormula(formula);
 
             cell = row.createCell(10);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND(I%d*0.185, 2)", sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
 
             cell = row.createCell(11);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("0");
             cell.setCellFormula(formula);
 
             cell = row.createCell(12);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("0");
             cell.setCellFormula(formula);
 
             cell = row.createCell(13);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("0");
             cell.setCellFormula(formula);
 
             cell = row.createCell(14);
-            cell.setCellStyle(this.dataStyles.get(sheet).get(HorizontalAlignment.RIGHT));
+            cell.setCellStyle(amountStyle(sheet));
             formula = String.format("ROUND((I%d-K%d)*0.13, 2)", sheet.getLastRowNum() + 1, sheet.getLastRowNum() + 1);
             cell.setCellFormula(formula);
         }
