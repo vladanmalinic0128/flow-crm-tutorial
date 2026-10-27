@@ -524,7 +524,7 @@ public class CollaboratorsXlsxService {
         addLawArticleTitle(document, arialFont, scriptEnum, "Član 1.");
         addSmallEmptyRow(document);
 
-        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Prijevremenih izbora za predsjednika Republike Srpske 2025. godine";
+        String description = "Izvršilac posla se obavezuje da po nalogu Naručioca posla radi " + associate.getStatus().getAkkName() + " u pripremi i provođenju Opštih izbora 2026. godine";
         if(associate.getJmbg().equals("2011998100010") || associate.getJmbg().equals("0508998100082") || associate.getJmbg().equals("1007998100036") )
             description += " (razvoj aplikacije za obradu podataka o posmatračima i biračkim odborima, kao i ostali administrativno-tehnički poslovi)";
         description += ".";
